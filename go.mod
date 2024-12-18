@@ -1,4 +1,4 @@
-module github.com/emer/vision/v2
+module github.com/emer/v1vision
 
 go 1.22
 

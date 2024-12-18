@@ -21,8 +21,8 @@ import (
 	"cogentcore.org/core/tensor/tmath"
 	"cogentcore.org/core/tree"
 	"github.com/anthonynsimon/bild/transform"
-	"github.com/emer/vision/v2/dog"
-	"github.com/emer/vision/v2/vfilter"
+	"github.com/emer/v1vision/dog"
+	"github.com/emer/v1vision/vfilter"
 )
 
 func main() {

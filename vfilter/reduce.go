@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"cogentcore.org/core/tensor"
-	"github.com/emer/vision/v2/nproc"
+	"github.com/emer/v1vision/nproc"
 )
 
 // MaxReduceFilterY performs max-pooling reduce over inner Filter Y

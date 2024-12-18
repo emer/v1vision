@@ -11,7 +11,7 @@ import (
 
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tensor"
-	"github.com/emer/vision/v2/nproc"
+	"github.com/emer/v1vision/nproc"
 )
 
 var (

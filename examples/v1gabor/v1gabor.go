@@ -19,11 +19,11 @@ import (
 	_ "cogentcore.org/core/tensor/tensorcore" // include to get gui views
 	"cogentcore.org/core/tree"
 	"github.com/anthonynsimon/bild/transform"
-	"github.com/emer/vision/v2/fffb"
-	"github.com/emer/vision/v2/gabor"
-	"github.com/emer/vision/v2/kwta"
-	"github.com/emer/vision/v2/v1complex"
-	"github.com/emer/vision/v2/vfilter"
+	"github.com/emer/v1vision/fffb"
+	"github.com/emer/v1vision/gabor"
+	"github.com/emer/v1vision/kwta"
+	"github.com/emer/v1vision/v1complex"
+	"github.com/emer/v1vision/vfilter"
 )
 
 func main() {

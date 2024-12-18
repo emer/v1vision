@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"cogentcore.org/core/tensor"
-	"github.com/emer/vision/v2/nproc"
+	"github.com/emer/v1vision/nproc"
 )
 
 // Conv1 performs convolution of single filter over img into out.

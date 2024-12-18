@@ -8,7 +8,7 @@ import (
 	"image"
 
 	"cogentcore.org/core/tensor"
-	"github.com/emer/vision/v2/vfilter"
+	"github.com/emer/v1vision/vfilter"
 )
 
 // RGBImgLMSComps converts an RGB image to corresponding LMS components

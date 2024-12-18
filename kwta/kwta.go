@@ -9,8 +9,8 @@ package kwta
 import (
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tensor"
-	"github.com/emer/vision/v2/fffb"
-	"github.com/emer/vision/v2/nxx1"
+	"github.com/emer/v1vision/fffb"
+	"github.com/emer/v1vision/nxx1"
 )
 
 // KWTA contains all the parameters needed for computing FFFB
