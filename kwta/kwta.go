@@ -8,7 +8,7 @@ package kwta
 
 import (
 	"cogentcore.org/core/math32"
-	"cogentcore.org/core/tensor"
+	"cogentcore.org/lab/tensor"
 	"github.com/emer/v1vision/fffb"
 	"github.com/emer/v1vision/nxx1"
 )

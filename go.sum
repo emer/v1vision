@@ -1,5 +1,7 @@
-cogentcore.org/core v0.3.7-0.20241209071130-fd5749020b08 h1:frWskDXZyjO2LFpx0Ur/56zQQEH8KQ0SiUSaJULkiN0=
-cogentcore.org/core v0.3.7-0.20241209071130-fd5749020b08/go.mod h1:P5sOFH1GF4z7Sir+cVo8AmpSp7TKCehAmIsZ2w4DNro=
+cogentcore.org/core v0.3.8-0.20241223001113-dbeb6f356523 h1:wPx13YqgkwzAzhnnUhaGKp3tnJXJmgUCp+alKj/0Ocs=
+cogentcore.org/core v0.3.8-0.20241223001113-dbeb6f356523/go.mod h1:Ipnb14B+l0qLzjvcvCIhnDucV9H9RyuqS4knZz5kB8A=
+cogentcore.org/lab v0.0.0-20241223001418-86d359d14cb5 h1:wO8tyjVp3U8SphHiK+Pwx8ahHtLIGJRq+P1HOwX6gXM=
+cogentcore.org/lab v0.0.0-20241223001418-86d359d14cb5/go.mod h1:mwkhWd1mVPzjjtXga3iMRE/80RiZHvNHZSx87la9BJc=
 github.com/Bios-Marcel/wastebasket v0.0.4-0.20240213135800-f26f1ae0a7c4 h1:6lx9xzJAhdjq0LvVfbITeC3IH9Fzvo1aBahyPu2FuG8=
 github.com/Bios-Marcel/wastebasket v0.0.4-0.20240213135800-f26f1ae0a7c4/go.mod h1:FChzXi1izqzdPb6BiNZmcZLGyTYiT61iGx9Rxx9GNeI=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
@@ -12,8 +14,8 @@ github.com/aymerick/douceur v0.2.0 h1:Mv+mAeH1Q+n9Fr+oyamOlAkUNPWPlA8PPGR0QAaYuP
 github.com/aymerick/douceur v0.2.0/go.mod h1:wlT5vV2O3h55X9m7iVYN0TBM0NH/MmbLnd30/FjWUq4=
 github.com/chewxy/math32 v1.10.1 h1:LFpeY0SLJXeaiej/eIp2L40VYfscTvKh/FSEZ68uMkU=
 github.com/chewxy/math32 v1.10.1/go.mod h1:dOB2rcuFrCn6UHrze36WSLVPKtzPMRAQvBvUwkSsLqs=
-github.com/cogentcore/webgpu v0.0.0-20241209022019-c49c394fb750 h1:XtX2xK7rxQ8P8Omcy+07NgOihkp2bqG/w9na62ssUco=
-github.com/cogentcore/webgpu v0.0.0-20241209022019-c49c394fb750/go.mod h1:ciqaxChrmRRMU1SnI5OE12Cn3QWvOKO+e5nSy+N9S1o=
+github.com/cogentcore/webgpu v0.0.0-20241212004832-ad7475f3b4dd h1:wmOdOGOfQDY/hmiQTWzoM59SskQSjrMz91jWv0gt6Yg=
+github.com/cogentcore/webgpu v0.0.0-20241212004832-ad7475f3b4dd/go.mod h1:ciqaxChrmRRMU1SnI5OE12Cn3QWvOKO+e5nSy+N9S1o=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
 github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
@@ -22,8 +24,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20241201091049-2bf1680528df h1:mYQPr9cA5hrcnXe/ZBL4eShmo9hXH/Jn2O0EIHE0Lp0=
-github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20241201091049-2bf1680528df/go.mod h1:mW3FS2fPR2gdVu+oXmri3Rw6hDgBz+JUFZf7+4WJL0E=
+github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20241223003052-cdb9fc4a3d25 h1:Gi43gzEN9I7llIdqEYszc3T3XQmycKSakiCdsjknA/k=
+github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20241223003052-cdb9fc4a3d25/go.mod h1:NF+du0pAMGB+9uYiOBeD456ANO8iP+gt91cjTT4ql8s=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
@@ -82,11 +84,11 @@ golang.org/x/image v0.18.0/go.mod h1:4yyo5vMFQjVjUcVk4jEQcU9MGy/rulF5WvUILseCM2E
 golang.org/x/net v0.28.0 h1:a9JDOJc5GMUJ0+UDqmLT86WiEy7iWyIhz8gz8E4e5hE=
 golang.org/x/net v0.28.0/go.mod h1:yqtgsTWOOnlGLG9GFRrK3++bGOUEkNBoHZc8MEDWPNg=
 golang.org/x/sys v0.0.0-20181205085412-a5c9d58dba9a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
-golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
-golang.org/x/sys v0.23.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
+golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
-golang.org/x/text v0.17.0 h1:XtiM5bkSOt+ewxlOE/aE/AKEHibwj/6gvWMl9Rsh0Qc=
-golang.org/x/text v0.17.0/go.mod h1:BuEKDfySbSR4drPmRPG/7iBdf8hvFMuRexcpahXilzY=
+golang.org/x/text v0.21.0 h1:zyQAAkrwaneQ066sspRyJaG9VNi/YJ1NfzcGB3hZ/qo=
+golang.org/x/text v0.21.0/go.mod h1:4IBbMaMmOPCJ8SecivzSH54+73PCFmPWxNTLm+vZkEQ=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

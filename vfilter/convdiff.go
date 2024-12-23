@@ -8,7 +8,7 @@ import (
 	"image"
 	"sync"
 
-	"cogentcore.org/core/tensor"
+	"cogentcore.org/lab/tensor"
 	"github.com/emer/v1vision/nproc"
 )
 

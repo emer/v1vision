@@ -12,12 +12,12 @@ import (
 
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
-	"cogentcore.org/core/tensor"
-	"cogentcore.org/core/tensor/stats/stats"
-	"cogentcore.org/core/tensor/table"
-	"cogentcore.org/core/tensor/tensorcore"
-	_ "cogentcore.org/core/tensor/tensorcore" // include to get gui views
 	"cogentcore.org/core/tree"
+	"cogentcore.org/lab/stats/stats"
+	"cogentcore.org/lab/table"
+	"cogentcore.org/lab/tensor"
+	"cogentcore.org/lab/tensorcore"
+	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/fffb"
 	"github.com/emer/v1vision/gabor"

@@ -3,9 +3,10 @@ module github.com/emer/v1vision
 go 1.22
 
 require (
-	cogentcore.org/core v0.3.7-0.20241209071130-fd5749020b08
+	cogentcore.org/core v0.3.8-0.20241223001113-dbeb6f356523
+	cogentcore.org/lab v0.0.0-20241223001418-86d359d14cb5
 	github.com/anthonynsimon/bild v0.13.0
-	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20241201091049-2bf1680528df
+	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20241223003052-cdb9fc4a3d25
 )
 
 require (
@@ -13,7 +14,7 @@ require (
 	github.com/Masterminds/vcs v1.13.3 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/chewxy/math32 v1.10.1 // indirect
-	github.com/cogentcore/webgpu v0.0.0-20241209022019-c49c394fb750 // indirect
+	github.com/cogentcore/webgpu v0.0.0-20241212004832-ad7475f3b4dd // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20240506104042-037f3cc74f2a // indirect
 	github.com/goki/freetype v1.0.5 // indirect
@@ -28,6 +29,6 @@ require (
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948 // indirect
 	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/sys v0.23.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 )

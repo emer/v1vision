@@ -6,7 +6,7 @@ package colorspace
 
 import (
 	"cogentcore.org/core/math32"
-	"cogentcore.org/core/tensor"
+	"cogentcore.org/lab/tensor"
 )
 
 // SRGBToOp implements a lookup-table for the conversion of

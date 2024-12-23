@@ -12,10 +12,10 @@ import (
 
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
-	"cogentcore.org/core/tensor"
-	"cogentcore.org/core/tensor/table"
-	"cogentcore.org/core/tensor/tensorcore"
 	"cogentcore.org/core/tree"
+	"cogentcore.org/lab/table"
+	"cogentcore.org/lab/tensor"
+	"cogentcore.org/lab/tensorcore"
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/colorspace"
 	"github.com/emer/v1vision/dog"

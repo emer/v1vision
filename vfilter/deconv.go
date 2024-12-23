@@ -9,7 +9,7 @@ import (
 	"log"
 	"slices"
 
-	"cogentcore.org/core/tensor"
+	"cogentcore.org/lab/tensor"
 )
 
 // Deconv performs reverse convolution of filter -- given output of filter,

@@ -9,7 +9,7 @@ import (
 	"image/color"
 
 	"cogentcore.org/core/colors"
-	"cogentcore.org/core/tensor"
+	"cogentcore.org/lab/tensor"
 )
 
 // RGBToTensor converts an RGB input image to an RGB tensor
