@@ -245,7 +245,7 @@ func (vi *Vis) V1Simple() {
 func (vi *Vis) ImgFromV1Simple() {
 	tensor.SetShapeFrom(&vi.V1sUnPoolTsr, &vi.V1sMaxTsr)
 	vi.V1sUnPoolTsr.SetZeros()
-	vi.ImgFromV1sTsr.SetShapeSizes(vi.Img.Tsr.Shape().Sizes[1:]...)
+	vi.ImgFromV1sTsr.SetShapeSizes(vi.Img.Tsr.ShapeSizes()[1:]...)
 	vi.ImgFromV1sTsr.SetZeros()
 	vfilter.UnPool(image.Point{2, 2}, image.Point{2, 2}, &vi.V1sUnPoolTsr, &vi.V1sPoolTsr, true)
 	vfilter.Deconv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImgFromV1sTsr, &vi.V1sUnPoolTsr, vi.V1sGabor.Gain)
