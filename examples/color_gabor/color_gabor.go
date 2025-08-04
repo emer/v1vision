@@ -8,8 +8,8 @@ package main
 
 import (
 	"image"
-	"log"
 
+	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/tree"
@@ -64,8 +64,7 @@ func (vi *V1Img) OpenImage(filepath string, filtsz int) error { //types:add
 	var err error
 	vi.Img, _, err = imagex.Open(filepath)
 	if err != nil {
-		log.Println(err)
-		return err
+		return errors.Log(err)
 	}
 	isz := vi.Img.Bounds().Size()
 	if isz != vi.Size {
@@ -295,8 +294,7 @@ func (vi *Vis) V1All() {
 func (vi *Vis) Filter() error { //types:add
 	err := vi.Img.OpenImage(string(vi.Img.File), vi.V1sGeom.FiltRt.X)
 	if err != nil {
-		log.Println(err)
-		return err
+		return errors.Log(err)
 	}
 	vi.V1Simple()
 	vi.V1Complex()
