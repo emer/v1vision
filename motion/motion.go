@@ -32,7 +32,7 @@ type Params struct {
 func (pr *Params) Defaults() {
 	pr.SlowTau = 10
 	pr.FastTau = 5
-	pr.Gain = 2
+	pr.Gain = 20
 }
 
 // IntegrateFrame integrates one frame of values into fast and slow tensors.

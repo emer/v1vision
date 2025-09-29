@@ -111,6 +111,8 @@ func (vi *Vis) Defaults() {
 
 // RenderFrames renders the frames
 func (vi *Vis) RenderFrames() { //types:add
+	tensor.SetAllFloat64(&vi.Slow, 0)
+	tensor.SetAllFloat64(&vi.Fast, 0)
 	vi.Pos = vi.Start
 	for range vi.NFrames {
 		vi.RenderFrame()

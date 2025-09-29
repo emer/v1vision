@@ -14,6 +14,10 @@ When visual input is moving from the right to the left, the right neuron experie
 
 Critically, when there is a uniform onset of a novel input, both neurons receive the same initial excitatory transient, which then is balanced by the slower inhibition. Their mutual inhibition cancels this out.
 
+The circuit also needs to multiply by the min activity of any input, so that it doesn't just respond to edges where there is nothing and then something.
+
+TODO: experiment with more discrete integration dynamics for fast / slow?  gets some false alarms around edges still.
+
 # Retinal direction filtering
 
 The starburst amacrine cells (SAC) are critical for computing directionally-sensitive signals in the retina (Wei, 2018; Morrie & Feller; 2018; Brombas et al, 2017; Jain et al, 2020; Greene et al, 2016). They have radially-symmetric dendritic arbors, and exhibit center-out motion sensitivity, such that visual signals propagating from the center RF outward maximally activate the neuron. The maximal activating stimulus would thus be an annular looming-like stimulus, e.g., zooming into a ring-shaped stimulus centered around the central RF point.
