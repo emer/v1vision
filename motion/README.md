@@ -16,7 +16,7 @@ Critically, when there is a uniform onset of a novel input, both neurons receive
 
 The circuit also needs to multiply by the min activity of any input, so that it doesn't just respond to edges where there is nothing and then something.
 
-TODO: experiment with more discrete integration dynamics for fast / slow?  gets some false alarms around edges still.
+Key that integration has immediate rise and the difference is in the decay times, so anything that is still is always equalized at the same values.
 
 # Retinal direction filtering
 

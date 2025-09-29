@@ -46,8 +46,16 @@ func (pr *Params) IntegrateFrame(slow, fast, in *tensor.Float32) {
 		v := in.Value1D(i)
 		s := slow.Value1D(i)
 		f := fast.Value1D(i)
-		s += sdt * (v - s)
-		f += fdt * (v - f)
+		if v > s {
+			s = v
+		} else {
+			s += sdt * (v - s)
+		}
+		if v > f {
+			f = v
+		} else {
+			f += fdt * (v - f)
+		}
 		slow.Set1D(s, i)
 		fast.Set1D(f, i)
 	}
