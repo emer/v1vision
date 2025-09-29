@@ -1,7 +1,7 @@
-# vision
+# V1 vision
 
-This repository contains visual processing packages in Go (golang), focused mainly on providing efficient V1 (primary visual cortex) level filtering of images, with the output then suitable as input for neural networks.
-
+This repository contains visual processing packages in Go (golang), focused on providing efficient V1 (primary visual cortex) level filtering of images, with the output then suitable as input for neural networks.
+ 
 Two main types of filters are supported:
 
 * **Gabor** filters simulate V1 simple-cell responses in terms of an oriented sine wave times a gaussian envelope that localizes the filter in space.  This produces an edge detector that detects oriented contrast transitions between light and dark.  In general, the main principle of primary visual filtering is to focus on spatial (and temporal) changes, while filtering out static, uniform areas.

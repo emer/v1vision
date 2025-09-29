@@ -10,8 +10,6 @@ import (
 	"image"
 	"math"
 
-	"cogentcore.org/core/base/errors"
-	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/tree"
 	"cogentcore.org/lab/stats/stats"
@@ -20,8 +18,9 @@ import (
 	"cogentcore.org/lab/tensor/tmath"
 	"cogentcore.org/lab/tensorcore"
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
-	"github.com/anthonynsimon/bild/transform"
+	"github.com/emer/emergent/v2/edge"
 	"github.com/emer/v1vision/dog"
+	"github.com/emer/v1vision/motion"
 	"github.com/emer/v1vision/vfilter"
 )
 
@@ -36,8 +35,26 @@ func main() {
 // use in a given case -- can add / modify this as needed
 type Vis struct { //types:add
 
-	// name of image file to operate on
-	ImageFile core.Filename
+	// NFrames is the number of frames to render per trial.
+	NFrames int
+
+	// target image size to use.
+	ImageSize image.Point
+
+	// Bar is the size of the moving bar.
+	Bar image.Point
+
+	// Velocity is the motion direction vector.
+	Velocity image.Point
+
+	// Start is the starting position.
+	Start image.Point
+
+	// Pos is current position
+	Pos image.Point `edit:"-"`
+
+	// Motion parameters
+	Motion motion.Params
 
 	// LGN DoG filter parameters
 	DoG dog.Filter
@@ -45,8 +62,8 @@ type Vis struct { //types:add
 	// geometry of input, output
 	Geom vfilter.Geom `edit:"-"`
 
-	// target image size to use -- images will be rescaled to this size
-	ImageSize image.Point
+	// input image as tensor
+	ImageTsr tensor.Float32 `display:"no-inline"`
 
 	// DoG filter tensor -- has 3 filters (on, off, net)
 	DoGFilter tensor.Float32 `display:"no-inline"`
@@ -54,19 +71,24 @@ type Vis struct { //types:add
 	// DoG filter table (view only)
 	DoGTab table.Table `display:"no-inline"`
 
-	// current input image
-	Image image.Image `display:"-"`
-
-	// input image as tensor
-	ImageTsr tensor.Float32 `display:"no-inline"`
-
 	// DoG filter output tensor
-	OutTsr tensor.Float32 `display:"no-inline"`
+	DoGOutTsr tensor.Float32 `display:"no-inline"`
+
+	Slow      tensor.Float32 `display:"no-inline"`
+	Fast      tensor.Float32 `display:"no-inline"`
+	MotionOut tensor.Float32 `display:"no-inline"`
 }
 
 func (vi *Vis) Defaults() {
-	vi.ImageFile = core.Filename("side-tee-128.png")
+	vi.NFrames = 30
+	vi.ImageSize = image.Point{128, 128}
+	vi.ImageTsr.SetShapeSizes(128, 128)
+	vi.Bar = image.Point{8, 16}
+	vi.Velocity = image.Point{2, 0}
+	vi.Start = image.Point{8, 64}
 	vi.DoGTab.Init()
+	vi.Motion.Defaults()
+	vi.Motion.Gain = 20
 	vi.DoG.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
 	spc := 4
@@ -75,8 +97,6 @@ func (vi *Vis) Defaults() {
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FiltRt!
 	vi.Geom.Set(image.Point{0, 0}, image.Point{spc, spc}, image.Point{sz, sz})
-	vi.ImageSize = image.Point{128, 128}
-	// vi.ImageSize = image.Point{64, 64}
 	vi.DoG.ToTensor(&vi.DoGFilter)
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
 	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
@@ -89,44 +109,48 @@ func (vi *Vis) Defaults() {
 	})
 }
 
-// OpenImage opens given filename as current image Image
-// and converts to a float32 tensor for processing
-func (vi *Vis) OpenImage(filepath string) error { //types:add
-	var err error
-	vi.Image, _, err = imagex.Open(filepath)
-	if err != nil {
-		return errors.Log(err)
+// RenderFrames renders the frames
+func (vi *Vis) RenderFrames() { //types:add
+	vi.Pos = vi.Start
+	for range vi.NFrames {
+		vi.RenderFrame()
+		vi.LGNDoG()
+		vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, vi.DoGOutTsr.SubSpace(0).(*tensor.Float32)) // on only
+		vi.Pos = vi.Pos.Add(vi.Velocity)
 	}
-	isz := vi.Image.Bounds().Size()
-	if isz != vi.ImageSize {
-		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
+	vi.Motion.StarMotion(&vi.MotionOut, &vi.Slow, &vi.Fast)
+}
+
+// RenderFrame renders a frame
+func (vi *Vis) RenderFrame() {
+	tensor.SetAllFloat64(&vi.ImageTsr, 0)
+	for y := range vi.Bar.Y {
+		yp, _ := edge.Edge(y+vi.Pos.Y, vi.ImageSize.Y, true)
+		for x := range vi.Bar.X {
+			xp, _ := edge.Edge(x+vi.Pos.X, vi.ImageSize.X, true)
+			vi.ImageTsr.Set(1, yp, xp)
+		}
 	}
-	vfilter.RGBToGrey(vi.Image, &vi.ImageTsr, vi.Geom.FiltRt.X, false) // pad for filt, bot zero
-	vfilter.WrapPad(&vi.ImageTsr, vi.Geom.FiltRt.X)
-	return nil
 }
 
 // LGNDoG runs DoG filtering on input image
 // must have valid Image in place to start.
 func (vi *Vis) LGNDoG() {
 	flt := vi.DoG.FilterTensor(&vi.DoGFilter, dog.Net)
-	vfilter.Conv1(&vi.Geom, flt, &vi.ImageTsr, &vi.OutTsr, vi.DoG.Gain)
+	out := &vi.DoGOutTsr
+	vfilter.Conv1(&vi.Geom, flt, &vi.ImageTsr, out, vi.DoG.Gain)
 	// log norm is generally good it seems for dogs
-	n := vi.OutTsr.Len()
+	n := out.Len()
 	for i := range n {
-		vi.OutTsr.SetFloat1D(math.Log(vi.OutTsr.Float1D(i)+1), i)
+		out.SetFloat1D(math.Log(out.Float1D(i)+1), i)
 	}
-	mx := stats.Max(tensor.As1D(&vi.OutTsr))
-	tmath.DivOut(&vi.OutTsr, mx, &vi.OutTsr)
+	mx := stats.Max(tensor.As1D(out))
+	tmath.DivOut(out, mx, out)
 }
 
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters
 func (vi *Vis) Filter() error { //types:add
-	err := vi.OpenImage(string(vi.ImageFile))
-	if err != nil {
-		return errors.Log(err)
-	}
 	vi.LGNDoG()
 	return nil
 }
@@ -136,7 +160,7 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	core.NewForm(b).SetStruct(vi)
 	b.AddTopBar(func(bar *core.Frame) {
 		core.NewToolbar(bar).Maker(func(p *tree.Plan) {
-			tree.Add(p, func(w *core.FuncButton) { w.SetFunc(vi.Filter) })
+			tree.Add(p, func(w *core.FuncButton) { w.SetFunc(vi.RenderFrames) })
 		})
 	})
 	b.RunMainWindow()
