@@ -53,7 +53,7 @@ type Vis struct { //types:add
 	// Pos is current position
 	Pos image.Point `edit:"-"`
 
-	// Motion parameters
+	// Motion filter parameters.
 	Motion motion.Params
 
 	// LGN DoG filter parameters
@@ -117,7 +117,7 @@ func (vi *Vis) RenderFrames() { //types:add
 	for range vi.NFrames {
 		vi.RenderFrame()
 		vi.LGNDoG()
-		vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, vi.DoGOutTsr.SubSpace(0).(*tensor.Float32)) // on only
+		vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, &vi.DoGOutTsr)
 		vi.Pos = vi.Pos.Add(vi.Velocity)
 	}
 	vi.Motion.StarMotion(&vi.Star, &vi.Slow, &vi.Fast)

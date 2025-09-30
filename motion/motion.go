@@ -66,51 +66,53 @@ func (pr *Params) IntegrateFrame(slow, fast, in *tensor.Float32) {
 }
 
 // StarMotion computes starburst-style motion for given slow and fast
-// integrated values, which must be 2D tensors.
+// integrated values, which must be 3D tensors: filter, X, Y
 // The resulting output is stored in 2x2 inner dimensions of output
 // with left, right, down, up motion signals.
 func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
-	ny := slow.DimSize(0)
-	nx := slow.DimSize(1)
-	out.SetShapeSizes(ny-1, nx-1, 2, 2)
-	// fmt.Println(slow.ShapeSizes(), out.ShapeSizes())
-	for y := range ny - 1 {
-		for x := range nx - 1 {
-			sl := slow.Value(y, x)
-			sr := slow.Value(y, x+1)
-			fl := fast.Value(y, x)
-			fr := fast.Value(y, x+1)
-			minact := min(min(min(sl, fl), sr), fr)
-			ld := fl - sl
-			rd := fr - sr
-			if ld > rd {
-				v := minact * min(1, pr.Gain*(ld-rd))
-				out.Set(v, y, x, 0, 0)
-				out.Set(0, y, x, 0, 1)
-			} else {
-				v := minact * min(1, pr.Gain*(rd-ld))
-				out.Set(v, y, x, 0, 1)
-				out.Set(0, y, x, 0, 0)
+	nf := slow.DimSize(0)
+	ny := slow.DimSize(1)
+	nx := slow.DimSize(2)
+	out.SetShapeSizes(nf, ny-1, nx-1, 2, 2)
+	for flt := range nf {
+		for y := range ny - 1 {
+			for x := range nx - 1 {
+				sl := slow.Value(flt, y, x)
+				sr := slow.Value(flt, y, x+1)
+				fl := fast.Value(flt, y, x)
+				fr := fast.Value(flt, y, x+1)
+				minact := min(min(min(sl, fl), sr), fr)
+				ld := fl - sl
+				rd := fr - sr
+				if ld > rd {
+					v := minact * min(1, pr.Gain*(ld-rd))
+					out.Set(v, flt, y, x, 0, 0)
+					out.Set(0, flt, y, x, 0, 1)
+				} else {
+					v := minact * min(1, pr.Gain*(rd-ld))
+					out.Set(v, flt, y, x, 0, 1)
+					out.Set(0, flt, y, x, 0, 0)
+				}
 			}
 		}
-	}
-	for x := range nx - 1 {
-		for y := range ny - 1 {
-			sb := slow.Value(y, x)
-			st := slow.Value(y+1, x)
-			fb := fast.Value(y, x)
-			ft := fast.Value(y+1, x)
-			minact := min(min(min(sb, fb), st), ft)
-			bd := fb - sb
-			td := ft - st
-			if bd > td {
-				v := minact * min(1, pr.Gain*(bd-td))
-				out.Set(v, y, x, 0, 2)
-				out.Set(0, y, x, 0, 3)
-			} else {
-				v := minact * min(1, pr.Gain*(td-bd))
-				out.Set(v, y, x, 0, 3)
-				out.Set(0, y, x, 0, 2)
+		for x := range nx - 1 {
+			for y := range ny - 1 {
+				sb := slow.Value(flt, y, x)
+				st := slow.Value(flt, y+1, x)
+				fb := fast.Value(flt, y, x)
+				ft := fast.Value(flt, y+1, x)
+				minact := min(min(min(sb, fb), st), ft)
+				bd := fb - sb
+				td := ft - st
+				if bd > td {
+					v := minact * min(1, pr.Gain*(bd-td))
+					out.Set(v, flt, y, x, 0, 2)
+					out.Set(0, flt, y, x, 0, 3)
+				} else {
+					v := minact * min(1, pr.Gain*(td-bd))
+					out.Set(v, flt, y, x, 0, 3)
+					out.Set(0, flt, y, x, 0, 2)
+				}
 			}
 		}
 	}
@@ -121,24 +123,27 @@ func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
 // Opposite directions compete.
 func (pr *Params) FullField(out, star *tensor.Float32) {
 	out.SetShapeSizes(2, 2)
-	ny := star.DimSize(0)
-	nx := star.DimSize(1)
+	nf := star.DimSize(0)
+	ny := star.DimSize(1)
+	nx := star.DimSize(2)
 	tensor.SetAllFloat64(out, 0)
-	for y := range ny {
-		for x := range nx {
-			l := star.Value(y, x, 0, 0)
-			r := star.Value(y, x, 0, 1)
-			if l > r {
-				out.SetAdd(l-r, 0, 0)
-			} else {
-				out.SetAdd(r-l, 0, 1)
-			}
-			b := star.Value(y, x, 1, 0)
-			t := star.Value(y, x, 1, 1)
-			if b > t {
-				out.SetAdd(b-t, 1, 0)
-			} else {
-				out.SetAdd(t-b, 1, 1)
+	for flt := range nf {
+		for y := range ny {
+			for x := range nx {
+				l := star.Value(flt, y, x, 0, 0)
+				r := star.Value(flt, y, x, 0, 1)
+				if l > r {
+					out.SetAdd(l-r, 0, 0)
+				} else {
+					out.SetAdd(r-l, 0, 1)
+				}
+				b := star.Value(flt, y, x, 1, 0)
+				t := star.Value(flt, y, x, 1, 1)
+				if b > t {
+					out.SetAdd(b-t, 1, 0)
+				} else {
+					out.SetAdd(t-b, 1, 1)
+				}
 			}
 		}
 	}
