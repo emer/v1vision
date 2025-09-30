@@ -76,7 +76,8 @@ type Vis struct { //types:add
 
 	Slow      tensor.Float32 `display:"no-inline"`
 	Fast      tensor.Float32 `display:"no-inline"`
-	MotionOut tensor.Float32 `display:"no-inline"`
+	Star      tensor.Float32 `display:"no-inline"`
+	FullField tensor.Float32 `display:"no-inline"`
 }
 
 func (vi *Vis) Defaults() {
@@ -88,7 +89,6 @@ func (vi *Vis) Defaults() {
 	vi.Start = image.Point{8, 64}
 	vi.DoGTab.Init()
 	vi.Motion.Defaults()
-	vi.Motion.Gain = 20
 	vi.DoG.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
 	spc := 4
@@ -120,7 +120,8 @@ func (vi *Vis) RenderFrames() { //types:add
 		vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, vi.DoGOutTsr.SubSpace(0).(*tensor.Float32)) // on only
 		vi.Pos = vi.Pos.Add(vi.Velocity)
 	}
-	vi.Motion.StarMotion(&vi.MotionOut, &vi.Slow, &vi.Fast)
+	vi.Motion.StarMotion(&vi.Star, &vi.Slow, &vi.Fast)
+	vi.Motion.FullField(&vi.FullField, &vi.Star)
 }
 
 // RenderFrame renders a frame

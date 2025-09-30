@@ -25,14 +25,18 @@ type Params struct {
 	// fast excitatory inputs.
 	FastTau float32
 
-	// Gain is multiplier on difference.
+	// Gain is multiplier on the opponent difference for Star computation.
 	Gain float32
+
+	// FullGain is multiplier for FullField, which goes into a x/x+1 function.
+	FullGain float32
 }
 
 func (pr *Params) Defaults() {
-	pr.SlowTau = 10
-	pr.FastTau = 5
+	pr.SlowTau = 20
+	pr.FastTau = 10
 	pr.Gain = 20
+	pr.FullGain = 5
 }
 
 // IntegrateFrame integrates one frame of values into fast and slow tensors.
@@ -109,5 +113,55 @@ func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
 				out.Set(0, y, x, 0, 2)
 			}
 		}
+	}
+}
+
+// FullField computes a full-field summary of output from StarMotion.
+// Result is just a 2x2 output with left, right, bottom, top units.
+// Opposite directions compete.
+func (pr *Params) FullField(out, star *tensor.Float32) {
+	out.SetShapeSizes(2, 2)
+	ny := star.DimSize(0)
+	nx := star.DimSize(1)
+	tensor.SetAllFloat64(out, 0)
+	for y := range ny {
+		for x := range nx {
+			l := star.Value(y, x, 0, 0)
+			r := star.Value(y, x, 0, 1)
+			if l > r {
+				out.SetAdd(l-r, 0, 0)
+			} else {
+				out.SetAdd(r-l, 0, 1)
+			}
+			b := star.Value(y, x, 1, 0)
+			t := star.Value(y, x, 1, 1)
+			if b > t {
+				out.SetAdd(b-t, 1, 0)
+			} else {
+				out.SetAdd(t-b, 1, 1)
+			}
+		}
+	}
+	act := func(v float32) float32 {
+		v *= pr.FullGain
+		return v / (v + 1)
+	}
+	l := out.Value(0, 0)
+	r := out.Value(0, 1)
+	if l > r {
+		out.Set(act(l-r), 0, 0)
+		out.Set(0, 0, 1)
+	} else {
+		out.Set(act(r-l), 0, 1)
+		out.Set(0, 0, 0)
+	}
+	b := out.Value(1, 0)
+	t := out.Value(1, 1)
+	if b > t {
+		out.Set(act(b-t), 1, 0)
+		out.Set(0, 1, 1)
+	} else {
+		out.Set(act(t-b), 1, 1)
+		out.Set(0, 1, 0)
 	}
 }
