@@ -16,7 +16,11 @@ Critically, when there is a uniform onset of a novel input, both neurons receive
 
 To ensure zero responding for static elements, it is critical that the temporal integration has a quick (immediate) rise and the difference is in the decay times, so anything that is still is always equalized at the same values. Thus, motion is registered in the immediate trail of a moving element, where the fast trace decays away faster than the slow one. It is therefore always a net inhibitory signal, with the direction of motion experiencing less inhibition than the other.
 
-# Retinal direction filtering
+## Integral over space = speed
+
+Speed of motion can be computed by a simple principle: The longer the trace, the faster the motion. If you just sum up the fast - slow differences across the visual field, this basically comes out for free. It needs to be normalized by the instantaneous size of the visual input to be properly calibrated, so that differences in raw visual filter activity are controlled for.
+
+## Retinal direction filtering
 
 The starburst amacrine cells (SAC) are critical for computing directionally sensitive signals in the retina (Wei, 2018; Morrie & Feller; 2018; Brombas et al, 2017; Jain et al, 2020; Greene et al, 2016). They have radially symmetric dendritic arbors, and exhibit center-out motion sensitivity (centrifugal fields), such that visual signals propagating from the center RF outward maximally activate the neuron. The maximal activating stimulus would thus be an annular looming-like stimulus, e.g., zooming into a ring-shaped stimulus centered around the central RF point.
 

@@ -28,15 +28,21 @@ type Params struct {
 	// Gain is multiplier on the opponent difference for Star computation.
 	Gain float32
 
-	// FullGain is multiplier for FullField, which goes into a x/x+1 function.
+	// FullGain is multiplier for FullField
 	FullGain float32
+
+	// IntegTau is the integration time constant for integrating
+	// the normalization and full field values over frames, to get
+	// a more consistent value.
+	IntegTau float32
 }
 
 func (pr *Params) Defaults() {
 	pr.SlowTau = 20
 	pr.FastTau = 10
 	pr.Gain = 20
-	pr.FullGain = 5
+	pr.FullGain = 1
+	pr.IntegTau = 10
 }
 
 // IntegrateFrame integrates one frame of values into fast and slow tensors.
@@ -118,55 +124,91 @@ func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
 	}
 }
 
+// FilterEnergy computes the total visual filter energy from snapshot input
+// filters, in a way that is suitable as a normalizing factor for
+// the FullField function.
+func (pr *Params) FilterEnergy(in *tensor.Float32) float32 {
+	sum := float32(0)
+	n := in.Len()
+	for i := range n {
+		v := in.Value1D(i)
+		sum += v
+	}
+	return sum
+}
+
 // FullField computes a full-field summary of output from StarMotion.
 // Result is just a 2x2 output with left, right, bottom, top units.
 // Opposite directions compete.
-func (pr *Params) FullField(out, star *tensor.Float32) {
-	out.SetShapeSizes(2, 2)
+// insta = instantaneous full-field values per this frame
+// integ = integrated full-field values over time
+// visNorm = total filter energy normalization factor, e.g., from FilterEnergy
+// visNormInteg = integrated visNorm, actually used for normalization
+func (pr *Params) FullField(insta, integ, star *tensor.Float32, visNorm float32, visNormInteg *float32) {
+	insta.SetShapeSizes(2, 2)
+	integ.SetShapeSizes(2, 2)
 	nf := star.DimSize(0)
 	ny := star.DimSize(1)
 	nx := star.DimSize(2)
-	tensor.SetAllFloat64(out, 0)
+	tensor.SetAllFloat64(insta, 0)
+
+	idt := 1.0 / pr.IntegTau
+	if *visNormInteg == 0 {
+		*visNormInteg = visNorm
+	} else {
+		*visNormInteg += idt * (visNorm - *visNormInteg)
+	}
+	vnf := pr.FullGain
+	if *visNormInteg > 0 {
+		vnf /= *visNormInteg
+	}
+
 	for flt := range nf {
 		for y := range ny {
 			for x := range nx {
 				l := star.Value(flt, y, x, 0, 0)
 				r := star.Value(flt, y, x, 0, 1)
 				if l > r {
-					out.SetAdd(l-r, 0, 0)
+					insta.SetAdd(l-r, 0, 0)
 				} else {
-					out.SetAdd(r-l, 0, 1)
+					insta.SetAdd(r-l, 0, 1)
 				}
 				b := star.Value(flt, y, x, 1, 0)
 				t := star.Value(flt, y, x, 1, 1)
 				if b > t {
-					out.SetAdd(b-t, 1, 0)
+					insta.SetAdd(b-t, 1, 0)
 				} else {
-					out.SetAdd(t-b, 1, 1)
+					insta.SetAdd(t-b, 1, 1)
 				}
 			}
 		}
 	}
-	act := func(v float32) float32 {
-		v *= pr.FullGain
-		return v / (v + 1)
-	}
-	l := out.Value(0, 0)
-	r := out.Value(0, 1)
+	act := func(v float32) float32 { return vnf * v }
+	l := insta.Value(0, 0)
+	r := insta.Value(0, 1)
 	if l > r {
-		out.Set(act(l-r), 0, 0)
-		out.Set(0, 0, 1)
+		insta.Set(act(l-r), 0, 0)
+		insta.Set(0, 0, 1)
 	} else {
-		out.Set(act(r-l), 0, 1)
-		out.Set(0, 0, 0)
+		insta.Set(act(r-l), 0, 1)
+		insta.Set(0, 0, 0)
 	}
-	b := out.Value(1, 0)
-	t := out.Value(1, 1)
+	b := insta.Value(1, 0)
+	t := insta.Value(1, 1)
 	if b > t {
-		out.Set(act(b-t), 1, 0)
-		out.Set(0, 1, 1)
+		insta.Set(act(b-t), 1, 0)
+		insta.Set(0, 1, 1)
 	} else {
-		out.Set(act(t-b), 1, 1)
-		out.Set(0, 1, 0)
+		insta.Set(act(t-b), 1, 1)
+		insta.Set(0, 1, 0)
+	}
+
+	//////// integration
+	for i := range 4 {
+		v := insta.Value1D(i)
+		vi := integ.Value1D(i)
+		vi += idt * (v - vi)
+		vi = min(vi, 1.0)
+		integ.Set1D(vi, i)
 	}
 }

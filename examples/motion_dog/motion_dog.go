@@ -7,10 +7,15 @@ package main
 //go:generate core generate -add-types
 
 import (
+	"fmt"
 	"image"
 	"math"
+	"time"
 
 	"cogentcore.org/core/core"
+	"cogentcore.org/core/events"
+	"cogentcore.org/core/icons"
+	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
 	"cogentcore.org/lab/stats/stats"
 	"cogentcore.org/lab/table"
@@ -27,7 +32,7 @@ import (
 func main() {
 	vi := &Vis{}
 	vi.Defaults()
-	vi.Filter()
+	vi.RenderFrames()
 	vi.ConfigGUI()
 }
 
@@ -38,6 +43,9 @@ type Vis struct { //types:add
 	// NFrames is the number of frames to render per trial.
 	NFrames int
 
+	// FrameDelay is time per frame for display updating.
+	FrameDelay time.Duration
+
 	// target image size to use.
 	ImageSize image.Point
 
@@ -45,13 +53,13 @@ type Vis struct { //types:add
 	Bar image.Point
 
 	// Velocity is the motion direction vector.
-	Velocity image.Point
+	Velocity math32.Vector2
 
 	// Start is the starting position.
-	Start image.Point
+	Start math32.Vector2
 
 	// Pos is current position
-	Pos image.Point `edit:"-"`
+	Pos math32.Vector2 `edit:"-"`
 
 	// Motion filter parameters.
 	Motion motion.Params
@@ -74,19 +82,23 @@ type Vis struct { //types:add
 	// DoG filter output tensor
 	DoGOutTsr tensor.Float32 `display:"no-inline"`
 
-	Slow      tensor.Float32 `display:"no-inline"`
-	Fast      tensor.Float32 `display:"no-inline"`
-	Star      tensor.Float32 `display:"no-inline"`
-	FullField tensor.Float32 `display:"no-inline"`
+	Slow           tensor.Float32 `display:"no-inline"`
+	Fast           tensor.Float32 `display:"no-inline"`
+	Star           tensor.Float32 `display:"no-inline"`
+	FullField      tensor.Float32 `display:"no-inline"`
+	FullFieldInsta tensor.Float32 `display:"no-inline"`
+
+	starView, fastView, imgView *tensorcore.TensorGrid
 }
 
 func (vi *Vis) Defaults() {
 	vi.NFrames = 30
-	vi.ImageSize = image.Point{128, 128}
-	vi.ImageTsr.SetShapeSizes(128, 128)
+	vi.FrameDelay = 200 * time.Millisecond
+	vi.ImageSize = image.Point{64, 64}
+	vi.ImageTsr.SetShapeSizes(64, 64)
 	vi.Bar = image.Point{8, 16}
-	vi.Velocity = image.Point{2, 0}
-	vi.Start = image.Point{8, 64}
+	vi.Velocity = math32.Vector2{1, 0}
+	vi.Start = math32.Vector2{8, 8}
 	vi.DoGTab.Init()
 	vi.Motion.Defaults()
 	vi.DoG.Defaults()
@@ -114,23 +126,38 @@ func (vi *Vis) RenderFrames() { //types:add
 	tensor.SetAllFloat64(&vi.Slow, 0)
 	tensor.SetAllFloat64(&vi.Fast, 0)
 	vi.Pos = vi.Start
-	for range vi.NFrames {
+	visNorm := float32(0)
+	for i := range vi.NFrames {
+		_ = i
 		vi.RenderFrame()
 		vi.LGNDoG()
 		vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, &vi.DoGOutTsr)
 		vi.Pos = vi.Pos.Add(vi.Velocity)
+		ve := vi.Motion.FilterEnergy(&vi.DoGOutTsr)
+		vi.Motion.StarMotion(&vi.Star, &vi.Slow, &vi.Fast)
+		vi.Motion.FullField(&vi.FullFieldInsta, &vi.FullField, &vi.Star, ve, &visNorm)
+		if vi.starView != nil {
+			// fmt.Println(i)
+			vi.starView.AsyncLock()
+			vi.starView.Update()
+			vi.fastView.Update()
+			vi.imgView.Update()
+			vi.starView.AsyncUnlock()
+			fmt.Printf("%d\tL: %7.4g\tR: %7.4g\tB: %7.4g\tT: %7.4g\tN: %7.4g\n", i, vi.FullField.Value1D(0), vi.FullField.Value1D(1), vi.FullField.Value1D(2), vi.FullField.Value1D(3), visNorm)
+			time.Sleep(vi.FrameDelay)
+		}
 	}
-	vi.Motion.StarMotion(&vi.Star, &vi.Slow, &vi.Fast)
-	vi.Motion.FullField(&vi.FullField, &vi.Star)
 }
 
 // RenderFrame renders a frame
 func (vi *Vis) RenderFrame() {
 	tensor.SetAllFloat64(&vi.ImageTsr, 0)
 	for y := range vi.Bar.Y {
-		yp, _ := edge.Edge(y+vi.Pos.Y, vi.ImageSize.Y, true)
+		py := int(math32.Round(vi.Pos.Y))
+		yp, _ := edge.Edge(y+py, vi.ImageSize.Y, true)
 		for x := range vi.Bar.X {
-			xp, _ := edge.Edge(x+vi.Pos.X, vi.ImageSize.X, true)
+			px := int(math32.Round(vi.Pos.X))
+			xp, _ := edge.Edge(x+px, vi.ImageSize.X, true)
 			vi.ImageTsr.Set(1, yp, xp)
 		}
 	}
@@ -160,10 +187,28 @@ func (vi *Vis) Filter() error { //types:add
 
 func (vi *Vis) ConfigGUI() *core.Body {
 	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
-	core.NewForm(b).SetStruct(vi)
+	sp := core.NewSplits(b)
+	core.NewForm(sp).SetStruct(vi)
+	tb := core.NewTabs(sp)
+	tf, _ := tb.NewTab("Star")
+	vi.starView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Star)
+	tf, _ = tb.NewTab("Full Field")
+	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.FullField)
+	tf, _ = tb.NewTab("Fast")
+	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Fast)
+	tf, _ = tb.NewTab("Image")
+	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.ImageTsr)
+
+	sp.SetSplits(.3, .7)
+
 	b.AddTopBar(func(bar *core.Frame) {
 		core.NewToolbar(bar).Maker(func(p *tree.Plan) {
-			tree.Add(p, func(w *core.FuncButton) { w.SetFunc(vi.RenderFrames) })
+			tree.Add(p, func(w *core.Button) {
+				w.SetText("Run").SetIcon(icons.PlayArrow)
+				w.OnClick(func(e events.Event) {
+					go vi.RenderFrames()
+				})
+			})
 		})
 	})
 	b.RunMainWindow()
