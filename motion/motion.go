@@ -46,14 +46,18 @@ func (pr *Params) Defaults() {
 }
 
 // IntegrateFrame integrates one frame of values into fast and slow tensors.
-func (pr *Params) IntegrateFrame(slow, fast, in *tensor.Float32) {
+// returns the raw visual energy from the input, which is used for normalization
+// of the full field results.
+func (pr *Params) IntegrateFrame(slow, fast, in *tensor.Float32) float32 {
 	fdt := 1.0 / pr.FastTau
 	sdt := 1.0 / pr.SlowTau
 	tensor.SetShapeFrom(slow, in)
 	tensor.SetShapeFrom(fast, in)
+	insum := float32(0)
 	n := in.Len()
 	for i := range n {
 		v := in.Value1D(i)
+		insum += v
 		s := slow.Value1D(i)
 		f := fast.Value1D(i)
 		if v > s {
@@ -69,6 +73,7 @@ func (pr *Params) IntegrateFrame(slow, fast, in *tensor.Float32) {
 		slow.Set1D(s, i)
 		fast.Set1D(f, i)
 	}
+	return insum
 }
 
 // StarMotion computes starburst-style motion for given slow and fast
@@ -122,19 +127,6 @@ func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
 			}
 		}
 	}
-}
-
-// FilterEnergy computes the total visual filter energy from snapshot input
-// filters, in a way that is suitable as a normalizing factor for
-// the FullField function.
-func (pr *Params) FilterEnergy(in *tensor.Float32) float32 {
-	sum := float32(0)
-	n := in.Len()
-	for i := range n {
-		v := in.Value1D(i)
-		sum += v
-	}
-	return sum
 }
 
 // FullField computes a full-field summary of output from StarMotion.

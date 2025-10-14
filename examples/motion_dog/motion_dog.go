@@ -131,9 +131,8 @@ func (vi *Vis) RenderFrames() { //types:add
 		_ = i
 		vi.RenderFrame()
 		vi.LGNDoG()
-		vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, &vi.DoGOutTsr)
+		ve := vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, &vi.DoGOutTsr)
 		vi.Pos = vi.Pos.Add(vi.Velocity)
-		ve := vi.Motion.FilterEnergy(&vi.DoGOutTsr)
 		vi.Motion.StarMotion(&vi.Star, &vi.Slow, &vi.Fast)
 		vi.Motion.FullField(&vi.FullFieldInsta, &vi.FullField, &vi.Star, ve, &visNorm)
 		if vi.starView != nil {
