@@ -92,7 +92,7 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
-	vi.NFrames = 30
+	vi.NFrames = 16
 	vi.FrameDelay = 200 * time.Millisecond
 	vi.ImageSize = image.Point{64, 64}
 	vi.ImageTsr.SetShapeSizes(64, 64)

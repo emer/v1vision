@@ -38,11 +38,12 @@ type Params struct {
 }
 
 func (pr *Params) Defaults() {
-	pr.SlowTau = 20
-	pr.FastTau = 10
+	// note: these values have been optimized on axon deepspace model:
+	pr.SlowTau = 4
+	pr.FastTau = 2
 	pr.Gain = 20
 	pr.FullGain = 1
-	pr.IntegTau = 10
+	pr.IntegTau = 6
 }
 
 // IntegrateFrame integrates one frame of values into fast and slow tensors.
@@ -96,11 +97,11 @@ func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
 				ld := fl - sl
 				rd := fr - sr
 				if ld > rd {
-					v := minact * min(1, pr.Gain*(ld-rd))
+					v := minact * pr.Gain * (ld - rd)
 					out.Set(v, flt, y, x, 0, 0)
 					out.Set(0, flt, y, x, 0, 1)
 				} else {
-					v := minact * min(1, pr.Gain*(rd-ld))
+					v := minact * pr.Gain * (rd - ld)
 					out.Set(v, flt, y, x, 0, 1)
 					out.Set(0, flt, y, x, 0, 0)
 				}
@@ -116,11 +117,11 @@ func (pr *Params) StarMotion(out, slow, fast *tensor.Float32) {
 				bd := fb - sb
 				td := ft - st
 				if bd > td {
-					v := minact * min(1, pr.Gain*(bd-td))
+					v := minact * pr.Gain * (bd - td)
 					out.Set(v, flt, y, x, 0, 2)
 					out.Set(0, flt, y, x, 0, 3)
 				} else {
-					v := minact * min(1, pr.Gain*(td-bd))
+					v := minact * pr.Gain * (td - bd)
 					out.Set(v, flt, y, x, 0, 3)
 					out.Set(0, flt, y, x, 0, 2)
 				}
@@ -200,7 +201,6 @@ func (pr *Params) FullField(insta, integ, star *tensor.Float32, visNorm float32,
 		v := insta.Value1D(i)
 		vi := integ.Value1D(i)
 		vi += idt * (v - vi)
-		vi = min(vi, 1.0)
 		integ.Set1D(vi, i)
 	}
 }
