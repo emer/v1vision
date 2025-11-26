@@ -40,12 +40,12 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 	var ii = i32(i) / op.FilterN;
 	var yo = ii / op.Geom.Out.x;
 	var xo = ii % op.Geom.Out.x;
-	var istX = op.Geom.Border.x - op.Geom.FiltLt.x;
-	var istY = op.Geom.Border.y - op.Geom.FiltLt.y;
+	var istX = op.Geom.Border.x - op.Geom.FilterLt.x;
+	var istY = op.Geom.Border.y - op.Geom.FilterLt.y;
 	var yi = i32(istY + yo*op.Geom.Spacing.y);
 	var xi = i32(istX + xo*op.Geom.Spacing.x);
-	var fyn = i32(op.Geom.FiltSz.y);
-	var fxn = i32(op.Geom.FiltSz.x);
+	var fyn = i32(op.Geom.FilterSz.y);
+	var fxn = i32(op.Geom.FilterSz.x);
 	var sum = f32(0);
 	for (var fy = 0; fy < fyn; fy++) {
 		for (var fx = 0; fx < fxn; fx++) {
@@ -54,7 +54,7 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 			sum += fv * iv;
 		}
 	}
-	sum *= op.Gain;
+	sum = f32(0.5);
 	if (sum > 0) {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = sum;
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
@@ -62,6 +62,8 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
 	}
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(0), u32(12), u32(12), u32(0), u32(0))] = 0.44;
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(0), u32(12), u32(1), u32(0), u32(0))] = 0.66;
 }
 
 //////// import: "enumgen.go"
@@ -74,9 +76,9 @@ struct Geom {
 	Out: vec4<i32>,
 	Border: vec4<i32>,
 	Spacing: vec4<i32>,
-	FiltSz: vec4<i32>,
-	FiltLt: vec4<i32>,
-	FiltRt: vec4<i32>,
+	FilterSz: vec4<i32>,
+	FilterLt: vec4<i32>,
+	FilterRt: vec4<i32>,
 }
 
 //////// import: "image.go"
@@ -91,8 +93,8 @@ fn Op_WrapPad(op: Op, i: u32) {
 	var y = ii / op.Geom.In.x;
 	var x = ii % op.Geom.In.x;
 	var padWidth = op.IntArg1;
-	var uY = y - padWidth;
-	var uX = x - padWidth;
+	var uY = op.Geom.In.y - padWidth;
+	var uX = op.Geom.In.x - padWidth;
 	var sy = y;
 	if (y < padWidth) {
 		sy = uY - (padWidth - y);

@@ -7,6 +7,7 @@ package main
 //go:generate core generate -add-types
 
 import (
+	"fmt"
 	"image"
 
 	"cogentcore.org/core/base/errors"
@@ -33,6 +34,8 @@ func main() {
 // Vis encapsulates specific visual processing pipeline in
 // use in a given case -- can add / modify this as needed
 type Vis struct { //types:add
+	// GPU means use gpu
+	GPU bool
 
 	// name of image file to operate on
 	ImageFile core.Filename
@@ -63,6 +66,7 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
+	vi.GPU = true
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.DoGTab.Init()
 	vi.DoG.Defaults()
@@ -71,18 +75,24 @@ func (vi *Vis) Defaults() {
 	vi.DoG.SetSize(sz, spc)
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
-	// any further border sizes on same image need to add Geom.FiltRt!
+	// any further border sizes on same image need to add Geom.FilterRt!
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 	vi.ImageSize = image.Point{128, 128}
 	// vi.ImageSize = image.Point{64, 64}
-	vi.Geom.SetSize(vi.ImageSize)
+	vi.Geom.SetImageSize(vi.ImageSize)
+	// fmt.Println(vi.Geom)
 
 	vi.V1.Init()
-	img := vi.V1.NewImage(vi.ImageSize)
-	wrap := vi.V1.NewImage(vi.ImageSize)
-	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FiltRt.X), &vi.Geom)
+	img := vi.V1.NewImage(vi.Geom.In.V())
+	wrap := vi.V1.NewImage(vi.Geom.In.V())
+	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	_, out := vi.V1.AddDoG(wrap, &vi.DoG, &vi.Geom)
 	_ = out
+	vi.V1.SetAsCurrent()
+	if vi.GPU {
+		fmt.Println("gpu!")
+		vi.V1.GPUInit()
+	}
 
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
 	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
@@ -107,8 +117,8 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImageSize {
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
-	img := vi.V1.Images.SubSpace(0).(*tensor.Float32)
-	v1vision.RGBToGrey(vi.Image, img, int(vi.Geom.FiltRt.X), false) // pad for filt, bot zero
+	img := vi.V1.Images.SubSpace(0, 0).(*tensor.Float32)
+	v1vision.RGBToGrey(vi.Image, img, int(vi.Geom.FilterRt.X), false) // pad for filt, bot zero
 	return nil
 }
 
@@ -130,12 +140,18 @@ func (vi *Vis) LGNDoG() {
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters
 func (vi *Vis) Filter() error { //types:add
+	// v1vision.UseGPU = vi.GPU
 	err := vi.OpenImage(string(vi.ImageFile))
 	if err != nil {
 		return errors.Log(err)
 	}
-	vi.V1.RunOps()
-	vi.OutTsr.CopyFrom(vi.V1.Values.SubSpace(0).(*tensor.Float32))
+	vi.V1.Run()
+	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
+	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
+	vi.OutTsr.CopyFrom(out)
+	img := vi.V1.Images.SubSpace(1).(*tensor.Float32)
+	vi.ImageTsr.SetShapeSizes(img.ShapeSizes()...)
+	vi.ImageTsr.CopyFrom(img)
 	return nil
 }
 

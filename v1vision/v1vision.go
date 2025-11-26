@@ -5,22 +5,19 @@
 package v1vision
 
 import (
-	"image"
+	"fmt"
 
+	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/tensor"
 )
 
 //go:generate core generate -add-types -gosl
 
-// V1Vision is a full set of filtering variables that is used for all
-// v1vision processing, which can be installed onto the GPU.
+// V1Vision specifies a sequence of operations to perform on image
+// input data, to simulate V1-level visual processing.
 type V1Vision struct {
-	///////// Params
-
 	// Ops are the sequence of operations to perform, called in order.
 	Ops []Op
-
-	//////// Filters
 
 	// Filters are one general stack of rendered filters, sized to the max of each
 	// of the inner dimensional values: [FilterTypes][FilterN][Y][X]
@@ -28,8 +25,6 @@ type V1Vision struct {
 	// FilterN = number of filters within the group (On, Off, angle, etc)
 	// Y, X = sizes.
 	Filters *tensor.Float32
-
-	//////// Data
 
 	// Images are float-valued image data: [ImageNo][RGB][Y][X],
 	// sized to the max of each inner-dimensional value (RGB=3
@@ -62,10 +57,10 @@ func (vv *V1Vision) NewOp() *Op {
 }
 
 // NewImage adds a new image of given size. returns image index.
-func (vv *V1Vision) NewImage(size image.Point) int {
+func (vv *V1Vision) NewImage(size math32.Vector2i) int {
 	sizes := vv.Images.ShapeSizes()
 	n := sizes[0]
-	vv.Images.SetShapeSizes(n+1, 3, max(size.Y, sizes[2]), max(size.X, sizes[3]))
+	vv.Images.SetShapeSizes(n+1, 3, max(int(size.Y), sizes[2]), max(int(size.X), sizes[3]))
 	return n
 }
 
@@ -86,6 +81,8 @@ func (vv *V1Vision) NewValues4D(gpY, gpX, y, x int) int {
 }
 
 // NewFilter adds a new Filters of given sizes. returns filter index.
+// Note: if later adding filters of larger sizes, then initial filter data
+// can be skewed, and you need to re-set it.
 func (vv *V1Vision) NewFilter(filtN, y, x int) int {
 	sizes := vv.Filters.ShapeSizes()
 	n := sizes[0]
@@ -101,4 +98,32 @@ func (vv *V1Vision) SetAsCurrent() {
 	Images = vv.Images
 	Values = vv.Values
 	Values4D = vv.Values4D
+}
+
+// GPUInit initializes the GPU and transfers Ops and Filters.
+// Should have already called SetAsCurrent (needed for CPU and GPU).
+func (vv *V1Vision) GPUInit() {
+	GPUInit()
+	UseGPU = true
+	ToGPUTensorStrides()
+	ToGPU(OpsVar, FiltersVar)
+}
+
+func ImagesToGPU() {
+	ToGPU(ImagesVar)
+}
+
+// Run transfers Images to GPU, does RunOps, and gets Values back.
+// If Values4D has been set then it is retrieved, else Values.
+func (vv *V1Vision) Run() {
+	ImagesToGPU()
+	ToGPUTensorStrides()
+	ToGPU(OpsVar, FiltersVar)
+	vv.RunOps()
+	if vv.Values4D.Len() > 0 {
+		RunDone(Values4DVar)
+	} else {
+		fmt.Println("values")
+		RunDone(ImagesVar, ValuesVar)
+	}
 }

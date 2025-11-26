@@ -46,8 +46,8 @@ func (op *Op) WrapPad(i uint32) {
 	y := ii / op.Geom.In.X
 	x := ii % op.Geom.In.X
 	padWidth := op.IntArg1
-	uY := y - padWidth
-	uX := x - padWidth
+	uY := op.Geom.In.Y - padWidth
+	uX := op.Geom.In.X - padWidth
 	sy := y
 	if y < padWidth {
 		sy = uY - (padWidth - y)
@@ -133,11 +133,11 @@ func RGBTensorToImage(img *image.RGBA, tsr *tensor.Float32, padWidth int, topZer
 // padWidth is the amount of padding to add on all sides.
 // topZero retains the Y=0 value at the top of the tensor --
 // otherwise it is flipped with Y=0 at the bottom to be consistent
-// with the emergent / OpenGL standard coordinate system
+// with the emergent standard coordinate system.
+// Tensor must already be set to source size + 2*padWidth!
 func RGBToGrey(img image.Image, tsr *tensor.Float32, padWidth int, topZero bool) {
 	bd := img.Bounds()
 	sz := bd.Size()
-	tsr.SetShapeSizes(sz.Y+2*padWidth, sz.X+2*padWidth)
 	for y := 0; y < sz.Y; y++ {
 		for x := 0; x < sz.X; x++ {
 			sy := y

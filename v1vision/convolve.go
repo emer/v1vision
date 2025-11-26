@@ -35,13 +35,13 @@ func (op *Op) ConvolveImage(i uint32) {
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 
-	istX := op.Geom.Border.X - op.Geom.FiltLt.X
-	istY := op.Geom.Border.Y - op.Geom.FiltLt.Y
+	istX := op.Geom.Border.X - op.Geom.FilterLt.X
+	istY := op.Geom.Border.Y - op.Geom.FilterLt.Y
 	yi := int(istY + yo*op.Geom.Spacing.Y)
 	xi := int(istX + xo*op.Geom.Spacing.X)
 
-	fyn := int(op.Geom.FiltSz.Y)
-	fxn := int(op.Geom.FiltSz.X)
+	fyn := int(op.Geom.FilterSz.Y)
+	fxn := int(op.Geom.FilterSz.X)
 	sum := float32(0)
 	for fy := 0; fy < fyn; fy++ {
 		for fx := 0; fx < fxn; fx++ {
@@ -51,6 +51,7 @@ func (op *Op) ConvolveImage(i uint32) {
 		}
 	}
 	sum *= op.Gain
+	// sum = 0.5
 	if sum > 0 {
 		Values.Set(sum, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
@@ -58,6 +59,8 @@ func (op *Op) ConvolveImage(i uint32) {
 		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 		Values.Set(-sum, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
 	}
+	// Values[0, 12, 12, 0, 0] = 0.44
+	// Values[0, 12, 1, 0, 0] = 0.66
 }
 
 //gosl:end
