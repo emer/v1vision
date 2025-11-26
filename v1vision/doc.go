@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package vfilter provides filtering methods for the vision package.
+Package v1vision provides filtering methods for the vision package.
 These apply tensor.Tensor filters to a 2D visual input via Conv
 (convolution) function, using filter-parallel approach:
 Each go routine does a different filter in a set of filters,
@@ -25,4 +25,4 @@ all input images must be padded so that the filters can be applied with
 appropriate padding border, guaranteeing that there are no bounds issues.
 See WrapPad for wrapping-based padding.
 */
-package vfilter
+package v1vision

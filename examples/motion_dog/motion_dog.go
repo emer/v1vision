@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	"image"
 	"math"
 	"time"
 
@@ -26,7 +25,7 @@ import (
 	"github.com/emer/emergent/v2/edge"
 	"github.com/emer/v1vision/dog"
 	"github.com/emer/v1vision/motion"
-	"github.com/emer/v1vision/vfilter"
+	"github.com/emer/v1vision/v1vision"
 )
 
 func main() {
@@ -47,10 +46,10 @@ type Vis struct { //types:add
 	FrameDelay time.Duration
 
 	// target image size to use.
-	ImageSize image.Point
+	ImageSize math32.Vector2i
 
 	// Bar is the size of the moving bar.
-	Bar image.Point
+	Bar math32.Vector2i
 
 	// Velocity is the motion direction vector.
 	Velocity math32.Vector2
@@ -68,7 +67,7 @@ type Vis struct { //types:add
 	DoG dog.Filter
 
 	// geometry of input, output
-	Geom vfilter.Geom `edit:"-"`
+	Geom v1vision.Geom `edit:"-"`
 
 	// input image as tensor
 	ImageTsr tensor.Float32 `display:"no-inline"`
@@ -94,9 +93,9 @@ type Vis struct { //types:add
 func (vi *Vis) Defaults() {
 	vi.NFrames = 16
 	vi.FrameDelay = 200 * time.Millisecond
-	vi.ImageSize = image.Point{64, 64}
+	vi.ImageSize = math32.Vector2i{64, 64}
 	vi.ImageTsr.SetShapeSizes(64, 64)
-	vi.Bar = image.Point{8, 16}
+	vi.Bar = math32.Vector2i{8, 16}
 	vi.Velocity = math32.Vector2{1, 0}
 	vi.Start = math32.Vector2{8, 8}
 	vi.DoGTab.Init()
@@ -108,7 +107,7 @@ func (vi *Vis) Defaults() {
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.Geom.Set(image.Point{0, 0}, image.Point{spc, spc}, image.Point{sz, sz})
+	vi.Geom.Set(math32.Vector2i{0, 0}, math32.Vector2i{spc, spc}, math32.Vector2i{sz, sz})
 	vi.DoG.ToTensor(&vi.DoGFilter)
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
 	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
@@ -167,7 +166,7 @@ func (vi *Vis) RenderFrame() {
 func (vi *Vis) LGNDoG() {
 	flt := vi.DoG.FilterTensor(&vi.DoGFilter, dog.Net)
 	out := &vi.DoGOutTsr
-	vfilter.Conv1(&vi.Geom, flt, &vi.ImageTsr, out, vi.DoG.Gain)
+	v1vision.Conv1(&vi.Geom, flt, &vi.ImageTsr, out, vi.DoG.Gain)
 	// log norm is generally good it seems for dogs
 	n := out.Len()
 	for i := range n {

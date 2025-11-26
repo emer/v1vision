@@ -12,6 +12,7 @@ import (
 	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
+	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
@@ -19,7 +20,7 @@ import (
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/colorspace"
 	"github.com/emer/v1vision/dog"
-	"github.com/emer/v1vision/vfilter"
+	"github.com/emer/v1vision/v1vision"
 )
 
 func main() {
@@ -49,10 +50,10 @@ type Vis struct { //types:add
 	DoGOnGains []float32
 
 	// geometry of input, output
-	Geom vfilter.Geom `edit:"-"`
+	Geom v1vision.Geom `edit:"-"`
 
 	// target image size to use -- images will be rescaled to this size
-	ImgSize image.Point
+	ImgSize math32.Vector2i
 
 	// DoG filter tensor -- has 3 filters (on, off, net)
 	DoGTsr tensor.Float32 `display:"no-inline"`
@@ -93,11 +94,11 @@ func (vi *Vis) Defaults() {
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.Geom.Set(image.Point{0, 0}, image.Point{spc, spc}, image.Point{sz, sz})
-	vi.ImgSize = image.Point{512, 512}
-	// vi.ImgSize = image.Point{256, 256}
-	// vi.ImgSize = image.Point{128, 128}
-	// vi.ImgSize = image.Point{64, 64}
+	vi.Geom.Set(math32.Vector2i{0, 0}, math32.Vector2i{spc, spc}, math32.Vector2i{sz, sz})
+	vi.ImgSize = math32.Vector2i{512, 512}
+	// vi.ImgSize = math32.Vector2i{256, 256}
+	// vi.ImgSize = math32.Vector2i{128, 128}
+	// vi.ImgSize = math32.Vector2i{64, 64}
 	vi.DoG.ToTensor(&vi.DoGTsr)
 	vi.DoGTab.Init()
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
@@ -143,8 +144,8 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImgSize {
 		vi.Img = transform.Resize(vi.Img, vi.ImgSize.X, vi.ImgSize.Y, transform.Linear)
 	}
-	vfilter.RGBToTensor(vi.Img, &vi.ImgTsr, vi.Geom.FiltRt.X, false) // pad for filt, bot zero
-	vfilter.WrapPadRGB(&vi.ImgTsr, vi.Geom.FiltRt.X)
+	v1vision.RGBToTensor(vi.Img, &vi.ImgTsr, vi.Geom.FiltRt.X, false) // pad for filt, bot zero
+	v1vision.WrapPadRGB(&vi.ImgTsr, vi.Geom.FiltRt.X)
 	colorspace.RGBTensorToLMSComps(&vi.ImgLMS, &vi.ImgTsr)
 	return nil
 }
@@ -154,7 +155,7 @@ func (vi *Vis) OpenMacbeth() error {
 	colorspace.MacbethImage(&vi.ImgTsr, vi.ImgSize.X, vi.ImgSize.Y, vi.Geom.FiltRt.X)
 	colorspace.RGBTensorToLMSComps(&vi.ImgLMS, &vi.ImgTsr)
 	img := &image.RGBA{}
-	img = vfilter.RGBTensorToImage(img, &vi.ImgTsr, 0, false)
+	img = v1vision.RGBTensorToImage(img, &vi.ImgTsr, 0, false)
 	vi.Img = img
 	var err error
 	err = imagex.Save(img, "macbeth.png")
@@ -214,12 +215,12 @@ func (vi *Vis) DoGFilter(name string, gain, onGain float32) {
 	rgtsr := vi.OutTsr("DoG_" + name + "_Red-Green")
 	rimg := vi.OutTsr("Red")
 	gimg := vi.OutTsr("Green")
-	vfilter.ConvDiff(&vi.Geom, dogOn, dogOff, rimg, gimg, rgtsr, gain, onGain)
+	v1vision.ConvDiff(&vi.Geom, dogOn, dogOff, rimg, gimg, rgtsr, gain, onGain)
 
 	bytsr := vi.OutTsr("DoG_" + name + "_Blue-Yellow")
 	bimg := vi.OutTsr("Blue")
 	yimg := vi.OutTsr("Yellow")
-	vfilter.ConvDiff(&vi.Geom, dogOn, dogOff, bimg, yimg, bytsr, gain, onGain)
+	v1vision.ConvDiff(&vi.Geom, dogOn, dogOff, bimg, yimg, bytsr, gain, onGain)
 }
 
 // AggAll aggregates the different DoG components into
@@ -234,8 +235,8 @@ func (vi *Vis) AggAll() {
 	for i, nm := range vi.DoGNames {
 		rgtsr := vi.OutTsr("DoG_" + nm + "_Red-Green")
 		bytsr := vi.OutTsr("DoG_" + nm + "_Blue-Yellow")
-		vfilter.OuterAgg(i*2, 0, rgtsr, &vi.OutAll)
-		vfilter.OuterAgg(i*2+1, 0, bytsr, &vi.OutAll)
+		v1vision.OuterAgg(i*2, 0, rgtsr, &vi.OutAll)
+		v1vision.OuterAgg(i*2+1, 0, bytsr, &vi.OutAll)
 	}
 }
 

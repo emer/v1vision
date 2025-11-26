@@ -8,7 +8,7 @@ forms of signal processing
 */
 package gabor
 
-//go:generate core generate -add-types
+//go:generate core generate -add-types -gosl
 
 import (
 	"math"

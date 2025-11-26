@@ -8,7 +8,7 @@ forms of signal processing
 */
 package dog
 
-//go:generate core generate -add-types
+//go:generate core generate -add-types -gosl
 
 import (
 	"cogentcore.org/core/math32"
@@ -84,17 +84,23 @@ func GaussDenSig(x, sig float32) float32 {
 	return 0.398942280 * math32.Exp(-0.5*x*x) / sig
 }
 
-// ToTensor renders dog filters into the given table tensor.Tensor,
-// setting dimensions to [3][Y][X] where Y = X = Size, and
-// first one is On-filter, second is Off-filter, and third is Net On - Off
-func (gf *Filter) ToTensor(tsr *tensor.Float32) {
-	tsr.SetShapeSizes(int(FiltersN), gf.Size, gf.Size)
+//	tsr.SetShapeSizes(int(FiltersN), gf.Size, gf.Size)
 
+// ToTensor renders dog filter into the given tensor.Tensor, which has
+// 3 dimensions: FilterNo, Y, X, where Y = X = Size.
+// if netOnly, then it writes the net filter into 0.
+// Otherwise, first one is On-filter, second is Off-filter, and third is Net On - Off.
+func (gf *Filter) ToTensor(tsr *tensor.Float32, netOnly bool) {
 	ctr := 0.5 * float32(gf.Size-1)
 	radius := float32(gf.Size) * 0.5
 
 	gsOn := gf.OnSig * float32(gf.Size)
 	gsOff := gf.OffSig * float32(gf.Size)
+
+	netIx := 0
+	if !netOnly {
+		netIx = int(Net)
+	}
 
 	var posSum, negSum, onSum, offSum float32
 	for y := 0; y < gf.Size; y++ {
@@ -108,33 +114,38 @@ func (gf *Filter) ToTensor(tsr *tensor.Float32) {
 				ong = GaussDenSig(dist, gsOn)
 				offg = GaussDenSig(dist, gsOff)
 			}
-			tsr.Set(ong, int(On), y, x)
-			tsr.Set(offg, int(Off), y, x)
-			onSum += ong
-			offSum += offg
 			net := ong - offg
-			tsr.Set(net, int(Net), y, x)
 			if net > 0 {
 				posSum += net
 			} else if net < 0 {
 				negSum += -net
+			}
+			tsr.Set(net, netIx, y, x)
+
+			if !netOnly {
+				tsr.Set(ong, int(On), y, x)
+				tsr.Set(offg, int(Off), y, x)
+				onSum += ong
+				offSum += offg
 			}
 		}
 	}
 	// renorm each half, separate components
 	for y := 0; y < gf.Size; y++ {
 		for x := 0; x < gf.Size; x++ {
-			val := tsr.Value(int(Net), y, x)
+			val := tsr.Value(netIx, y, x)
 			if val > 0 {
 				val /= posSum
 			} else if val < 0 {
 				val /= negSum
 			}
-			tsr.Set(val, int(Net), y, x)
-			on := tsr.Value(int(On), y, x)
-			tsr.Set(on/onSum, int(On), y, x)
-			off := tsr.Value(int(Off), y, x)
-			tsr.Set(off/offSum, int(Off), y, x)
+			tsr.Set(val, netIx, y, x)
+			if !netOnly {
+				on := tsr.Value(int(On), y, x)
+				tsr.Set(on/onSum, int(On), y, x)
+				off := tsr.Value(int(Off), y, x)
+				tsr.Set(off/offSum, int(Off), y, x)
+			}
 		}
 	}
 }
@@ -147,7 +158,7 @@ func (gf *Filter) ToTable(tab *table.Table) {
 	tab.AddStringColumn("Version")
 	tab.AddFloat32Column("Filter", int(FiltersN), gf.Size, gf.Size)
 	tab.SetNumRows(3)
-	gf.ToTensor(tab.Columns.Values[1].(*tensor.Float32))
+	gf.ToTensor(tab.Columns.Values[1].(*tensor.Float32), false)
 	nm := tab.ColumnByIndex(0)
 	nm.SetString("On", int(On))
 	nm.SetString("Off", int(Off))

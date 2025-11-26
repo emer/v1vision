@@ -12,7 +12,7 @@ import (
 	"cogentcore.org/lab/tensor"
 )
 
-//go:generate core generate -add-types
+//go:generate core generate -add-types -gosl
 
 // Params has the motion parameters.
 type Params struct {

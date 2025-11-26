@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package vfilter
+package v1vision
 
 // TensorLogNorm computes 1 + log of all the numbers and then does
 // Max Div renorm so result is normalized in 0-1 range.

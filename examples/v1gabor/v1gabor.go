@@ -12,6 +12,7 @@ import (
 	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
+	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
 	"cogentcore.org/lab/stats/stats"
 	"cogentcore.org/lab/table"
@@ -23,7 +24,7 @@ import (
 	"github.com/emer/v1vision/gabor"
 	"github.com/emer/v1vision/kwta"
 	"github.com/emer/v1vision/v1complex"
-	"github.com/emer/v1vision/vfilter"
+	"github.com/emer/v1vision/v1vision"
 )
 
 func main() {
@@ -44,7 +45,7 @@ type Vis struct { //types:add
 	V1sGabor gabor.Filter
 
 	// geometry of input, output for V1 simple-cell processing
-	V1sGeom vfilter.Geom `edit:"-"`
+	V1sGeom v1vision.Geom `edit:"-"`
 
 	// neighborhood inhibition for V1s -- each unit gets inhibition from same feature in nearest orthogonal neighbors -- reduces redundancy of feature code
 	V1sNeighInhib kwta.NeighInhib
@@ -53,7 +54,7 @@ type Vis struct { //types:add
 	V1sKWTA kwta.KWTA
 
 	// target image size to use -- images will be rescaled to this size
-	ImgSize image.Point
+	ImgSize math32.Vector2i
 
 	// V1 simple gabor filter tensor
 	V1sGaborTsr tensor.Float32 `display:"no-inline"`
@@ -113,11 +114,11 @@ func (vi *Vis) Defaults() {
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.V1sGeom.Set(image.Point{0, 0}, image.Point{spc, spc}, image.Point{sz, sz})
+	vi.V1sGeom.Set(math32.Vector2i{0, 0}, math32.Vector2i{spc, spc}, math32.Vector2i{sz, sz})
 	vi.V1sNeighInhib.Defaults()
 	vi.V1sKWTA.Defaults()
-	vi.ImgSize = image.Point{128, 128}
-	// vi.ImgSize = image.Point{64, 64}
+	vi.ImgSize = math32.Vector2i{128, 128}
+	// vi.ImgSize = math32.Vector2i{64, 64}
 	vi.V1sGabor.ToTensor(&vi.V1sGaborTsr)
 	vi.V1sGaborTab.Init()
 	vi.V1sGabor.ToTable(&vi.V1sGaborTab) // note: view only, testing
@@ -147,8 +148,8 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImgSize {
 		vi.Img = transform.Resize(vi.Img, vi.ImgSize.X, vi.ImgSize.Y, transform.Linear)
 	}
-	vfilter.RGBToGrey(vi.Img, &vi.ImgTsr, vi.V1sGeom.FiltRt.X, false) // pad for filt, bot zero
-	vfilter.WrapPad(&vi.ImgTsr, vi.V1sGeom.FiltRt.X)
+	v1vision.RGBToGrey(vi.Img, &vi.ImgTsr, vi.V1sGeom.FiltRt.X, false) // pad for filt, bot zero
+	v1vision.WrapPad(&vi.ImgTsr, vi.V1sGeom.FiltRt.X)
 	return nil
 }
 
@@ -156,7 +157,7 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 // must have valid Img in place to start.
 // Runs kwta and pool steps after gabor filter.
 func (vi *Vis) V1Simple() {
-	vfilter.Conv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImgTsr, &vi.V1sTsr, vi.V1sGabor.Gain)
+	v1vision.Conv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImgTsr, &vi.V1sTsr, vi.V1sGabor.Gain)
 	if vi.V1sNeighInhib.On {
 		vi.V1sNeighInhib.Inhib4(&vi.V1sTsr, &vi.V1sExtGiTsr)
 	} else {
@@ -175,17 +176,17 @@ func (vi *Vis) ImgFromV1Simple() {
 	vi.V1sUnPoolTsr.SetZeros()
 	tensor.SetShapeFrom(&vi.ImgFromV1sTsr, &vi.ImgTsr)
 	vi.ImgFromV1sTsr.SetZeros()
-	vfilter.UnPool(image.Point{2, 2}, image.Point{2, 2}, &vi.V1sUnPoolTsr, &vi.V1sPoolTsr, true)
-	vfilter.Deconv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImgFromV1sTsr, &vi.V1sUnPoolTsr, vi.V1sGabor.Gain)
+	v1vision.UnPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sUnPoolTsr, &vi.V1sPoolTsr, true)
+	v1vision.Deconv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImgFromV1sTsr, &vi.V1sUnPoolTsr, vi.V1sGabor.Gain)
 	stats.UnitNormOut(&vi.ImgFromV1sTsr, &vi.ImgFromV1sTsr)
 }
 
 // V1Complex runs V1 complex filters on top of V1Simple features.
 // it computes Angle-only, max-pooled version of V1Simple inputs.
 func (vi *Vis) V1Complex() {
-	vfilter.MaxPool(image.Point{2, 2}, image.Point{2, 2}, &vi.V1sKwtaTsr, &vi.V1sPoolTsr)
-	vfilter.MaxReduceFilterY(&vi.V1sKwtaTsr, &vi.V1sAngOnlyTsr)
-	vfilter.MaxPool(image.Point{2, 2}, image.Point{2, 2}, &vi.V1sAngOnlyTsr, &vi.V1sAngPoolTsr)
+	v1vision.MaxPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sKwtaTsr, &vi.V1sPoolTsr)
+	v1vision.MaxReduceFilterY(&vi.V1sKwtaTsr, &vi.V1sAngOnlyTsr)
+	v1vision.MaxPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sAngOnlyTsr, &vi.V1sAngPoolTsr)
 	v1complex.LenSum4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr)
 	v1complex.EndStop4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr, &vi.V1cEndStopTsr)
 }
@@ -199,11 +200,11 @@ func (vi *Vis) V1All() {
 	nrows := 5
 	vi.V1AllTsr.SetShapeSizes(ny, nx, nrows, nang)
 	// 1 length-sum
-	vfilter.FeatAgg([]int{0}, 0, &vi.V1cLenSumTsr, &vi.V1AllTsr)
+	v1vision.FeatAgg([]int{0}, 0, &vi.V1cLenSumTsr, &vi.V1AllTsr)
 	// 2 end-stop
-	vfilter.FeatAgg([]int{0, 1}, 1, &vi.V1cEndStopTsr, &vi.V1AllTsr)
+	v1vision.FeatAgg([]int{0, 1}, 1, &vi.V1cEndStopTsr, &vi.V1AllTsr)
 	// 2 pooled simple cell
-	vfilter.FeatAgg([]int{0, 1}, 3, &vi.V1sPoolTsr, &vi.V1AllTsr)
+	v1vision.FeatAgg([]int{0, 1}, 3, &vi.V1sPoolTsr, &vi.V1AllTsr)
 }
 
 // Filter is overall method to run filters on current image file name

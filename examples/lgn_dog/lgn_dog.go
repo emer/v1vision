@@ -13,6 +13,7 @@ import (
 	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/core"
+	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
 	"cogentcore.org/lab/stats/stats"
 	"cogentcore.org/lab/table"
@@ -22,7 +23,7 @@ import (
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/dog"
-	"github.com/emer/v1vision/vfilter"
+	"github.com/emer/v1vision/v1vision"
 )
 
 func main() {
@@ -43,10 +44,10 @@ type Vis struct { //types:add
 	DoG dog.Filter
 
 	// geometry of input, output
-	Geom vfilter.Geom `edit:"-"`
+	Geom v1vision.Geom `edit:"-"`
 
 	// target image size to use -- images will be rescaled to this size
-	ImageSize image.Point
+	ImageSize math32.Vector2i
 
 	// DoG filter tensor -- has 3 filters (on, off, net)
 	DoGFilter tensor.Float32 `display:"no-inline"`
@@ -74,9 +75,9 @@ func (vi *Vis) Defaults() {
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.Geom.Set(image.Point{0, 0}, image.Point{spc, spc}, image.Point{sz, sz})
-	vi.ImageSize = image.Point{128, 128}
-	// vi.ImageSize = image.Point{64, 64}
+	vi.Geom.Set(math32.Vector2i{0, 0}, math32.Vector2i{spc, spc}, math32.Vector2i{sz, sz})
+	vi.ImageSize = math32.Vector2i{128, 128}
+	// vi.ImageSize = math32.Vector2i{64, 64}
 	vi.DoG.ToTensor(&vi.DoGFilter)
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
 	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
@@ -101,8 +102,8 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImageSize {
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
-	vfilter.RGBToGrey(vi.Image, &vi.ImageTsr, vi.Geom.FiltRt.X, false) // pad for filt, bot zero
-	vfilter.WrapPad(&vi.ImageTsr, vi.Geom.FiltRt.X)
+	v1vision.RGBToGrey(vi.Image, &vi.ImageTsr, vi.Geom.FiltRt.X, false) // pad for filt, bot zero
+	v1vision.WrapPad(&vi.ImageTsr, vi.Geom.FiltRt.X)
 	return nil
 }
 
@@ -110,7 +111,7 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 // must have valid Image in place to start.
 func (vi *Vis) LGNDoG() {
 	flt := vi.DoG.FilterTensor(&vi.DoGFilter, dog.Net)
-	vfilter.Conv1(&vi.Geom, flt, &vi.ImageTsr, &vi.OutTsr, vi.DoG.Gain)
+	v1vision.Conv1(&vi.Geom, flt, &vi.ImageTsr, &vi.OutTsr, vi.DoG.Gain)
 	// log norm is generally good it seems for dogs
 	n := vi.OutTsr.Len()
 	for i := range n {

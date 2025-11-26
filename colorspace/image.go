@@ -8,7 +8,7 @@ import (
 	"image"
 
 	"cogentcore.org/lab/tensor"
-	"github.com/emer/v1vision/vfilter"
+	"github.com/emer/v1vision/v1vision"
 )
 
 // RGBImgLMSComps converts an RGB image to corresponding LMS components
@@ -19,7 +19,7 @@ import (
 // with the emergent / OpenGL standard coordinate system
 func RGBImgToLMSComps(img image.Image, tsr *tensor.Float32, padWidth int, topZero bool) {
 	rgbtsr := &tensor.Float32{}
-	vfilter.RGBToTensor(img, rgbtsr, padWidth, topZero)
+	v1vision.RGBToTensor(img, rgbtsr, padWidth, topZero)
 	RGBTensorToLMSComps(rgbtsr, tsr)
 }
 
