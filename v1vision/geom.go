@@ -5,6 +5,8 @@
 package v1vision
 
 import (
+	"image"
+
 	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/gosl/slvec"
 )
@@ -68,8 +70,9 @@ func (ge *Geom) UpdtFilt() {
 }
 
 // SetSize sets the input size, and computes output from that.
-func (ge *Geom) SetSize(inSize math32.Vector2i) {
-	ge.In.SetV(inSize)
+func (ge *Geom) SetSize(inSize image.Point) {
+	ge.In.X = int32(inSize.X)
+	ge.In.Y = int32(inSize.Y)
 	b2 := ge.Border.V().MulScalar(2)
 	av := ge.In.V().Sub(b2)
 	ge.Out.SetV(av.DivScalar(ge.Spacing.X)) // only 1

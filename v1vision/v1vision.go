@@ -5,9 +5,9 @@
 package v1vision
 
 import (
-	"cogentcore.org/core/math32"
+	"image"
+
 	"cogentcore.org/lab/tensor"
-	"github.com/emer/v1vision/dog"
 )
 
 //go:generate core generate -add-types -gosl
@@ -19,9 +19,6 @@ type V1Vision struct {
 
 	// Ops are the sequence of operations to perform, called in order.
 	Ops []Op
-
-	// DoGs are difference of gaussian filter parameters.
-	DoGs []dog.Filter
 
 	//////// Filters
 
@@ -53,7 +50,7 @@ func (vv *V1Vision) Init() {
 	vv.Ops = []Op{}
 	vv.Filters = tensor.NewFloat32(0, 1, 1, 1)
 	vv.Images = tensor.NewFloat32(0, 3, 1, 1)
-	vv.Values = tensor.NewFloat32(0, 1, 1, 1)
+	vv.Values = tensor.NewFloat32(0, 1, 1, 2, 1)
 	vv.Values4D = tensor.NewFloat32(0, 1, 1, 1, 1)
 }
 
@@ -64,18 +61,11 @@ func (vv *V1Vision) NewOp() *Op {
 	return &vv.Ops[n]
 }
 
-// NewDoG adds a new [dog.Filter]
-func (vv *V1Vision) NewDoG() *dog.Filter {
-	n := len(vv.DoGs)
-	vv.DoGs = append(vv.DoGs, dog.Filter{})
-	return &vv.DoGs[n]
-}
-
 // NewImage adds a new image of given size. returns image index.
-func (vv *V1Vision) NewImage(size math32.Vector2i) int {
-	n := vv.Images.DimSize(0)
-	size.SetMax(math32.Vec2i(vv.Images.DimSize(2), vv.Images.DimSize(3)))
-	vv.Images.SetShapeSizes(n+1, 3, int(size.Y), int(size.X))
+func (vv *V1Vision) NewImage(size image.Point) int {
+	sizes := vv.Images.ShapeSizes()
+	n := sizes[0]
+	vv.Images.SetShapeSizes(n+1, 3, max(size.Y, sizes[2]), max(size.X, sizes[3]))
 	return n
 }
 
@@ -92,6 +82,14 @@ func (vv *V1Vision) NewValues4D(gpY, gpX, y, x int) int {
 	sizes := vv.Values4D.ShapeSizes()
 	n := sizes[0]
 	vv.Values4D.SetShapeSizes(n+1, max(gpY, sizes[1]), max(gpX, sizes[2]), max(y, sizes[3]), max(x, sizes[4]))
+	return n
+}
+
+// NewFilter adds a new Filters of given sizes. returns filter index.
+func (vv *V1Vision) NewFilter(filtN, y, x int) int {
+	sizes := vv.Filters.ShapeSizes()
+	n := sizes[0]
+	vv.Filters.SetShapeSizes(n+1, max(filtN, sizes[1]), max(y, sizes[2]), max(x, sizes[3]))
 	return n
 }
 

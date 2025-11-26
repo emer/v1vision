@@ -11,6 +11,8 @@ package dog
 //go:generate core generate -add-types -gosl
 
 import (
+	"fmt"
+
 	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
@@ -156,9 +158,11 @@ func (gf *Filter) ToTensor(tsr *tensor.Float32, netOnly bool) {
 // This is useful for display and validation purposes.
 func (gf *Filter) ToTable(tab *table.Table) {
 	tab.AddStringColumn("Version")
-	tab.AddFloat32Column("Filter", int(FiltersN), gf.Size, gf.Size)
+	tab.AddFloat32Column("Filter", gf.Size, gf.Size)
 	tab.SetNumRows(3)
-	gf.ToTensor(tab.Columns.Values[1].(*tensor.Float32), false)
+	cl := tab.Columns.Values[1].(*tensor.Float32)
+	fmt.Println(cl.ShapeSizes())
+	gf.ToTensor(cl, false)
 	nm := tab.ColumnByIndex(0)
 	nm.SetString("On", int(On))
 	nm.SetString("Off", int(Off))

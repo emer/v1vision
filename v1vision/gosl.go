@@ -87,6 +87,18 @@ func GPUInit() {
 		pl.AddVarUsed(2, "Images")
 		pl.AddVarUsed(0, "Ops")
 		pl.AddVarUsed(2, "Values")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/Op1.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(1, "Filters")
+		pl.AddVarUsed(2, "Images")
+		pl.AddVarUsed(0, "Ops")
+		pl.AddVarUsed(2, "Values")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/Op2.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(1, "Filters")
+		pl.AddVarUsed(2, "Images")
+		pl.AddVarUsed(0, "Ops")
+		pl.AddVarUsed(2, "Values")
 		sy.Config()
 	}
 }
@@ -145,6 +157,90 @@ func RunOneOp0(n int, syncVars ...GPUVars) {
 		RunDone(syncVars...)
 	} else {
 		RunOp0CPU(n)
+	}
+}
+// RunOp1 runs the Op1 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneOp1 call does Run and Done for a
+// single run-and-sync case.
+func RunOp1(n int) {
+	if UseGPU {
+		RunOp1GPU(n)
+	} else {
+		RunOp1CPU(n)
+	}
+}
+
+// RunOp1GPU runs the Op1 kernel on the GPU. See [RunOp1] for more info.
+func RunOp1GPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["Op1"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunOp1CPU runs the Op1 kernel on the CPU.
+func RunOp1CPU(n int) {
+	gpu.VectorizeFunc(0, n, Op1)
+}
+
+// RunOneOp1 runs the Op1 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneOp1(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunOp1GPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunOp1CPU(n)
+	}
+}
+// RunOp2 runs the Op2 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneOp2 call does Run and Done for a
+// single run-and-sync case.
+func RunOp2(n int) {
+	if UseGPU {
+		RunOp2GPU(n)
+	} else {
+		RunOp2CPU(n)
+	}
+}
+
+// RunOp2GPU runs the Op2 kernel on the GPU. See [RunOp2] for more info.
+func RunOp2GPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["Op2"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunOp2CPU runs the Op2 kernel on the CPU.
+func RunOp2CPU(n int) {
+	gpu.VectorizeFunc(0, n, Op2)
+}
+
+// RunOneOp2 runs the Op2 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneOp2(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunOp2GPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunOp2CPU(n)
 	}
 }
 // RunDone must be called after Run* calls to start compute kernels.

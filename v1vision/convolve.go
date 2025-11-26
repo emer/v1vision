@@ -14,9 +14,9 @@ package v1vision
 // done in the padding process, which is much more efficient.
 func (vv *V1Vision) NewConvolveImage(in, irgb, out, ftyp, fn int, gain float32, geom *Geom) {
 	op := vv.NewOp()
+	op.Op = ConvolveImage
 	nout := geom.Out.Y * geom.Out.X
 	op.RunN = uint32(nout) * uint32(fn)
-	op.Op = ConvolveImage
 	op.InImage = int32(in)
 	op.InImageRGB = int32(irgb)
 	op.OutValue = int32(out)

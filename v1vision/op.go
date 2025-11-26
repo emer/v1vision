@@ -14,6 +14,11 @@ const (
 
 	// ConvolveImage applies a filter to Image, writing to Values.
 	ConvolveImage
+
+	// WrapPad wraps given padding width of float32 image around sides
+	// i.e., padding for left side of image is the (mirrored) bits
+	// from the right side of image, etc.
+	WrapPad
 )
 
 // Op specifies an operation to perform.
@@ -31,6 +36,7 @@ type Op struct {
 	InImage int32
 
 	// InImageRGB is the RGB value to process of input image (0-2).
+	// If 3, then all RGB are processed in one op (e.g., WrapPad)
 	InImageRGB int32
 
 	// InValue is the Values index input to use.
@@ -38,6 +44,9 @@ type Op struct {
 
 	// OutValue is the Values index output to write to.
 	OutValue int32
+
+	// OutImage is the index of an image to send output for image ops.
+	OutImage int32
 
 	// FilterType is the type index of Filters to use.
 	FilterType int32
@@ -48,7 +57,11 @@ type Op struct {
 	// Gain is a multiplier factor to apply.
 	Gain float32
 
-	pad, pad1, pad2 int32
+	// IntArg1 is an arbitrary integer arg, used for different ops.
+	// e.g., PadWidth in WrapPad
+	IntArg1 int32
+
+	pad int32
 
 	// Geom is the geometry to use for this operation.
 	Geom Geom
@@ -59,12 +72,24 @@ func (op *Op) Run(i uint32) {
 	switch op.Op {
 	case ConvolveImage:
 		op.ConvolveImage(i)
+	case WrapPad:
+		op.WrapPad(i)
 	default:
 	}
 }
 
 func Op0(i uint32) { //gosl:kernel
 	op := GetOps(0)
+	op.Run(i)
+}
+
+func Op1(i uint32) { //gosl:kernel
+	op := GetOps(1)
+	op.Run(i)
+}
+
+func Op2(i uint32) { //gosl:kernel
+	op := GetOps(2)
 	op.Run(i)
 }
 
@@ -77,6 +102,10 @@ func (vv *V1Vision) RunOps() {
 		switch i {
 		case 0:
 			RunOp0(int(op.RunN))
+		case 1:
+			RunOp1(int(op.RunN))
+		case 2:
+			RunOp2(int(op.RunN))
 		}
 	}
 }
