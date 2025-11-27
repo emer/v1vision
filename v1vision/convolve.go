@@ -51,7 +51,6 @@ func (op *Op) ConvolveImage(i uint32) {
 		}
 	}
 	sum *= op.Gain
-	// sum = 0.5
 	if sum > 0 {
 		Values.Set(sum, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
@@ -59,8 +58,6 @@ func (op *Op) ConvolveImage(i uint32) {
 		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 		Values.Set(-sum, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
 	}
-	// Values[0, 12, 12, 0, 0] = 0.44
-	// Values[0, 12, 1, 0, 0] = 0.66
 }
 
 //gosl:end

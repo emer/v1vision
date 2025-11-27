@@ -51,20 +51,20 @@ func (i GPUVars) MarshalText() ([]byte, error) { return []byte(i.String()), nil 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
 func (i *GPUVars) UnmarshalText(text []byte) error { return enums.UnmarshalText(i, text, "GPUVars") }
 
-var _OperationsValues = []Operations{0, 1, 2}
+var _OperationsValues = []Operations{0, 1, 2, 3}
 
 // OperationsN is the highest valid value for type Operations, plus one.
 //
 //gosl:start
-const OperationsN Operations = 3
+const OperationsN Operations = 4
 
 //gosl:end
 
-var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `ConvolveImage`: 1, `WrapPad`: 2}
+var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3}
 
-var _OperationsDescMap = map[Operations]string{0: ``, 1: `ConvolveImage applies a filter to Image, writing to Values.`, 2: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc.`}
+var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values. InValue -&gt; OutValue (can be the same).`}
 
-var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `ConvolveImage`, 2: `WrapPad`}
+var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`}
 
 // String returns the string representation of this Operations value.
 func (i Operations) String() string { return enums.String(i, _OperationsMap) }

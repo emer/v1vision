@@ -1,0 +1,40 @@
+// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package v1vision
+
+import (
+	"cogentcore.org/core/math32"
+)
+
+// NewLogValues adds a [LogValues] operation,
+// which sets [Values] to 1 + log of input Values.
+// in = input Values, out = output (can be same as in),
+// fn = number of filters, Geom Out sizes are used for indexing.
+func (vv *V1Vision) NewLogValues(in, out, fn int, geom *Geom) {
+	op := vv.NewOp()
+	op.Op = LogValues
+	nout := geom.Out.Y * geom.Out.X
+	op.RunN = uint32(nout)
+	op.InValue = int32(in)
+	op.OutValue = int32(out)
+	op.FilterN = int32(fn)
+	op.Geom = *geom
+}
+
+//gosl:start
+
+// LogValues is the kernel for LogValues.
+func (op *Op) LogValues(i uint32) {
+	fi := int32(i) % op.FilterN // inner
+	ii := int32(i) / op.FilterN
+	yo := ii / op.Geom.Out.X
+	xo := ii % op.Geom.Out.X
+	
+	lg := math32.Log(1.0 + Values[op.InValue, yo, xo, 0, fi])
+	Values[op.OutValue, yo, xo, 0, fi] = lg
+	
+	lg = math32.Log(1.0 + Values[op.InValue, yo, xo, 1, fi])
+	Values[op.OutValue, yo, xo, 1, fi] = lg
+}

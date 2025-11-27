@@ -54,7 +54,7 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 			sum += fv * iv;
 		}
 	}
-	sum = f32(0.5);
+	sum *= op.Gain;
 	if (sum > 0) {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = sum;
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
@@ -62,13 +62,11 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(0), u32(12), u32(12), u32(0), u32(0))] = 0.44;
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(0), u32(12), u32(1), u32(0), u32(0))] = 0.66;
 }
 
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 5;
-const OperationsN: Operations = 3;
+const OperationsN: Operations = 4;
 
 //////// import: "geom.go"
 struct Geom {
@@ -111,11 +109,24 @@ fn Op_WrapPad(op: Op, i: u32) {
 	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = iv;
 }
 
+//////// import: "logrenorm.go"
+fn Op_LogValues(op: Op, i: u32) {
+	var fi = i32(i) % op.FilterN; // inner
+	var ii = i32(i) / op.FilterN;
+	var yo = ii / op.Geom.Out.x;
+	var xo = ii % op.Geom.Out.x;
+	var lg = log(1.0 + Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(0), u32(fi))]);
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = lg;
+	lg = log(1.0 + Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(1), u32(fi))]);
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = lg;
+}
+
 //////// import: "op.go"
 alias Operations = i32; //enums:enum
 const  NoOp: Operations = 0;
-const  ConvolveImage: Operations = 1;
-const  WrapPad: Operations = 2;
+const  WrapPad: Operations = 1;
+const  ConvolveImage: Operations = 2;
+const  LogValues: Operations = 3;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -138,6 +149,9 @@ fn Op_Run(op: Op, i: u32) {
 	}
 	case WrapPad: {
 		Op_WrapPad(op, i);
+	}
+	case LogValues: {
+		Op_LogValues(op, i);
 	}
 	default: {
 	}

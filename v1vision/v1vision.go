@@ -5,8 +5,6 @@
 package v1vision
 
 import (
-	"fmt"
-
 	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/tensor"
 )
@@ -107,23 +105,44 @@ func (vv *V1Vision) GPUInit() {
 	UseGPU = true
 	ToGPUTensorStrides()
 	ToGPU(OpsVar, FiltersVar)
+	// note: essential to copy up to GPU to init variable size.
+	if vv.Values.Len() > 0 {
+		ToGPU(ValuesVar)
+	}
+	if vv.Values4D.Len() > 0 {
+		ToGPU(Values4DVar)
+	}
 }
 
 func ImagesToGPU() {
 	ToGPU(ImagesVar)
 }
 
+const (
+	// NoImages is passed to Run when you don't need to get images back.
+	NoImages = false
+
+	// GetImages is passed to Run when you need to get images back.
+	GetImages = true
+)
+
 // Run transfers Images to GPU, does RunOps, and gets Values back.
 // If Values4D has been set then it is retrieved, else Values.
-func (vv *V1Vision) Run() {
+// if getImages is true, then these are retrieved as well.
+func (vv *V1Vision) Run(getImages bool) {
 	ImagesToGPU()
-	ToGPUTensorStrides()
-	ToGPU(OpsVar, FiltersVar)
 	vv.RunOps()
 	if vv.Values4D.Len() > 0 {
-		RunDone(Values4DVar)
+		if getImages {
+			RunDone(Values4DVar, ImagesVar)
+		} else {
+			RunDone(Values4DVar)
+		}
 	} else {
-		fmt.Println("values")
-		RunDone(ImagesVar, ValuesVar)
+		if getImages {
+			RunDone(ValuesVar, ImagesVar)
+		} else {
+			RunDone(ValuesVar)
+		}
 	}
 }

@@ -12,13 +12,19 @@ type Operations int32 //enums:enum
 const (
 	NoOp Operations = iota
 
-	// ConvolveImage applies a filter to Image, writing to Values.
-	ConvolveImage
-
 	// WrapPad wraps given padding width of float32 image around sides
 	// i.e., padding for left side of image is the (mirrored) bits
 	// from the right side of image, etc.
+	// InImage -> OutImage, over InImageRGB (if 3, does all).
 	WrapPad
+
+	// ConvolveImage applies a filter to Image, writing to Values.
+	// InImage -> OutValue, using FilterType, FilterN
+	ConvolveImage
+
+	// LogValues sets values to 1 + log of values.
+	// InValue -> OutValue (can be the same).
+	LogValues
 )
 
 // Op specifies an operation to perform.
@@ -74,6 +80,8 @@ func (op *Op) Run(i uint32) {
 		op.ConvolveImage(i)
 	case WrapPad:
 		op.WrapPad(i)
+	case LogValues:
+		op.LogValues(i)
 	default:
 	}
 }

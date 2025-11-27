@@ -7,7 +7,6 @@ package main
 //go:generate core generate -add-types
 
 import (
-	"fmt"
 	"image"
 
 	"cogentcore.org/core/base/errors"
@@ -15,8 +14,10 @@ import (
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
+	"cogentcore.org/lab/stats/stats"
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
+	"cogentcore.org/lab/tensor/tmath"
 	"cogentcore.org/lab/tensorcore"
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
@@ -27,6 +28,7 @@ import (
 func main() {
 	vi := &Vis{}
 	vi.Defaults()
+	vi.Config()
 	vi.Filter()
 	vi.ConfigGUI()
 }
@@ -81,28 +83,20 @@ func (vi *Vis) Defaults() {
 	// vi.ImageSize = image.Point{64, 64}
 	vi.Geom.SetImageSize(vi.ImageSize)
 	// fmt.Println(vi.Geom)
+}
 
+// Config sets up the V1 processing pipeline.
+func (vi *Vis) Config() {
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	_, out := vi.V1.AddDoG(wrap, &vi.DoG, &vi.Geom)
-	_ = out
+	vi.V1.NewLogValues(out, out, 1, &vi.Geom)
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
-		fmt.Println("gpu!")
 		vi.V1.GPUInit()
 	}
-
-	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
-	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
-		s.Image = true
-		s.Range.SetMin(0)
-	})
-	tensorcore.AddGridStylerTo(&vi.DoGTab, func(s *tensorcore.GridStyle) {
-		s.Size.Min = 16
-		s.Range.Set(-0.1, 0.1)
-	})
 }
 
 // OpenImage opens given filename as current image Image
@@ -122,33 +116,22 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	return nil
 }
 
-// LGNDoG runs DoG filtering on input image
-// must have valid Image in place to start.
-func (vi *Vis) LGNDoG() {
-	// flt := vi.DoG.FilterTensor(&vi.DoGFilter, dog.Net)
-	// v1vision.Conv1(&vi.Geom, flt, &vi.ImageTsr, &vi.OutTsr, vi.DoG.Gain)
-	// log norm is generally good it seems for dogs
-	// todo: do this
-	// n := vi.OutTsr.Len()
-	// for i := range n {
-	// 	vi.OutTsr.SetFloat1D(math.Log(vi.OutTsr.Float1D(i)+1), i)
-	// }
-	// mx := stats.Max(tensor.As1D(&vi.OutTsr))
-	// tmath.DivOut(&vi.OutTsr, mx, &vi.OutTsr)
-}
-
 // Filter is overall method to run filters on current image file name
-// loads the image from ImageFile and then runs filters
+// loads the image from ImageFile and then runs filters.
 func (vi *Vis) Filter() error { //types:add
-	// v1vision.UseGPU = vi.GPU
+	v1vision.UseGPU = vi.GPU
 	err := vi.OpenImage(string(vi.ImageFile))
 	if err != nil {
 		return errors.Log(err)
 	}
-	vi.V1.Run()
+	vi.V1.Run(v1vision.GetImages)
 	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
 	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
 	vi.OutTsr.CopyFrom(out)
+	// maxnorm is faster on CPU probably:
+	mx := stats.Max(tensor.As1D(&vi.OutTsr))
+	tmath.DivOut(&vi.OutTsr, mx, &vi.OutTsr)
+
 	img := vi.V1.Images.SubSpace(1).(*tensor.Float32)
 	vi.ImageTsr.SetShapeSizes(img.ShapeSizes()...)
 	vi.ImageTsr.CopyFrom(img)
@@ -156,6 +139,15 @@ func (vi *Vis) Filter() error { //types:add
 }
 
 func (vi *Vis) ConfigGUI() *core.Body {
+	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
+	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
+		s.Image = true
+		s.Range.SetMin(0)
+	})
+	tensorcore.AddGridStylerTo(&vi.DoGTab, func(s *tensorcore.GridStyle) {
+		s.Size.Min = 16
+		s.Range.Set(-0.1, 0.1)
+	})
 	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
 	core.NewForm(b).SetStruct(vi)
 	b.AddTopBar(func(bar *core.Frame) {
