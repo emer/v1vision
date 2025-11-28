@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"math"
 	"unsafe"
+
 	"cogentcore.org/core/gpu"
 	"cogentcore.org/lab/tensor"
+	"github.com/emer/v1vision/kwta"
 )
 
 //go:embed shaders/*.wgsl
@@ -21,6 +23,7 @@ var (
 	// UseGPU indicates whether to use GPU vs. CPU.
 	UseGPU bool
 )
+
 // GPUSystem is a GPU compute System with kernels operating on the
 // same set of data variables.
 var GPUSystem *gpu.ComputeSystem
@@ -29,12 +32,13 @@ var GPUSystem *gpu.ComputeSystem
 type GPUVars int32 //enums:enum
 
 const (
-	CurOpVar GPUVars = 0
-	FiltersVar GPUVars = 1
-	ImagesVar GPUVars = 2
-	ValuesVar GPUVars = 3
-	Values4DVar GPUVars = 4
-	ScalarsVar GPUVars = 5
+	CurOpVar    GPUVars = 0
+	KWTAsVar    GPUVars = 1
+	FiltersVar  GPUVars = 2
+	ImagesVar   GPUVars = 3
+	ValuesVar   GPUVars = 4
+	Values4DVar GPUVars = 5
+	ScalarsVar  GPUVars = 6
 )
 
 // Tensor stride variables
@@ -49,7 +53,7 @@ func GPUInit() {
 	}
 	gp := gpu.NewComputeGPU()
 	ComputeGPU = gp
-	_ = fmt.Sprintf("%g",math.NaN()) // keep imports happy
+	_ = fmt.Sprintf("%g", math.NaN()) // keep imports happy
 	{
 		sy := gpu.NewComputeSystem(gp, "Default")
 		GPUSystem = sy
@@ -61,6 +65,8 @@ func GPUInit() {
 			vr = sgp.Add("TensorStrides", gpu.Uint32, 1, gpu.ComputeShader)
 			vr.ReadOnly = true
 			vr = sgp.AddStruct("CurOp", int(unsafe.Sizeof(Op{})), 1, gpu.ComputeShader)
+			vr.ReadOnly = true
+			vr = sgp.AddStruct("KWTAs", int(unsafe.Sizeof(kwta.KWTA{})), 1, gpu.ComputeShader)
 			vr.ReadOnly = true
 			sgp.SetNValues(1)
 		}
@@ -90,6 +96,16 @@ func GPUInit() {
 		pl.AddVarUsed(2, "Images")
 		pl.AddVarUsed(2, "Scalars")
 		pl.AddVarUsed(2, "Values")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAInit.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Values4D")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIter.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(0, "KWTAs")
+		pl.AddVarUsed(2, "Scalars")
+		pl.AddVarUsed(2, "Values4D")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MaxScalarP1.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
@@ -182,6 +198,93 @@ func RunOneDoCurOp(n int, syncVars ...GPUVars) {
 		RunDoCurOpCPU(n)
 	}
 }
+
+// RunKWTAInit runs the KWTAInit kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneKWTAInit call does Run and Done for a
+// single run-and-sync case.
+func RunKWTAInit(n int) {
+	if UseGPU {
+		RunKWTAInitGPU(n)
+	} else {
+		RunKWTAInitCPU(n)
+	}
+}
+
+// RunKWTAInitGPU runs the KWTAInit kernel on the GPU. See [RunKWTAInit] for more info.
+func RunKWTAInitGPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["KWTAInit"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunKWTAInitCPU runs the KWTAInit kernel on the CPU.
+func RunKWTAInitCPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAInit)
+}
+
+// RunOneKWTAInit runs the KWTAInit kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneKWTAInit(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunKWTAInitGPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunKWTAInitCPU(n)
+	}
+}
+
+// RunKWTAIter runs the KWTAIter kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneKWTAIter call does Run and Done for a
+// single run-and-sync case.
+func RunKWTAIter(n int) {
+	if UseGPU {
+		RunKWTAIterGPU(n)
+	} else {
+		RunKWTAIterCPU(n)
+	}
+}
+
+// RunKWTAIterGPU runs the KWTAIter kernel on the GPU. See [RunKWTAIter] for more info.
+func RunKWTAIterGPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["KWTAIter"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunKWTAIterCPU runs the KWTAIter kernel on the CPU.
+func RunKWTAIterCPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIter)
+}
+
+// RunOneKWTAIter runs the KWTAIter kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneKWTAIter(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunKWTAIterGPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunKWTAIterCPU(n)
+	}
+}
+
 // RunMaxScalarP1 runs the MaxScalarP1 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -224,6 +327,7 @@ func RunOneMaxScalarP1(n int, syncVars ...GPUVars) {
 		RunMaxScalarP1CPU(n)
 	}
 }
+
 // RunMaxScalarP2 runs the MaxScalarP2 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -266,6 +370,7 @@ func RunOneMaxScalarP2(n int, syncVars ...GPUVars) {
 		RunMaxScalarP2CPU(n)
 	}
 }
+
 // RunMeanScalarP2 runs the MeanScalarP2 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -308,6 +413,7 @@ func RunOneMeanScalarP2(n int, syncVars ...GPUVars) {
 		RunMeanScalarP2CPU(n)
 	}
 }
+
 // RunMotionFullFieldP1 runs the MotionFullFieldP1 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -350,6 +456,7 @@ func RunOneMotionFullFieldP1(n int, syncVars ...GPUVars) {
 		RunMotionFullFieldP1CPU(n)
 	}
 }
+
 // RunMotionFullFieldP2 runs the MotionFullFieldP2 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -392,6 +499,7 @@ func RunOneMotionFullFieldP2(n int, syncVars ...GPUVars) {
 		RunMotionFullFieldP2CPU(n)
 	}
 }
+
 // RunSumScalarP1 runs the SumScalarP1 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -434,6 +542,7 @@ func RunOneSumScalarP1(n int, syncVars ...GPUVars) {
 		RunSumScalarP1CPU(n)
 	}
 }
+
 // RunSumScalarP2 runs the SumScalarP2 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
@@ -476,10 +585,11 @@ func RunOneSumScalarP2(n int, syncVars ...GPUVars) {
 		RunSumScalarP2CPU(n)
 	}
 }
+
 // RunDone must be called after Run* calls to start compute kernels.
 // This actually submits the kernel jobs to the GPU, and adds commands
 // to synchronize the given variables back from the GPU to the CPU.
-// After this function completes, the GPU results will be available in 
+// After this function completes, the GPU results will be available in
 // the specified variables.
 func RunDone(syncVars ...GPUVars) {
 	if !UseGPU {
@@ -504,6 +614,9 @@ func ToGPU(vars ...GPUVars) {
 		case CurOpVar:
 			v, _ := syVars.ValueByIndex(0, "CurOp", 0)
 			gpu.SetValueFrom(v, CurOp)
+		case KWTAsVar:
+			v, _ := syVars.ValueByIndex(0, "KWTAs", 0)
+			gpu.SetValueFrom(v, KWTAs)
 		case FiltersVar:
 			v, _ := syVars.ValueByIndex(1, "Filters", 0)
 			gpu.SetValueFrom(v, Filters.Values)
@@ -522,6 +635,7 @@ func ToGPU(vars ...GPUVars) {
 		}
 	}
 }
+
 // RunGPUSync can be called to synchronize data between CPU and GPU.
 // Any prior ToGPU* calls will execute to send data to the GPU,
 // and any subsequent RunDone* calls will copy data back from the GPU.
@@ -573,6 +687,9 @@ func ReadFromGPU(vars ...GPUVars) {
 		case CurOpVar:
 			v, _ := syVars.ValueByIndex(0, "CurOp", 0)
 			v.GPUToRead(sy.CommandEncoder)
+		case KWTAsVar:
+			v, _ := syVars.ValueByIndex(0, "KWTAs", 0)
+			v.GPUToRead(sy.CommandEncoder)
 		case FiltersVar:
 			v, _ := syVars.ValueByIndex(1, "Filters", 0)
 			v.GPUToRead(sy.CommandEncoder)
@@ -602,6 +719,10 @@ func SyncFromGPU(vars ...GPUVars) {
 			v, _ := syVars.ValueByIndex(0, "CurOp", 0)
 			v.ReadSync()
 			gpu.ReadToBytes(v, CurOp)
+		case KWTAsVar:
+			v, _ := syVars.ValueByIndex(0, "KWTAs", 0)
+			v.ReadSync()
+			gpu.ReadToBytes(v, KWTAs)
 		case FiltersVar:
 			v, _ := syVars.ValueByIndex(1, "Filters", 0)
 			v.ReadSync()
@@ -626,9 +747,16 @@ func SyncFromGPU(vars ...GPUVars) {
 	}
 }
 
-// GetCurOp returns a pointer to the given global variable: 
+// GetCurOp returns a pointer to the given global variable:
 // [CurOp] []Op at given index. This directly processed in the GPU code,
 // so this function call is an equivalent for the CPU.
 func GetCurOp(idx uint32) *Op {
 	return &CurOp[idx]
+}
+
+// GetKWTAs returns a pointer to the given global variable:
+// [KWTAs] []KWTA at given index. This directly processed in the GPU code,
+// so this function call is an equivalent for the CPU.
+func GetKWTAs(idx uint32) *kwta.KWTA {
+	return &KWTAs[idx]
 }

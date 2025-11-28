@@ -35,8 +35,21 @@ fn Index1D(s0: u32, i0: u32) -> u32 {
 //////// import: "convolve.go"
 
 //////// import: "enumgen.go"
-const GPUVarsN: GPUVars = 6;
-const OperationsN: Operations = 11;
+const GPUVarsN: GPUVars = 7;
+const InhibVarsN: InhibVars = 9;
+const OperationsN: Operations = 14;
+
+//////// import: "fffb-fffb.go"
+struct FFFB {
+	On: i32,
+	Gi: f32,
+	FF: f32,
+	FB: f32,
+	FBTau: f32,
+	MaxVsAvg: f32,
+	FF0: f32,
+	FBDt: f32,
+}
 
 //////// import: "geom.go"
 struct Geom {
@@ -50,6 +63,47 @@ struct Geom {
 }
 
 //////// import: "image.go"
+
+//////// import: "inhib.go"
+alias InhibVars = i32; //enums:enum
+const  FFi: InhibVars = 0;
+const  FBi: InhibVars = 1;
+const  Gi: InhibVars = 2;
+const  GiOrig: InhibVars = 3;
+const  LayGi: InhibVars = 4;
+const  GeAvg: InhibVars = 5;
+const  GeMax: InhibVars = 6;
+const  ActAvg: InhibVars = 7;
+const  ActMax: InhibVars = 8;
+
+//////// import: "kwta-chans.go"
+struct Chans {
+	E: f32,
+	L: f32,
+	I: f32,
+	K: f32,
+}
+
+//////// import: "kwta-kwta.go"
+struct KWTA {
+	On: i32,
+	Iters: i32,
+	DelActThr: f32,
+	ActTau: f32,
+	LayFFFB: FFFB,
+	PoolFFFB: FFFB,
+	XX1: Params,
+	Gbar: Chans,
+	Erev: Chans,
+	ErevSubThr: Chans,
+	ThrSubErev: Chans,
+	ActDt: f32,
+	pad: f32,
+	pad1: f32,
+	pad2: f32,
+}
+
+//////// import: "kwta.go"
 
 //////// import: "logrenorm.go"
 fn SumScalarP2(i: u32) { //gosl:kernel
@@ -65,7 +119,29 @@ fn SumScalarP2(i: u32) { //gosl:kernel
 	Scalars[Index1D(TensorStrides[40], u32(op.OutScalar))] = sum;
 }
 
+//////// import: "maxpool.go"
+
 //////// import: "motion.go"
+
+//////// import: "nxx1-nxx1.go"
+struct Params {
+	Thr: f32,
+	Gain: f32,
+	NVar: f32,
+	VmActThr: f32,
+	SigMult: f32,
+	SigMultPow: f32,
+	SigGain: f32,
+	InterpRange: f32,
+	GainCorRange: f32,
+	GainCor: f32,
+	SigGainNVar: f32,
+	SigMultEff: f32,
+	SigValAt0: f32,
+	InterpVal: f32,
+	pad: f32,
+	pad1: f32,
+}
 
 //////// import: "op.go"
 alias Operations = i32; //enums:enum
@@ -77,9 +153,12 @@ const  MaxScalar: Operations = 4;
 const  SumScalar: Operations = 5;
 const  MeanScalar: Operations = 6;
 const  NormDiv: Operations = 7;
-const  MotionIntegrate: Operations = 8;
-const  MotionStar: Operations = 9;
-const  MotionFullField: Operations = 10;
+const  NeighInhib: Operations = 8;
+const  KWTAInhib: Operations = 9;
+const  MaxPool: Operations = 10;
+const  MotionIntegrate: Operations = 11;
+const  MotionStar: Operations = 12;
+const  MotionFullField: Operations = 13;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -95,7 +174,7 @@ struct Op {
 	IntArg1: i32,
 	InScalar: i32,
 	OutScalar: i32,
+	KWTA: i32,
 	pad: i32,
-	pad1: i32,
 	Geom: Geom,
 }

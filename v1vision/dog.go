@@ -17,8 +17,7 @@ import (
 func (vv *V1Vision) AddDoG(in int, df *dog.Filter, geom *Geom) (ftyp, out int) {
 	ftyp = vv.NewFilter(1, df.Size, df.Size)
 	vv.DoGToFilter(ftyp, df)
-	out = vv.NewValues(int(geom.Out.Y), int(geom.Out.X), 1)
-	vv.NewConvolveImage(in, 0, out, ftyp, 1, df.Gain, geom)
+	out = vv.NewConvolveImage(in, 0, ftyp, 1, df.Gain, geom)
 	return
 }
 

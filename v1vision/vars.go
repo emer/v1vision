@@ -6,11 +6,14 @@ package v1vision
 
 import (
 	"cogentcore.org/lab/tensor"
+	"github.com/emer/v1vision/kwta"
 )
 
 //go:generate gosl -exclude=Update,Defaults,ShouldDisplay -max-buffer-size=2147483616
 
 //gosl:start
+//gosl:import "github.com/emer/v1vision/kwta"
+//gosl:import "github.com/emer/v1vision/fffb"
 
 // vars are all the global vars for axon GPU / CPU computation.
 //
@@ -20,6 +23,10 @@ var (
 	//gosl:group Params
 	//gosl:read-only
 	CurOp []Op
+
+	// KWTAs are KWTA inhibition parameters that can be used.
+	//gosl:read-only
+	KWTAs []kwta.KWTA
 
 	//////// Filters
 

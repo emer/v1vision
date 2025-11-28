@@ -2,22 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-Package fffb provides feedforward (FF) and feedback (FB) inhibition (FFFB)
-based on average (or maximum) excitatory netinput (FF) and activation (FB).
-
-This produces a robust, graded k-Winners-Take-All dynamic of sparse
-distributed representations having approximately k out of N neurons
-active at any time, where k is typically 10-20 percent of N.
-*/
 package fffb
 
-// Params parameterizes feedforward (FF) and feedback (FB) inhibition (FFFB)
+import "cogentcore.org/lab/gosl/slbool"
+
+//gosl:start
+
+// FFFB parameterizes feedforward (FF) and feedback (FB) inhibition (FFFB)
 // based on average (or maximum) netinput (FF) and activation (FB)
-type Params struct {
+type FFFB struct {
 
 	// enable this level of inhibition
-	On bool
+	On slbool.Bool
 
 	// Gi is the overall inhibition gain. This is main parameter to adjust to change
 	// overall activation levels, as it scales both the the FF and FB factors uniformly
@@ -65,11 +61,11 @@ type Params struct {
 	FBDt float32 `edit:"-" display:"-" json:"-" xml:"-"`
 }
 
-func (fb *Params) Update() {
+func (fb *FFFB) Update() {
 	fb.FBDt = 1 / fb.FBTau
 }
 
-func (fb *Params) Defaults() {
+func (fb *FFFB) Defaults() {
 	fb.Gi = 1.8
 	fb.FF = 1
 	fb.FB = 1
@@ -79,18 +75,18 @@ func (fb *Params) Defaults() {
 	fb.Update()
 }
 
-func (fb *Params) Params(field string) bool {
+func (fb *FFFB) ShouldDisplay(field string) bool {
 	switch field {
 	case "On":
 		return true
 	default:
-		return fb.On
+		return fb.On.IsTrue()
 	}
 }
 
 // FFInhib returns the feedforward inhibition value based on average and max excitatory conductance within
 // relevant scope
-func (fb *Params) FFInhib(avgGe, maxGe float32) float32 {
+func (fb *FFFB) FFInhib(avgGe, maxGe float32) float32 {
 	ffNetin := avgGe + fb.MaxVsAvg*(maxGe-avgGe)
 	var ffi float32
 	if ffNetin > fb.FF0 {
@@ -100,31 +96,34 @@ func (fb *Params) FFInhib(avgGe, maxGe float32) float32 {
 }
 
 // FBInhib computes feedback inhibition value as function of average activation
-func (fb *Params) FBInhib(avgAct float32) float32 {
-	fbi := fb.FB * avgAct
-	return fbi
+func (fb *FFFB) FBInhib(avgAct float32) float32 {
+	return fb.FB * avgAct
 }
 
 // FBUpdt updates feedback inhibition using time-integration rate constant
-func (fb *Params) FBUpdt(fbi *float32, newFbi float32) {
-	*fbi += fb.FBDt * (newFbi - *fbi)
+func (fb *FFFB) FBUpdt(fbi float32, newFbi float32) float32 {
+	nfb := fbi
+	nfb += fb.FBDt * (newFbi - nfb)
+	return nfb
 }
+
+//gosl:end
 
 // Inhib is full inhibition computation for given inhib state, which must have
 // the Ge and Act values updated to reflect the current Avg and Max of those
 // values in relevant inhibitory pool.
-func (fb *Params) Inhib(inh *Inhib) {
-	if !fb.On {
-		inh.Zero()
-		return
-	}
-
-	ffi := fb.FFInhib(inh.Ge.Avg, inh.Ge.Max)
-	fbi := fb.FBInhib(inh.Act.Avg)
-
-	inh.FFi = ffi
-	fb.FBUpdt(&inh.FBi, fbi)
-
-	inh.Gi = fb.Gi * (ffi + inh.FBi)
-	inh.GiOrig = inh.Gi
-}
+// func (fb *FFFB) Inhib(inhib *Inhib, y, x int) {
+// 	if !fb.On {
+// 		InhibZero(inhib, y, x)
+// 		return
+// 	}
+//
+// 	ffi := fb.FFInhib(inh.Ge.Avg, inh.Ge.Max)
+// 	fbi := fb.FBInhib(inh.Act.Avg)
+//
+// 	inh.FFi = ffi
+// 	fb.FBUpdt(&inh.FBi, fbi)
+//
+// 	inh.Gi = fb.Gi * (ffi + inh.FBi)
+// 	inh.GiOrig = inh.Gi
+// }

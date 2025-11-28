@@ -1,0 +1,75 @@
+// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package v1vision
+
+//gosl:start
+
+// InhibVars are inhibition variables, stored in a tensor.Float32
+// for FFFB inhibition computations.
+type InhibVars int32 //enums:enum
+
+const (
+	// computed feedforward inhibition
+	FFi InhibVars = iota
+
+	// computed feedback inhibition (total)
+	FBi
+
+	// overall value of the inhibition. This is what is added into
+	// the unit Gi inhibition level (along with any synaptic
+	// unit-driven inhibition)
+	Gi
+
+	// original value of the inhibition (before pool or other effects)
+	GiOrig
+
+	// for pools, this is the layer-level inhibition that is MAX'd
+	// with the pool-level inhibition to produce the net inhibition.
+	LayGi
+
+	// average Ge excitatory conductance values,
+	// which drive FF inhibition
+	GeAvg
+
+	// max Ge excitatory conductance values,
+	// which drive FF inhibition
+	GeMax
+
+	// average Act activation values,
+	// which drive FB inhibition
+	ActAvg
+
+	// max Act activation values,
+	// which drive FB inhibition
+	ActMax
+)
+
+// func(fi *Inhib)Init() {
+// fi.Zero()
+// fi.Ge.Init()
+// fi.Act.Init()
+// }
+//
+// // Zero clears inhibition but does not affect Ge, Act averages
+// func(fi *Inhib)Zero() {
+// fi.FFi = 0
+// fi.FBi = 0
+// fi.Gi = 0
+// fi.GiOrig = 0
+// fi.LayGi = 0
+// }
+//
+// // Decay reduces inhibition values by given decay proportion
+// func(fi *Inhib)Decay(decay float32) {
+// fi.Ge.Max -= decay *fi.Ge.Max
+// fi.Ge.Avg -= decay *fi.Ge.Avg
+// fi.Act.Max -= decay *fi.Act.Max
+// fi.Act.Avg -= decay *fi.Act.Avg
+// fi.FFi -= decay *fi.FFi
+// fi.FBi -= decay *fi.FBi
+// fi.Gi -= decay *fi.Gi
+// }
+
+//gosl:end

@@ -1,0 +1,51 @@
+// Copyright (c) 2025, The Emergent Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package v1vision
+
+// NewMaxPool adds a [MaxPool] operation, from in value -> out values.
+// fn is number of filters (innermost values dimension).
+// geom.In is the size of the input values, and geom.Out is the output,
+// where geom is: Out = (In / Spacing), and FilterSz <= Spacing.
+// (e.g., use geom.SetFilter)
+func (vv *V1Vision) NewMaxPool(in, fn int, geom *Geom) int {
+	op := vv.NewOp()
+	op.Op = ConvolveImage
+	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
+	op.InValue = int32(in)
+	op.OutValue = int32(out)
+	op.FilterN = int32(fn)
+	op.Geom = *geom
+	return out
+}
+
+//gosl:start
+
+// MaxPool is kernel.
+func (op *Op) MaxPool(i uint32) {
+	fi := int32(i) % op.FilterN // inner
+	pii := int32(i) / op.FilterN
+	pi := pii % 2 // plus-minus
+	ii := pii / 2
+	yo := ii / op.Geom.Out.X
+	xo := ii % op.Geom.Out.X
+
+	iy := yo * op.Geom.Spacing.Y
+	ix := xo * op.Geom.Spacing.X
+
+	mx := float32(0)
+	for py := range op.Geom.FilterSz.Y {
+		for px := range op.Geom.FilterSz.X {
+			iv := Values[op.InValue, iy+py, ix+px, pi, fi]
+			if iv > mx {
+				mx = iv
+			}
+		}
+	}
+	Values[op.OutValue, yo, xo, pi, fi] = mx
+}
+
+//gosl:end
+

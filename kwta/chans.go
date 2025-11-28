@@ -4,6 +4,8 @@
 
 package kwta
 
+//gosl:start
+
 // Chans are ion channels used in computing point-neuron activation function
 type Chans struct {
 
@@ -19,6 +21,8 @@ type Chans struct {
 	// gated / active potassium channels -- typically hyperpolarizing relative to leak / rest
 	K float32
 }
+
+//gosl:end
 
 // SetAll sets all the values
 func (ch *Chans) SetAll(e, l, i, k float32) {

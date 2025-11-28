@@ -6,20 +6,20 @@ import (
 	"cogentcore.org/core/enums"
 )
 
-var _GPUVarsValues = []GPUVars{0, 1, 2, 3, 4, 5}
+var _GPUVarsValues = []GPUVars{0, 1, 2, 3, 4, 5, 6}
 
 // GPUVarsN is the highest valid value for type GPUVars, plus one.
 //
 //gosl:start
-const GPUVarsN GPUVars = 6
+const GPUVarsN GPUVars = 7
 
 //gosl:end
 
-var _GPUVarsValueMap = map[string]GPUVars{`CurOpVar`: 0, `FiltersVar`: 1, `ImagesVar`: 2, `ValuesVar`: 3, `Values4DVar`: 4, `ScalarsVar`: 5}
+var _GPUVarsValueMap = map[string]GPUVars{`CurOpVar`: 0, `KWTAsVar`: 1, `FiltersVar`: 2, `ImagesVar`: 3, `ValuesVar`: 4, `Values4DVar`: 5, `ScalarsVar`: 6}
 
-var _GPUVarsDescMap = map[GPUVars]string{0: ``, 1: ``, 2: ``, 3: ``, 4: ``, 5: ``}
+var _GPUVarsDescMap = map[GPUVars]string{0: ``, 1: ``, 2: ``, 3: ``, 4: ``, 5: ``, 6: ``}
 
-var _GPUVarsMap = map[GPUVars]string{0: `CurOpVar`, 1: `FiltersVar`, 2: `ImagesVar`, 3: `ValuesVar`, 4: `Values4DVar`, 5: `ScalarsVar`}
+var _GPUVarsMap = map[GPUVars]string{0: `CurOpVar`, 1: `KWTAsVar`, 2: `FiltersVar`, 3: `ImagesVar`, 4: `ValuesVar`, 5: `Values4DVar`, 6: `ScalarsVar`}
 
 // String returns the string representation of this GPUVars value.
 func (i GPUVars) String() string { return enums.String(i, _GPUVarsMap) }
@@ -51,20 +51,67 @@ func (i GPUVars) MarshalText() ([]byte, error) { return []byte(i.String()), nil 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
 func (i *GPUVars) UnmarshalText(text []byte) error { return enums.UnmarshalText(i, text, "GPUVars") }
 
-var _OperationsValues = []Operations{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+var _InhibVarsValues = []InhibVars{0, 1, 2, 3, 4, 5, 6, 7, 8}
+
+// InhibVarsN is the highest valid value for type InhibVars, plus one.
+//
+//gosl:start
+const InhibVarsN InhibVars = 9
+
+//gosl:end
+
+var _InhibVarsValueMap = map[string]InhibVars{`FFi`: 0, `FBi`: 1, `Gi`: 2, `GiOrig`: 3, `LayGi`: 4, `GeAvg`: 5, `GeMax`: 6, `ActAvg`: 7, `ActMax`: 8}
+
+var _InhibVarsDescMap = map[InhibVars]string{0: `computed feedforward inhibition`, 1: `computed feedback inhibition (total)`, 2: `overall value of the inhibition. This is what is added into the unit Gi inhibition level (along with any synaptic unit-driven inhibition)`, 3: `original value of the inhibition (before pool or other effects)`, 4: `for pools, this is the layer-level inhibition that is MAX&#39;d with the pool-level inhibition to produce the net inhibition.`, 5: `average Ge excitatory conductance values, which drive FF inhibition`, 6: `max Ge excitatory conductance values, which drive FF inhibition`, 7: `average Act activation values, which drive FB inhibition`, 8: `max Act activation values, which drive FB inhibition`}
+
+var _InhibVarsMap = map[InhibVars]string{0: `FFi`, 1: `FBi`, 2: `Gi`, 3: `GiOrig`, 4: `LayGi`, 5: `GeAvg`, 6: `GeMax`, 7: `ActAvg`, 8: `ActMax`}
+
+// String returns the string representation of this InhibVars value.
+func (i InhibVars) String() string { return enums.String(i, _InhibVarsMap) }
+
+// SetString sets the InhibVars value from its string representation,
+// and returns an error if the string is invalid.
+func (i *InhibVars) SetString(s string) error {
+	return enums.SetString(i, s, _InhibVarsValueMap, "InhibVars")
+}
+
+// Int64 returns the InhibVars value as an int64.
+func (i InhibVars) Int64() int64 { return int64(i) }
+
+// SetInt64 sets the InhibVars value from an int64.
+func (i *InhibVars) SetInt64(in int64) { *i = InhibVars(in) }
+
+// Desc returns the description of the InhibVars value.
+func (i InhibVars) Desc() string { return enums.Desc(i, _InhibVarsDescMap) }
+
+// InhibVarsValues returns all possible values for the type InhibVars.
+func InhibVarsValues() []InhibVars { return _InhibVarsValues }
+
+// Values returns all possible values for the type InhibVars.
+func (i InhibVars) Values() []enums.Enum { return enums.Values(_InhibVarsValues) }
+
+// MarshalText implements the [encoding.TextMarshaler] interface.
+func (i InhibVars) MarshalText() ([]byte, error) { return []byte(i.String()), nil }
+
+// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+func (i *InhibVars) UnmarshalText(text []byte) error {
+	return enums.UnmarshalText(i, text, "InhibVars")
+}
+
+var _OperationsValues = []Operations{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 
 // OperationsN is the highest valid value for type Operations, plus one.
 //
 //gosl:start
-const OperationsN Operations = 11
+const OperationsN Operations = 14
 
 //gosl:end
 
-var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3, `MaxScalar`: 4, `SumScalar`: 5, `MeanScalar`: 6, `NormDiv`: 7, `MotionIntegrate`: 8, `MotionStar`: 9, `MotionFullField`: 10}
+var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3, `MaxScalar`: 4, `SumScalar`: 5, `MeanScalar`: 6, `NormDiv`: 7, `NeighInhib`: 8, `KWTAInhib`: 9, `MaxPool`: 10, `MotionIntegrate`: 11, `MotionStar`: 12, `MotionFullField`: 13}
 
-var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values * Gain. InValue -&gt; OutValue (can be the same).`, 4: `MaxScalar computes Max over values. InValue = values, OutScalar = result.`, 5: `SumScalar computes Sum over values InValue = values, OutScalar = result.`, 6: `MeanScalar computes Mean over values InValue = values, OutScalar = result.`, 7: `NormDiv normalizes values by scalar InValue -&gt; OutValue (can be same), InScalar = norm factor.`, 8: `MotionIntegrate does fast and slow motion integration from values to values: InValue -&gt; OutValue (should be different)`, 9: `MotionStar computes starburst-style motion on integrate fast and slow input values. Result is 4 * FilterN filter outputs, for Left, Right, Down, Up motion directions. InValue -&gt; OutValue (different, X and Y are -1 in output).`, 10: `MotionFullField computes full-field summary of output from MotionStar, into 4 Scalars for Left, Right, Down, Up. Opposite directions compete. OutScalar[0-3] = instantaneous full-field values per this frame OutScalar[4-7] = integrated full-field values over time`}
+var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values * Gain. InValue -&gt; OutValue (can be the same).`, 4: `MaxScalar computes Max over values. InValue = values, OutScalar = result.`, 5: `SumScalar computes Sum over values InValue = values, OutScalar = result.`, 6: `MeanScalar computes Mean over values InValue = values, OutScalar = result.`, 7: `NormDiv normalizes values by scalar InValue -&gt; OutValue (can be same), InScalar = norm factor.`, 8: `NeighInhib computes neighbor inhibition, as an optional preliminary step prior to KWTA. Currently only works with 4 angles (n features=4).`, 9: `KWTAInhib computes k-winners-take-all inhibition, rate-code version, based on overall levels of activity, over multiple iterations.`, 10: `MaxPool performs max-pooling over given pool size and spacing. Size must = spacing or 2 * spacing.`, 11: `MotionIntegrate does fast and slow motion integration from values to values: InValue -&gt; OutValue (should be different)`, 12: `MotionStar computes starburst-style motion on integrate fast and slow input values. Result is 4 * FilterN filter outputs, for Left, Right, Down, Up motion directions. InValue -&gt; OutValue (different, X and Y are -1 in output).`, 13: `MotionFullField computes full-field summary of output from MotionStar, into 4 Scalars for Left, Right, Down, Up. Opposite directions compete. OutScalar[0-3] = instantaneous full-field values per this frame OutScalar[4-7] = integrated full-field values over time`}
 
-var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`, 4: `MaxScalar`, 5: `SumScalar`, 6: `MeanScalar`, 7: `NormDiv`, 8: `MotionIntegrate`, 9: `MotionStar`, 10: `MotionFullField`}
+var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`, 4: `MaxScalar`, 5: `SumScalar`, 6: `MeanScalar`, 7: `NormDiv`, 8: `NeighInhib`, 9: `KWTAInhib`, 10: `MaxPool`, 11: `MotionIntegrate`, 12: `MotionStar`, 13: `MotionFullField`}
 
 // String returns the string representation of this Operations value.
 func (i Operations) String() string { return enums.String(i, _OperationsMap) }

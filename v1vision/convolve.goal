@@ -7,14 +7,15 @@ package v1vision
 // NewConvolveImage adds a [ConvolveImage] operation,
 // operating on given image input index and rgb pane,
 // and given filter type and number of filters, applying given gain factor.
+// Adds a output values of shape [geom.Out.Y, .X, 2, fn] and returns index.
 // The input Image *must* have border (padding) so that filters are
 // applied without any bounds checking: wrapping etc is all
 // done in the padding process, which is much more efficient.
-func (vv *V1Vision) NewConvolveImage(in, irgb, out, ftyp, fn int, gain float32, geom *Geom) {
+func (vv *V1Vision) NewConvolveImage(in, irgb, ftyp, fn int, gain float32, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = ConvolveImage
-	nout := geom.Out.Y * geom.Out.X
-	op.RunN = uint32(nout) * uint32(fn)
+	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn))
 	op.InImage = int32(in)
 	op.InImageRGB = int32(irgb)
 	op.OutValue = int32(out)
@@ -22,6 +23,7 @@ func (vv *V1Vision) NewConvolveImage(in, irgb, out, ftyp, fn int, gain float32, 
 	op.FilterN = int32(fn)
 	op.FloatArg1 = gain
 	op.Geom = *geom
+	return out
 }
 
 //gosl:start

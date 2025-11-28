@@ -22,7 +22,7 @@ type Geom struct {
 	// size of output -- computed
 	Out slvec.Vector2i
 
-	// starting border into image -- must be >= FilterRt
+	// starting border into image -- must be >= FilterRt for images.
 	Border slvec.Vector2i
 
 	// spacing -- number of pixels to skip in each direction
@@ -40,12 +40,27 @@ type Geom struct {
 
 //gosl:end
 
-// Set sets the basic geometry params
+// Set sets the geometry params for convolution.
 func (ge *Geom) Set(border, spacing, filtSz math32.Vector2i) {
 	ge.Border.SetV(border)
 	ge.Spacing.SetV(spacing)
 	ge.FilterSz.SetV(filtSz)
 	ge.UpdtFilter()
+}
+
+// SetImage sets the geometry params for image convolution.
+// Calls Set and SetImageSize.
+func (ge *Geom) SetImage(border, spacing, filtSz math32.Vector2i, imSize image.Point) {
+	ge.Set(border, spacing, filtSz)
+	ge.SetImageSize(imSize)
+}
+
+// SetFilter sets the geometry params for misc filtering on a
+// given input size. Calls Set and SetInputSize. Does not set
+// borders to fit the filter half-width.
+func (ge *Geom) SetFilter(border, spacing, filtSz, inSize math32.Vector2i) {
+	ge.Set(border, spacing, filtSz)
+	ge.SetInputSize(inSize)
 }
 
 // LeftHalf returns the left / top half of a filter
@@ -61,6 +76,11 @@ func (ge *Geom) UpdtFilter() {
 	ge.FilterLt.X = LeftHalf(ge.FilterSz.X)
 	ge.FilterLt.Y = LeftHalf(ge.FilterSz.Y)
 	ge.FilterRt.SetV(ge.FilterSz.V().Sub(ge.FilterLt.V()))
+}
+
+// BorderMinFilter sets the border size to be at least FilterRt.
+// This is needed for convolutional operations on images for example.
+func (ge *Geom) BorderMinFilter() {
 	if ge.Border.X < ge.FilterRt.X {
 		ge.Border.X = ge.FilterRt.X
 	}
@@ -71,20 +91,21 @@ func (ge *Geom) UpdtFilter() {
 
 // SetImageSize sets the original image input size that excludes
 // the border size, so this adds 2* border to that for the total
-// input size.
+// input size. First calls BorderMinFilter to ensure filter fits.
 func (ge *Geom) SetImageSize(imSize image.Point) {
+	ge.BorderMinFilter()
 	in := math32.Vec2i(imSize.X, imSize.Y)
 	b2 := ge.Border.V().MulScalar(2)
 	av := in.Add(b2)
 	ge.In.SetV(av)
-	ge.Out.SetV(in.DivScalar(ge.Spacing.X))
+	ge.Out.SetV(in.Div(ge.Spacing.V()))
 }
 
 // SetInputSize sets the input size, and computes output from that.
-func (ge *Geom) SetInputSize(inSize image.Point) {
-	ge.In.X = int32(inSize.X)
-	ge.In.Y = int32(inSize.Y)
+// Out = In / Spacing
+func (ge *Geom) SetInputSize(inSize math32.Vector2i) {
+	ge.In.SetV(inSize)
 	b2 := ge.Border.V().MulScalar(2)
 	av := ge.In.V().Sub(b2)
-	ge.Out.SetV(av.DivScalar(ge.Spacing.X)) // only 1
+	ge.Out.SetV(av.Div(ge.Spacing.V()))
 }

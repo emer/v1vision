@@ -17,8 +17,7 @@ import (
 func (vv *V1Vision) AddGabor(in int, gf *gabor.Filter, geom *Geom) (ftyp, out int) {
 	ftyp = vv.NewFilter(gf.NAngles, gf.Size, gf.Size)
 	vv.GaborToFilter(ftyp, gf)
-	out = vv.NewValues(int(geom.Out.Y), int(geom.Out.X), gf.NAngles)
-	vv.NewConvolveImage(in, 0, out, ftyp, gf.NAngles, gf.Gain, geom)
+	out = vv.NewConvolveImage(in, 0, ftyp, gf.NAngles, gf.Gain, geom)
 	return
 }
 

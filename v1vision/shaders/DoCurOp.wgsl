@@ -71,8 +71,21 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 }
 
 //////// import: "enumgen.go"
-const GPUVarsN: GPUVars = 6;
-const OperationsN: Operations = 11;
+const GPUVarsN: GPUVars = 7;
+const InhibVarsN: InhibVars = 9;
+const OperationsN: Operations = 14;
+
+//////// import: "fffb-fffb.go"
+struct FFFB {
+	On: i32,
+	Gi: f32,
+	FF: f32,
+	FB: f32,
+	FBTau: f32,
+	MaxVsAvg: f32,
+	FF0: f32,
+	FBDt: f32,
+}
 
 //////// import: "geom.go"
 struct Geom {
@@ -115,6 +128,47 @@ fn Op_WrapPad(op: Op, i: u32) {
 	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = iv;
 }
 
+//////// import: "inhib.go"
+alias InhibVars = i32; //enums:enum
+const  FFi: InhibVars = 0;
+const  FBi: InhibVars = 1;
+const  Gi: InhibVars = 2;
+const  GiOrig: InhibVars = 3;
+const  LayGi: InhibVars = 4;
+const  GeAvg: InhibVars = 5;
+const  GeMax: InhibVars = 6;
+const  ActAvg: InhibVars = 7;
+const  ActMax: InhibVars = 8;
+
+//////// import: "kwta-chans.go"
+struct Chans {
+	E: f32,
+	L: f32,
+	I: f32,
+	K: f32,
+}
+
+//////// import: "kwta-kwta.go"
+struct KWTA {
+	On: i32,
+	Iters: i32,
+	DelActThr: f32,
+	ActTau: f32,
+	LayFFFB: FFFB,
+	PoolFFFB: FFFB,
+	XX1: Params,
+	Gbar: Chans,
+	Erev: Chans,
+	ErevSubThr: Chans,
+	ThrSubErev: Chans,
+	ActDt: f32,
+	pad: f32,
+	pad1: f32,
+	pad2: f32,
+}
+
+//////// import: "kwta.go"
+
 //////// import: "logrenorm.go"
 fn Op_LogValues(op: Op, i: u32) {
 	var fi = i32(i) % op.FilterN; // inner
@@ -140,6 +194,28 @@ fn Op_NormDiv(op: Op, i: u32) {
 		v /= sc;
 	}
 	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = v;
+}
+
+//////// import: "maxpool.go"
+fn Op_MaxPool(op: Op, i: u32) {
+	var fi = i32(i) % op.FilterN; // inner
+	var pii = i32(i) / op.FilterN;
+	var pi = pii % 2; // plus-minus
+	var ii = pii / 2;
+	var yo = ii / op.Geom.Out.x;
+	var xo = ii % op.Geom.Out.x;
+	var iy = yo * op.Geom.Spacing.y;
+	var ix = xo * op.Geom.Spacing.x;
+	var mx = f32(0);
+	for (var py=0; py<op.Geom.FilterSz.y; py++) {
+		for (var px=0; px<op.Geom.FilterSz.x; px++) {
+			var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(iy + py), u32(ix + px), u32(pi), u32(fi))];
+			if (iv > mx) {
+				mx = iv;
+			}
+		}
+	}
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = mx;
 }
 
 //////// import: "motion.go"
@@ -209,6 +285,26 @@ fn Op_MotionStar(op: Op, i: u32) {
 	}
 }
 
+//////// import: "nxx1-nxx1.go"
+struct Params {
+	Thr: f32,
+	Gain: f32,
+	NVar: f32,
+	VmActThr: f32,
+	SigMult: f32,
+	SigMultPow: f32,
+	SigGain: f32,
+	InterpRange: f32,
+	GainCorRange: f32,
+	GainCor: f32,
+	SigGainNVar: f32,
+	SigMultEff: f32,
+	SigValAt0: f32,
+	InterpVal: f32,
+	pad: f32,
+	pad1: f32,
+}
+
 //////// import: "op.go"
 alias Operations = i32; //enums:enum
 const  NoOp: Operations = 0;
@@ -219,9 +315,12 @@ const  MaxScalar: Operations = 4;
 const  SumScalar: Operations = 5;
 const  MeanScalar: Operations = 6;
 const  NormDiv: Operations = 7;
-const  MotionIntegrate: Operations = 8;
-const  MotionStar: Operations = 9;
-const  MotionFullField: Operations = 10;
+const  NeighInhib: Operations = 8;
+const  KWTAInhib: Operations = 9;
+const  MaxPool: Operations = 10;
+const  MotionIntegrate: Operations = 11;
+const  MotionStar: Operations = 12;
+const  MotionFullField: Operations = 13;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -237,8 +336,8 @@ struct Op {
 	IntArg1: i32,
 	InScalar: i32,
 	OutScalar: i32,
+	KWTA: i32,
 	pad: i32,
-	pad1: i32,
 	Geom: Geom,
 }
 fn Op_Run(op: Op, i: u32) {
@@ -254,6 +353,9 @@ fn Op_Run(op: Op, i: u32) {
 	}
 	case NormDiv: {
 		Op_NormDiv(op, i);
+	}
+	case MaxPool: {
+		Op_MaxPool(op, i);
 	}
 	case MotionIntegrate: {
 		Op_MotionIntegrate(op, i);

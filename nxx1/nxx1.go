@@ -25,6 +25,8 @@ import (
 	"cogentcore.org/core/math32"
 )
 
+//gosl:start
+
 // Params are the Noisy X/(X+1) rate-coded activation function parameters.
 // This function well-characterizes the neural response function empirically,
 // as a saturating sigmoid-like nonlinear response with an initial largely linear regime.
@@ -79,6 +81,8 @@ type Params struct {
 
 	// function value at interp_range - sig_val_at_0 -- for interpolation
 	InterpVal float32 `display:"-" json:"-" xml:"-"`
+
+	pad, pad1 float32
 }
 
 func (xp *Params) Update() {
@@ -171,3 +175,5 @@ func (xp *Params) NoisyXX1Gain(x, gain float32) float32 {
 		return xp.XX1GainCorGain(x, gain)
 	}
 }
+
+//gosl:end

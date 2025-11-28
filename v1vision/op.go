@@ -42,6 +42,18 @@ const (
 	// InValue -> OutValue (can be same), InScalar = norm factor.
 	NormDiv
 
+	// NeighInhib computes neighbor inhibition, as an optional preliminary
+	// step prior to KWTA. Currently only works with 4 angles (n features=4).
+	NeighInhib
+
+	// KWTAInhib computes k-winners-take-all inhibition, rate-code version,
+	// based on overall levels of activity, over multiple iterations.
+	KWTAInhib
+
+	// MaxPool performs max-pooling over given pool size and spacing.
+	// Size must = spacing or 2 * spacing.
+	MaxPool
+
 	// MotionIntegrate does fast and slow motion integration from
 	// values to values: InValue -> OutValue (should be different)
 	MotionIntegrate
@@ -110,13 +122,16 @@ type Op struct {
 	// OutScalar is the Scalars index output to write to.
 	OutScalar int32
 
-	pad, pad1 int32
+	// KWTA is the index of the KWTA parameters to use.
+	KWTA int32
+
+	pad int32
 
 	// Geom is the geometry to use for this operation.
 	Geom Geom
 }
 
-// Run runs the operation on given input index.
+// Run runs the operation on given input index (already range checked).
 func (op *Op) Run(i uint32) {
 	switch op.Op {
 	case ConvolveImage:
@@ -127,6 +142,8 @@ func (op *Op) Run(i uint32) {
 		op.LogValues(i)
 	case NormDiv:
 		op.NormDiv(i)
+	case MaxPool:
+		op.MaxPool(i)
 	case MotionIntegrate:
 		op.MotionIntegrate(i)
 	case MotionStar:
@@ -162,6 +179,12 @@ func (vv *V1Vision) RunOps() {
 		case MeanScalar:
 			RunSumScalarP1(int(op.RunN))
 			RunMeanScalarP2(1)
+		case KWTAInhib:
+			kp := &vv.KWTAs[op.KWTA]
+			RunKWTAInit(int(op.RunN))
+			for range kp.Iters {
+				RunKWTAIter(int(op.RunN))
+			}
 		case MotionFullField:
 			RunMotionFullFieldP1(int(op.RunN))
 			RunMotionFullFieldP2(2)

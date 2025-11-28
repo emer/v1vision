@@ -122,9 +122,7 @@ func (vi *Vis) Defaults() {
 	vi.ImageSize = image.Point{128, 128}
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
-	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.V1sGeom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
-	vi.V1sGeom.SetImageSize(vi.ImageSize)
+	vi.V1sGeom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), vi.ImageSize)
 	vi.V1sNeighInhib.Defaults()
 	vi.V1sKWTA.Defaults()
 }
@@ -136,8 +134,16 @@ func (vi *Vis) Config() {
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.V1sGeom.FilterRt.X), &vi.V1sGeom)
+
+	// V1s simple
 	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
 	_ = out
+	// todo: NeighInhib and/or KWTA here, but typically don't
+
+	// V1c complex
+	var mpGeom v1vision.Geom
+	mpGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
+	omax := vi.V1.NewMaxPool(out, vi.V1sGabor.NAngles, &mpGeom)
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {

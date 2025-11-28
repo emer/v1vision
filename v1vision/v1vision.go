@@ -7,6 +7,7 @@ package v1vision
 import (
 	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/tensor"
+	"github.com/emer/v1vision/kwta"
 )
 
 //go:generate core generate -add-types -gosl
@@ -19,6 +20,9 @@ type V1Vision struct {
 
 	// CurOp is the current operation to perform.
 	CurOp []Op
+
+	// KWTAs are KWTA inhibition parameters that can be used.
+	KWTAs []kwta.KWTA
 
 	// Filters are one general stack of rendered filters, sized to the max of each
 	// of the inner dimensional values: [FilterTypes][FilterN][Y][X]
@@ -47,8 +51,8 @@ type V1Vision struct {
 
 // Init makes initial versions of all variables.
 func (vv *V1Vision) Init() {
-	vv.CurOp = make([]Op, 1)
 	vv.Ops = []Op{}
+	vv.CurOp = make([]Op, 1)
 	vv.Filters = tensor.NewFloat32(0, 1, 1, 1)
 	vv.Images = tensor.NewFloat32(0, 3, 1, 1)
 	vv.Values = tensor.NewFloat32(0, 1, 1, 2, 1)
@@ -61,6 +65,15 @@ func (vv *V1Vision) NewOp() *Op {
 	n := len(vv.Ops)
 	vv.Ops = append(vv.Ops, Op{})
 	return &vv.Ops[n]
+}
+
+// NewKWTAParams adds new [kwta.KWTA] params, initialized with defaults
+func (vv *V1Vision) NewKWTAParams() *kwta.KWTA {
+	n := len(vv.KWTAs)
+	vv.KWTAs = append(vv.KWTAs, kwta.KWTA{})
+	kv := &vv.KWTAs[n]
+	kv.Defaults()
+	return kv
 }
 
 // NewImage adds a new image of given size. returns image index.
