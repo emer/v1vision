@@ -22,9 +22,42 @@ const (
 	// InImage -> OutValue, using FilterType, FilterN
 	ConvolveImage
 
-	// LogValues sets values to 1 + log of values.
+	// LogValues sets values to 1 + log of values * Gain.
 	// InValue -> OutValue (can be the same).
 	LogValues
+
+	// MaxScalar computes Max over values.
+	// InValue = values, OutScalar = result.
+	MaxScalar
+
+	// SumScalar computes Sum over values
+	// InValue = values, OutScalar = result.
+	SumScalar
+
+	// MeanScalar computes Mean over values
+	// InValue = values, OutScalar = result.
+	MeanScalar
+
+	// NormDiv normalizes values by scalar
+	// InValue -> OutValue (can be same), InScalar = norm factor.
+	NormDiv
+
+	// MotionIntegrate does fast and slow motion integration from
+	// values to values: InValue -> OutValue (should be different)
+	MotionIntegrate
+
+	// MotionStar computes starburst-style motion on integrate
+	// fast and slow input values. Result is 4 * FilterN filter
+	// outputs, for Left, Right, Down, Up motion directions.
+	// InValue -> OutValue (different, X and Y are -1 in output).
+	MotionStar
+
+	// MotionFullField computes full-field summary of output from
+	// MotionStar, into 4 Scalars for Left, Right, Down, Up.
+	// Opposite directions compete.
+	// OutScalar[0-3] = instantaneous full-field values per this frame
+	// OutScalar[4-7] = integrated full-field values over time
+	MotionFullField
 )
 
 // Op specifies an operation to perform.
@@ -60,14 +93,24 @@ type Op struct {
 	// FilterN is the number of filters within the FilterType to use.
 	FilterN int32
 
-	// Gain is a multiplier factor to apply.
-	Gain float32
+	// FloatArg1 is a float argument -- e.g., used for gain multiplier
+	// factor to apply.
+	FloatArg1 float32
+
+	// FloatArg2 is a float argument
+	FloatArg2 float32
 
 	// IntArg1 is an arbitrary integer arg, used for different ops.
 	// e.g., PadWidth in WrapPad
 	IntArg1 int32
 
-	pad int32
+	// InScalar is the Scalars index input to read from.
+	InScalar int32
+
+	// OutScalar is the Scalars index output to write to.
+	OutScalar int32
+
+	pad, pad1 int32
 
 	// Geom is the geometry to use for this operation.
 	Geom Geom
@@ -82,22 +125,21 @@ func (op *Op) Run(i uint32) {
 		op.WrapPad(i)
 	case LogValues:
 		op.LogValues(i)
+	case NormDiv:
+		op.NormDiv(i)
+	case MotionIntegrate:
+		op.MotionIntegrate(i)
+	case MotionStar:
+		op.MotionStar(i)
 	default:
 	}
 }
 
-func Op0(i uint32) { //gosl:kernel
-	op := GetOps(0)
-	op.Run(i)
-}
-
-func Op1(i uint32) { //gosl:kernel
-	op := GetOps(1)
-	op.Run(i)
-}
-
-func Op2(i uint32) { //gosl:kernel
-	op := GetOps(2)
+func DoCurOp(i uint32) { //gosl:kernel
+	op := GetCurOp(0)
+	if i >= op.RunN {
+		return
+	}
 	op.Run(i)
 }
 
@@ -105,15 +147,29 @@ func Op2(i uint32) { //gosl:kernel
 
 // RunOps runs all the operations.
 func (vv *V1Vision) RunOps() {
-	for i := range vv.Ops {
+	nops := len(vv.Ops)
+	for i := range nops {
+		vv.CurOp[0] = vv.Ops[i]
+		ToGPU(CurOpVar)
 		op := &vv.Ops[i]
-		switch i {
-		case 0:
-			RunOp0(int(op.RunN))
-		case 1:
-			RunOp1(int(op.RunN))
-		case 2:
-			RunOp2(int(op.RunN))
+		switch op.Op {
+		case MaxScalar:
+			RunMaxScalarP1(int(op.RunN))
+			RunMaxScalarP2(1)
+		case SumScalar:
+			RunSumScalarP1(int(op.RunN))
+			RunSumScalarP2(1)
+		case MeanScalar:
+			RunSumScalarP1(int(op.RunN))
+			RunMeanScalarP2(1)
+		case MotionFullField:
+			RunMotionFullFieldP1(int(op.RunN))
+			RunMotionFullFieldP2(2)
+		default:
+			RunDoCurOp(int(op.RunN))
+		}
+		if i < nops-1 {
+			RunDone() // must wait to send next op
 		}
 	}
 }

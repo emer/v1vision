@@ -8,7 +8,7 @@ package main
 
 import (
 	"fmt"
-	"math"
+	"image"
 	"time"
 
 	"cogentcore.org/core/core"
@@ -16,10 +16,8 @@ import (
 	"cogentcore.org/core/icons"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
-	"cogentcore.org/lab/stats/stats"
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
-	"cogentcore.org/lab/tensor/tmath"
 	"cogentcore.org/lab/tensorcore"
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/emer/emergent/v2/edge"
@@ -31,6 +29,7 @@ import (
 func main() {
 	vi := &Vis{}
 	vi.Defaults()
+	vi.Config()
 	vi.RenderFrames()
 	vi.ConfigGUI()
 }
@@ -38,6 +37,8 @@ func main() {
 // Vis encapsulates specific visual processing pipeline in
 // use in a given case -- can add / modify this as needed
 type Vis struct { //types:add
+	// GPU means use gpu
+	GPU bool
 
 	// NFrames is the number of frames to render per trial.
 	NFrames int
@@ -46,10 +47,10 @@ type Vis struct { //types:add
 	FrameDelay time.Duration
 
 	// target image size to use.
-	ImageSize math32.Vector2i
+	ImageSize image.Point
 
 	// Bar is the size of the moving bar.
-	Bar math32.Vector2i
+	Bar image.Point
 
 	// Velocity is the motion direction vector.
 	Velocity math32.Vector2
@@ -69,33 +70,41 @@ type Vis struct { //types:add
 	// geometry of input, output
 	Geom v1vision.Geom `edit:"-"`
 
-	// input image as tensor
-	ImageTsr tensor.Float32 `display:"no-inline"`
+	// V1 is the V1Vision filter processing system
+	V1 v1vision.V1Vision `display:"no-inline"`
 
-	// DoG filter tensor -- has 3 filters (on, off, net)
-	DoGFilter tensor.Float32 `display:"no-inline"`
+	// input image as tensor
+	ImageTsr *tensor.Float32 `display:"no-inline"`
 
 	// DoG filter table (view only)
 	DoGTab table.Table `display:"no-inline"`
 
 	// DoG filter output tensor
-	DoGOutTsr tensor.Float32 `display:"no-inline"`
+	DoGOut tensor.Float32 `display:"no-inline"`
 
-	Slow           tensor.Float32 `display:"no-inline"`
-	Fast           tensor.Float32 `display:"no-inline"`
-	Star           tensor.Float32 `display:"no-inline"`
-	FullField      tensor.Float32 `display:"no-inline"`
-	FullFieldInsta tensor.Float32 `display:"no-inline"`
+	// Fast motion integration tensor
+	Fast tensor.Float32 `display:"no-inline"`
+
+	// Slow motion integration tensor
+	Slow tensor.Float32 `display:"no-inline"`
+
+	// Star motion output tensor
+	Star tensor.Float32 `display:"no-inline"`
+
+	// FullField integrated output
+	FullField tensor.Float32 `display:"no-inline"`
+
+	fastIdx, starIdx int
 
 	starView, fastView, imgView *tensorcore.TensorGrid
 }
 
 func (vi *Vis) Defaults() {
+	vi.GPU = true
 	vi.NFrames = 16
 	vi.FrameDelay = 200 * time.Millisecond
-	vi.ImageSize = math32.Vector2i{64, 64}
-	vi.ImageTsr.SetShapeSizes(64, 64)
-	vi.Bar = math32.Vector2i{8, 16}
+	vi.ImageSize = image.Point{64, 64}
+	vi.Bar = image.Point{8, 16}
 	vi.Velocity = math32.Vector2{1, 0}
 	vi.Start = math32.Vector2{8, 8}
 	vi.DoGTab.Init()
@@ -107,8 +116,96 @@ func (vi *Vis) Defaults() {
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.Geom.Set(math32.Vector2i{0, 0}, math32.Vector2i{spc, spc}, math32.Vector2i{sz, sz})
-	vi.DoG.ToTensor(&vi.DoGFilter)
+	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
+	vi.Geom.SetImageSize(vi.ImageSize)
+}
+
+func (vi *Vis) Config() {
+	fn := 1 // number of filters in DoG
+	_ = fn
+	vi.V1.Init()
+	img := vi.V1.NewImage(vi.Geom.In.V())
+	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
+	_, out := vi.V1.AddDoG(img, &vi.DoG, &vi.Geom)
+	vi.V1.NewLogValues(out, out, fn, 1.0, &vi.Geom)
+	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, fn, &vi.Geom)
+
+	vi.Motion.DoGSumScalarIndex = vi.V1.NewAggScalar(v1vision.SumScalar, out, fn, &vi.Geom)
+	vi.fastIdx = vi.V1.NewMotionIntegrate(out, fn, vi.Motion.FastTau, vi.Motion.SlowTau, &vi.Geom)
+	vi.starIdx = vi.V1.NewMotionStar(vi.fastIdx, fn, vi.Motion.Gain, &vi.Geom)
+	vi.Motion.FFScalarIndex = vi.V1.NewMotionFullField(vi.starIdx, fn, &vi.Geom)
+
+	vi.V1.SetAsCurrent()
+	if vi.GPU {
+		vi.V1.GPUInit()
+	}
+}
+
+// RenderFrames renders the frames
+func (vi *Vis) RenderFrames() { //types:add
+	vi.V1.ZeroValues()
+	vi.Motion.NormInteg = 0
+	vi.Pos = vi.Start
+	for i := range vi.NFrames {
+		_ = i
+		vi.RenderFrame()
+		vi.Pos = vi.Pos.Add(vi.Velocity)
+		vi.Filter()
+		if vi.starView != nil {
+			// fmt.Println(i)
+			vi.starView.AsyncLock()
+			vi.starView.Update()
+			vi.fastView.Update()
+			vi.imgView.Update()
+			vi.starView.AsyncUnlock()
+			fmt.Printf("%d\tL: %7.4g\tR: %7.4g\tB: %7.4g\tT: %7.4g\tN: %7.4g\n", i, vi.FullField.Value1D(0), vi.FullField.Value1D(1), vi.FullField.Value1D(2), vi.FullField.Value1D(3), vi.Motion.NormInteg)
+			time.Sleep(vi.FrameDelay)
+		}
+	}
+}
+
+// RenderFrame renders a frame
+func (vi *Vis) RenderFrame() {
+	pad := vi.Geom.Border.V()
+	tensor.SetAllFloat64(vi.ImageTsr, 0)
+	for y := range vi.Bar.Y {
+		py := int(math32.Round(vi.Pos.Y))
+		yp, _ := edge.Edge(y+py, vi.ImageSize.Y, true)
+		for x := range vi.Bar.X {
+			px := int(math32.Round(vi.Pos.X))
+			xp, _ := edge.Edge(x+px, vi.ImageSize.X, true)
+			vi.ImageTsr.Set(1, 0, int(pad.Y)+yp, int(pad.X)+xp)
+		}
+	}
+}
+
+// Filter runs the filters on current image.
+func (vi *Vis) Filter() error { //types:add
+	v1vision.UseGPU = vi.GPU
+	vi.V1.Run(v1vision.ScalarsVar, v1vision.ValuesVar, v1vision.ImagesVar)
+	// vi.V1.Run(v1vision.ScalarsVar) // minimal fastest case
+	vi.Motion.FullFieldInteg(vi.V1.Scalars, &vi.FullField)
+
+	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
+	vi.DoGOut.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
+	tensor.CopyFromLargerShape(&vi.DoGOut, out)
+
+	fast := vi.V1.Values.SubSpace(vi.fastIdx).(*tensor.Float32)
+	vi.Fast.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
+	tensor.CopyFromLargerShape(&vi.Fast, fast)
+
+	slow := vi.V1.Values.SubSpace(vi.fastIdx + 1).(*tensor.Float32)
+	vi.Slow.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
+	tensor.CopyFromLargerShape(&vi.Slow, slow)
+
+	star := vi.V1.Values.SubSpace(vi.starIdx).(*tensor.Float32)
+	vi.Star.SetShapeSizes(int(vi.Geom.Out.Y-1), int(vi.Geom.Out.X-1), 2, 4)
+	tensor.CopyFromLargerShape(&vi.Star, star)
+
+	return nil
+}
+
+func (vi *Vis) ConfigGUI() *core.Body {
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
 	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
 		s.Image = true
@@ -118,72 +215,11 @@ func (vi *Vis) Defaults() {
 		s.Size.Min = 16
 		s.Range.Set(-0.1, 0.1)
 	})
-}
+	tensorcore.AddGridStylerTo(&vi.FullField, func(s *tensorcore.GridStyle) {
+		s.Range.SetMin(0)
+		s.Range.FixMax = false
+	})
 
-// RenderFrames renders the frames
-func (vi *Vis) RenderFrames() { //types:add
-	tensor.SetAllFloat64(&vi.Slow, 0)
-	tensor.SetAllFloat64(&vi.Fast, 0)
-	vi.Pos = vi.Start
-	visNorm := float32(0)
-	for i := range vi.NFrames {
-		_ = i
-		vi.RenderFrame()
-		vi.LGNDoG()
-		ve := vi.Motion.IntegrateFrame(&vi.Slow, &vi.Fast, &vi.DoGOutTsr)
-		vi.Pos = vi.Pos.Add(vi.Velocity)
-		vi.Motion.StarMotion(&vi.Star, &vi.Slow, &vi.Fast)
-		vi.Motion.FullField(&vi.FullFieldInsta, &vi.FullField, &vi.Star, ve, &visNorm)
-		if vi.starView != nil {
-			// fmt.Println(i)
-			vi.starView.AsyncLock()
-			vi.starView.Update()
-			vi.fastView.Update()
-			vi.imgView.Update()
-			vi.starView.AsyncUnlock()
-			fmt.Printf("%d\tL: %7.4g\tR: %7.4g\tB: %7.4g\tT: %7.4g\tN: %7.4g\n", i, vi.FullField.Value1D(0), vi.FullField.Value1D(1), vi.FullField.Value1D(2), vi.FullField.Value1D(3), visNorm)
-			time.Sleep(vi.FrameDelay)
-		}
-	}
-}
-
-// RenderFrame renders a frame
-func (vi *Vis) RenderFrame() {
-	tensor.SetAllFloat64(&vi.ImageTsr, 0)
-	for y := range vi.Bar.Y {
-		py := int(math32.Round(vi.Pos.Y))
-		yp, _ := edge.Edge(y+py, vi.ImageSize.Y, true)
-		for x := range vi.Bar.X {
-			px := int(math32.Round(vi.Pos.X))
-			xp, _ := edge.Edge(x+px, vi.ImageSize.X, true)
-			vi.ImageTsr.Set(1, yp, xp)
-		}
-	}
-}
-
-// LGNDoG runs DoG filtering on input image
-// must have valid Image in place to start.
-func (vi *Vis) LGNDoG() {
-	flt := vi.DoG.FilterTensor(&vi.DoGFilter, dog.Net)
-	out := &vi.DoGOutTsr
-	v1vision.Conv1(&vi.Geom, flt, &vi.ImageTsr, out, vi.DoG.Gain)
-	// log norm is generally good it seems for dogs
-	n := out.Len()
-	for i := range n {
-		out.SetFloat1D(math.Log(out.Float1D(i)+1), i)
-	}
-	mx := stats.Max(tensor.As1D(out))
-	tmath.DivOut(out, mx, out)
-}
-
-// Filter is overall method to run filters on current image file name
-// loads the image from ImageFile and then runs filters
-func (vi *Vis) Filter() error { //types:add
-	vi.LGNDoG()
-	return nil
-}
-
-func (vi *Vis) ConfigGUI() *core.Body {
 	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
 	sp := core.NewSplits(b)
 	core.NewForm(sp).SetStruct(vi)
@@ -194,8 +230,12 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.FullField)
 	tf, _ = tb.NewTab("Fast")
 	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Fast)
+	tf, _ = tb.NewTab("Slow")
+	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Slow)
+	tf, _ = tb.NewTab("DoG")
+	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.DoGOut)
 	tf, _ = tb.NewTab("Image")
-	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.ImageTsr)
+	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
 
 	sp.SetSplits(.3, .7)
 

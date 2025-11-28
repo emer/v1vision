@@ -17,6 +17,9 @@ type V1Vision struct {
 	// Ops are the sequence of operations to perform, called in order.
 	Ops []Op
 
+	// CurOp is the current operation to perform.
+	CurOp []Op
+
 	// Filters are one general stack of rendered filters, sized to the max of each
 	// of the inner dimensional values: [FilterTypes][FilterN][Y][X]
 	// FilterTypes = different filter types (DoG, Gabor, etc)
@@ -36,15 +39,21 @@ type V1Vision struct {
 
 	// Values4D are 4D aggregated data (e.g., outputs): [ValueNo][GpY][GpX][Y][X]
 	Values4D *tensor.Float32
+
+	// Scalars are scalar values for Sum, Max summary stats.
+	// More efficient to use these versus using large Values allocations.
+	Scalars *tensor.Float32
 }
 
 // Init makes initial versions of all variables.
 func (vv *V1Vision) Init() {
+	vv.CurOp = make([]Op, 1)
 	vv.Ops = []Op{}
 	vv.Filters = tensor.NewFloat32(0, 1, 1, 1)
 	vv.Images = tensor.NewFloat32(0, 3, 1, 1)
 	vv.Values = tensor.NewFloat32(0, 1, 1, 2, 1)
 	vv.Values4D = tensor.NewFloat32(0, 1, 1, 1, 1)
+	vv.Scalars = tensor.NewFloat32(0)
 }
 
 // NewOp adds a new [Op]
@@ -78,6 +87,14 @@ func (vv *V1Vision) NewValues4D(gpY, gpX, y, x int) int {
 	return n
 }
 
+// NewScalar adds given number of new Scalar(s), returning starting index.
+func (vv *V1Vision) NewScalar(addN int) int {
+	sizes := vv.Scalars.ShapeSizes()
+	n := sizes[0]
+	vv.Scalars.SetShapeSizes(n + addN)
+	return n
+}
+
 // NewFilter adds a new Filters of given sizes. returns filter index.
 // Note: if later adding filters of larger sizes, then initial filter data
 // can be skewed, and you need to re-set it.
@@ -91,11 +108,12 @@ func (vv *V1Vision) NewFilter(filtN, y, x int) int {
 // SetAsCurrent sets these as the current global values that are
 // processed in the code (on the GPU).
 func (vv *V1Vision) SetAsCurrent() {
-	Ops = vv.Ops
+	CurOp = vv.CurOp
 	Filters = vv.Filters
 	Images = vv.Images
 	Values = vv.Values
 	Values4D = vv.Values4D
+	Scalars = vv.Scalars
 }
 
 // GPUInit initializes the GPU and transfers Ops and Filters.
@@ -104,7 +122,7 @@ func (vv *V1Vision) GPUInit() {
 	GPUInit()
 	UseGPU = true
 	ToGPUTensorStrides()
-	ToGPU(OpsVar, FiltersVar)
+	ToGPU(CurOpVar, FiltersVar)
 	// note: essential to copy up to GPU to init variable size.
 	if vv.Values.Len() > 0 {
 		ToGPU(ValuesVar)
@@ -112,37 +130,26 @@ func (vv *V1Vision) GPUInit() {
 	if vv.Values4D.Len() > 0 {
 		ToGPU(Values4DVar)
 	}
+	if vv.Scalars.Len() > 0 {
+		ToGPU(ScalarsVar)
+	}
 }
 
 func ImagesToGPU() {
 	ToGPU(ImagesVar)
 }
 
-const (
-	// NoImages is passed to Run when you don't need to get images back.
-	NoImages = false
-
-	// GetImages is passed to Run when you need to get images back.
-	GetImages = true
-)
-
-// Run transfers Images to GPU, does RunOps, and gets Values back.
-// If Values4D has been set then it is retrieved, else Values.
-// if getImages is true, then these are retrieved as well.
-func (vv *V1Vision) Run(getImages bool) {
+// Run transfers Images to GPU, does RunOps, retrieving the
+// specified set of variables back from the GPU (if GPU running).
+func (vv *V1Vision) Run(vars ...GPUVars) {
 	ImagesToGPU()
 	vv.RunOps()
-	if vv.Values4D.Len() > 0 {
-		if getImages {
-			RunDone(Values4DVar, ImagesVar)
-		} else {
-			RunDone(Values4DVar)
-		}
-	} else {
-		if getImages {
-			RunDone(ValuesVar, ImagesVar)
-		} else {
-			RunDone(ValuesVar)
-		}
-	}
+	RunDone(vars...)
+}
+
+// ZeroValues sets all the values to zero.
+// Useful when there are integrated accumulating values (e.g., motion).
+func (vv *V1Vision) ZeroValues() {
+	tensor.SetAllFloat64(vv.Values, 0)
+	ToGPU(ValuesVar)
 }

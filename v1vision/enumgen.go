@@ -6,20 +6,20 @@ import (
 	"cogentcore.org/core/enums"
 )
 
-var _GPUVarsValues = []GPUVars{0, 1, 2, 3, 4}
+var _GPUVarsValues = []GPUVars{0, 1, 2, 3, 4, 5}
 
 // GPUVarsN is the highest valid value for type GPUVars, plus one.
 //
 //gosl:start
-const GPUVarsN GPUVars = 5
+const GPUVarsN GPUVars = 6
 
 //gosl:end
 
-var _GPUVarsValueMap = map[string]GPUVars{`OpsVar`: 0, `FiltersVar`: 1, `ImagesVar`: 2, `ValuesVar`: 3, `Values4DVar`: 4}
+var _GPUVarsValueMap = map[string]GPUVars{`CurOpVar`: 0, `FiltersVar`: 1, `ImagesVar`: 2, `ValuesVar`: 3, `Values4DVar`: 4, `ScalarsVar`: 5}
 
-var _GPUVarsDescMap = map[GPUVars]string{0: ``, 1: ``, 2: ``, 3: ``, 4: ``}
+var _GPUVarsDescMap = map[GPUVars]string{0: ``, 1: ``, 2: ``, 3: ``, 4: ``, 5: ``}
 
-var _GPUVarsMap = map[GPUVars]string{0: `OpsVar`, 1: `FiltersVar`, 2: `ImagesVar`, 3: `ValuesVar`, 4: `Values4DVar`}
+var _GPUVarsMap = map[GPUVars]string{0: `CurOpVar`, 1: `FiltersVar`, 2: `ImagesVar`, 3: `ValuesVar`, 4: `Values4DVar`, 5: `ScalarsVar`}
 
 // String returns the string representation of this GPUVars value.
 func (i GPUVars) String() string { return enums.String(i, _GPUVarsMap) }
@@ -51,20 +51,20 @@ func (i GPUVars) MarshalText() ([]byte, error) { return []byte(i.String()), nil 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
 func (i *GPUVars) UnmarshalText(text []byte) error { return enums.UnmarshalText(i, text, "GPUVars") }
 
-var _OperationsValues = []Operations{0, 1, 2, 3}
+var _OperationsValues = []Operations{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
 // OperationsN is the highest valid value for type Operations, plus one.
 //
 //gosl:start
-const OperationsN Operations = 4
+const OperationsN Operations = 11
 
 //gosl:end
 
-var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3}
+var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3, `MaxScalar`: 4, `SumScalar`: 5, `MeanScalar`: 6, `NormDiv`: 7, `MotionIntegrate`: 8, `MotionStar`: 9, `MotionFullField`: 10}
 
-var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values. InValue -&gt; OutValue (can be the same).`}
+var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values * Gain. InValue -&gt; OutValue (can be the same).`, 4: `MaxScalar computes Max over values. InValue = values, OutScalar = result.`, 5: `SumScalar computes Sum over values InValue = values, OutScalar = result.`, 6: `MeanScalar computes Mean over values InValue = values, OutScalar = result.`, 7: `NormDiv normalizes values by scalar InValue -&gt; OutValue (can be same), InScalar = norm factor.`, 8: `MotionIntegrate does fast and slow motion integration from values to values: InValue -&gt; OutValue (should be different)`, 9: `MotionStar computes starburst-style motion on integrate fast and slow input values. Result is 4 * FilterN filter outputs, for Left, Right, Down, Up motion directions. InValue -&gt; OutValue (different, X and Y are -1 in output).`, 10: `MotionFullField computes full-field summary of output from MotionStar, into 4 Scalars for Left, Right, Down, Up. Opposite directions compete. OutScalar[0-3] = instantaneous full-field values per this frame OutScalar[4-7] = integrated full-field values over time`}
 
-var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`}
+var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`, 4: `MaxScalar`, 5: `SumScalar`, 6: `MeanScalar`, 7: `NormDiv`, 8: `MotionIntegrate`, 9: `MotionStar`, 10: `MotionFullField`}
 
 // String returns the string representation of this Operations value.
 func (i Operations) String() string { return enums.String(i, _OperationsMap) }

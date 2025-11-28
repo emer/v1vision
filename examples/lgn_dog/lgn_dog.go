@@ -7,17 +7,17 @@ package main
 //go:generate core generate -add-types
 
 import (
+	"fmt"
 	"image"
 
 	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
+	"cogentcore.org/core/base/timer"
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
-	"cogentcore.org/lab/stats/stats"
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
-	"cogentcore.org/lab/tensor/tmath"
 	"cogentcore.org/lab/tensorcore"
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
@@ -92,7 +92,9 @@ func (vi *Vis) Config() {
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	_, out := vi.V1.AddDoG(wrap, &vi.DoG, &vi.Geom)
-	vi.V1.NewLogValues(out, out, 1, &vi.Geom)
+	// _ = out
+	vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
+	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
 		vi.V1.GPUInit()
@@ -124,14 +126,22 @@ func (vi *Vis) Filter() error { //types:add
 	if err != nil {
 		return errors.Log(err)
 	}
-	vi.V1.Run(v1vision.GetImages)
-	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
-	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
-	vi.OutTsr.CopyFrom(out)
-	// maxnorm is faster on CPU probably:
-	mx := stats.Max(tensor.As1D(&vi.OutTsr))
-	tmath.DivOut(&vi.OutTsr, mx, &vi.OutTsr)
+	tmr := timer.Time{}
+	tmr.Start()
+	for range 1000 {
+		// note: the read sync operation is currently very slow!
+		// this needs to be sped up significantly! hopefully with the
+		// fix that they are doing for the firefox issue.
+		// https://bugzilla.mozilla.org/show_bug.cgi?id=1870699
+		vi.V1.Run(v1vision.ValuesVar)
+		out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
+		vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
+		vi.OutTsr.CopyFrom(out)
+	}
+	tmr.Stop()
+	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
 
+	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
 	img := vi.V1.Images.SubSpace(1).(*tensor.Float32)
 	vi.ImageTsr.SetShapeSizes(img.ShapeSizes()...)
 	vi.ImageTsr.CopyFrom(img)
@@ -148,6 +158,7 @@ func (vi *Vis) ConfigGUI() *core.Body {
 		s.Size.Min = 16
 		s.Range.Set(-0.1, 0.1)
 	})
+
 	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
 	core.NewForm(b).SetStruct(vi)
 	b.AddTopBar(func(bar *core.Frame) {

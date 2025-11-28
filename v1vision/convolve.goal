@@ -20,13 +20,13 @@ func (vv *V1Vision) NewConvolveImage(in, irgb, out, ftyp, fn int, gain float32, 
 	op.OutValue = int32(out)
 	op.FilterType = int32(ftyp)
 	op.FilterN = int32(fn)
-	op.Gain = gain
+	op.FloatArg1 = gain
 	op.Geom = *geom
 }
 
 //gosl:start
 
-// ConvolveIimage is the kernel for Convolve on Image data.
+// ConvolveImage is the kernel for Convolve on Image data.
 func (op *Op) ConvolveImage(i uint32) {
 	fi := int32(i) % op.FilterN // inner
 	ii := int32(i) / op.FilterN
@@ -48,7 +48,7 @@ func (op *Op) ConvolveImage(i uint32) {
 			sum += fv * iv
 		}
 	}
-	sum *= op.Gain
+	sum *= op.FloatArg1
 	if sum > 0 {
 		Values[op.OutValue, yo, xo, 0, fi] = sum
 		Values[op.OutValue, yo, xo, 1, fi] = 0.0

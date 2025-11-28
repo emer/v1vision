@@ -1,0 +1,186 @@
+// Copyright (c) 2025, The Emergent Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package v1vision
+
+// NewMotionIntegrate adds a [MotionIntegrate] operation,
+// operating on given values input index, with given number of filters.
+// fastTau and slowTau are the tau time constants for integrating.
+// Adds two new Values for output: Fast and Slow, index of Fast returned.
+func (vv *V1Vision) NewMotionIntegrate(in, fn int, fastTau, slowTau float32, geom *Geom) int {
+	fast := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
+	vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn) // slow
+	op := vv.NewOp()
+	op.Op = MotionIntegrate
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
+	op.InValue = int32(in)
+	op.OutValue = int32(fast)
+	op.FilterN = int32(fn)
+	op.FloatArg1 = 1.0 / fastTau
+	op.FloatArg2 = 1.0 / slowTau
+	op.Geom = *geom
+	return fast
+}
+
+// NewMotionStar adds a [MotionStar] operation,
+// operating on given values input index = fast, +1 = slow,
+// with given number of original input filters.
+// Adds new Values for output, nf = orig nf * 4 (left, right, down, up),
+// index returned.
+func (vv *V1Vision) NewMotionStar(in, fn int, gain float32, geom *Geom) int {
+	nfn := fn * 4
+	oy := int(geom.Out.Y-1)
+	ox := int(geom.Out.X-1)
+	out := vv.NewValues(oy, ox, nfn)
+	op := vv.NewOp()
+	op.Op = MotionStar
+	op.RunN = uint32(oy * ox * int(fn*2) * 2) // lr,du dir for run
+	op.InValue = int32(in)
+	op.OutValue = int32(out)
+	op.FilterN = int32(fn * 2)
+	op.FloatArg1 = gain
+	op.Geom = *geom
+	return out
+}
+
+// NewMotionFullField adds a [MotionFullField] operation,
+// operating on given values input index = star output.
+// with given number of original input filters (same as arg for Star).
+// Adds 4 new Scalar outputs for instantaneous motion output.
+// Allocates an intermediate OutValue for 2-phase integration process.
+// starting Scalar index returned.
+func (vv *V1Vision) NewMotionFullField(in, fn int, geom *Geom) int {
+	out := vv.NewScalar(4)
+	op := vv.NewOp()
+	op.Op = MotionFullField
+	oy := int(geom.Out.Y-1)
+	op.RunN = uint32(2 * oy) // first pass N
+	op.InValue = int32(in)
+	op.OutValue = int32(vv.NewValues(oy, 1, 4))
+	op.OutScalar = int32(out)
+	op.FilterN = int32(fn)
+	op.Geom = *geom
+	return out
+}
+
+//gosl:start
+
+// MotionIntegrate is the kernel.
+func (op *Op) MotionIntegrate(i uint32) {
+	fi := int32(i) % op.FilterN // inner
+	pii := int32(i) / op.FilterN
+	pi := pii % 2 // plus-minus
+	ii := pii / 2
+	yo := ii / op.Geom.Out.X
+	xo := ii % op.Geom.Out.X
+
+	v := Values[op.InValue, yo, xo, pi, fi]
+	f := Values[op.OutValue, yo, xo, pi, fi]
+	s := Values[op.OutValue+1, yo, xo, pi, fi]
+
+	if v > f {
+		f = v
+	} else {
+		f += op.FloatArg1 * (v - f)
+	}
+	if v > s {
+		s = v
+	} else {
+		s += op.FloatArg2 * (v - s)
+	}
+
+	Values[op.OutValue, yo, xo, pi, fi] = f
+	Values[op.OutValue+1, yo, xo, pi, fi] = s
+}
+
+// MotionStar is the kernel.
+func (op *Op) MotionStar(i uint32) {
+	fi := int32(i) % op.FilterN // FilterN = orig fn * 2
+	pii := int32(i) / op.FilterN
+	pi := pii % 2 // plus-minus
+	ii := pii / 2
+	yo := ii / (op.Geom.Out.X - 1)
+	xo := ii % (op.Geom.Out.X - 1)
+
+	fio := fi / 2 // original feature
+	dir := fi % 2 // direction: left-right, down-up
+	doff := fio * 4 + dir * 2
+
+	var yoff, xoff int32 // offset to next (right or up)
+	if dir == 0 {
+		xoff = 1
+	} else {
+		yoff = 1
+	}
+	cf := Values[op.InValue, yo, xo, pi, fio] // fast
+	nf := Values[op.InValue, yo+yoff, xo+xoff, pi, fio] // next
+	cs := Values[op.InValue+1, yo, xo, pi, fio] // slow
+	ns := Values[op.InValue+1, yo+yoff, xo+xoff, pi, fio] // next
+
+	minact := min(min(min(cf, cs), nf), ns)
+	cd := cf - cs
+	nd := nf - ns
+	v := op.FloatArg1 * (cd - nd)
+	if v >= 0 { // delta bigger on current than next
+		Values[op.OutValue, yo, xo, pi, doff] = minact * v // 0 = left/down
+		Values[op.OutValue, yo, xo, pi, doff+1] = 0.0
+	} else {
+		Values[op.OutValue, yo, xo, pi, doff+1] = -minact * v // 1 = right/up
+		Values[op.OutValue, yo, xo, pi, doff] = 0.0
+	}
+}
+
+// MotionFullFieldP1 is the kernel: i = 2 * Y, first pass, FilterN = orig filtn
+func MotionFullFieldP1(i uint32) { //gosl:kernel
+	op := GetCurOp(0)
+	if i >= op.RunN {
+		return
+	}
+	fno := op.FilterN // original features
+	dir := int32(i) % 2 
+	yo := int32(i) / 2
+	doff := dir * 2
+	
+	csum := float32(0)
+	nsum := float32(0)
+	for xo := range op.Geom.Out.X-1 {
+		for pi := range 2 { // pos / neg
+			for fi := range fno { // original features
+				dfo := fi * 4 + doff
+				c := Values[op.InValue, yo, xo, pi, dfo] // left, down
+				n := Values[op.InValue, yo, xo, pi, dfo+1] // right, up
+				v := c-n
+				if v >= 0 {
+					csum += v
+				} else {
+					nsum += -v
+				}
+			}
+		}
+	}
+	Values[op.OutValue, yo, 0, 0, doff] = csum
+	Values[op.OutValue, yo, 0, 0, doff+1] = nsum
+}
+
+// MotionFullFieldP2 is the kernel: i = 2, second pass
+func MotionFullFieldP2(i uint32) { //gosl:kernel
+	if i >= 2 {
+		return
+	}
+	op := GetCurOp(0)
+	dir := int32(i)
+	doff := dir * 2
+	csum := float32(0)
+	nsum := float32(0)
+	for y := range op.Geom.Out.Y-1 {
+		c := Values[op.OutValue, y, 0, 0, doff]
+		n := Values[op.OutValue, y, 0, 0, doff+1]
+		csum += c
+		nsum += n
+	}
+	Scalars.Set1D(csum, int(op.OutScalar + doff))
+	Scalars.Set1D(nsum, int(op.OutScalar + doff + 1))
+}
+
+//gosl:end

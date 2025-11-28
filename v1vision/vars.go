@@ -16,12 +16,10 @@ import (
 //
 //gosl:vars
 var (
-	//////// Params
-
-	// Ops are the sequence of operations to perform, called in order.
+	// CurOp is the current operation to perform.
 	//gosl:group Params
 	//gosl:read-only
-	Ops []Op
+	CurOp []Op
 
 	//////// Filters
 
@@ -53,6 +51,11 @@ var (
 	// Values4D are 4D aggregated data (e.g., outputs): [ValueNo][GpY][GpX][Y][X]
 	//gosl:dims 5
 	Values4D *tensor.Float32
+
+	// Scalars are scalar values for Sum, Max summary stats.
+	// More efficient to use these versus using large Values allocations.
+	//gosl:dims 1
+	Scalars *tensor.Float32
 )
 
 //gosl:end
