@@ -74,12 +74,36 @@ func (pr *Params) FullFieldInteg(scalars, integ *tensor.Float32) {
 	if pr.NormInteg > 0 {
 		vnf /= pr.NormInteg
 	}
-	for i := range 4 {
-		v := scalars.Value1D(pr.FFScalarIndex + i)
+
+	act := func(v float32) float32 { return vnf * v }
+	l := scalars.Value1D(pr.FFScalarIndex + 0)
+	r := scalars.Value1D(pr.FFScalarIndex + 1)
+	if l > r {
+		l = act(l - r)
+		r = 0
+	} else {
+		r = act(r - l)
+		l = 0
+	}
+	b := scalars.Value1D(pr.FFScalarIndex + 2)
+	u := scalars.Value1D(pr.FFScalarIndex + 3)
+	if b > u {
+		b = act(b - u)
+		u = 0
+	} else {
+		u = act(u - b)
+		b = 0
+	}
+
+	integf := func(i int, v float32) {
 		vi := integ.Value1D(i)
 		vi += idt * (v - vi)
 		integ.Set1D(vi, i)
 	}
+	integf(0, l)
+	integf(1, r)
+	integf(2, b)
+	integf(3, u)
 }
 
 // IntegrateFrame integrates one frame of values into fast and slow tensors.
@@ -239,4 +263,4 @@ func (pr *Params) FullFieldInteg(scalars, integ *tensor.Float32) {
 // 		vi += idt * (v - vi)
 // 		integ.Set1D(vi, i)
 // 	}
-// }
+// }}// }
