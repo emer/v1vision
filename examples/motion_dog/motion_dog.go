@@ -96,7 +96,7 @@ type Vis struct { //types:add
 
 	fastIdx, starIdx int
 
-	starView, fastView, imgView *tensorcore.TensorGrid
+	tabView *core.Tabs
 }
 
 func (vi *Vis) Defaults() {
@@ -151,13 +151,14 @@ func (vi *Vis) RenderFrames() { //types:add
 		vi.RenderFrame()
 		vi.Pos = vi.Pos.Add(vi.Velocity)
 		vi.Filter()
-		if vi.starView != nil {
+		if vi.tabView != nil {
 			// fmt.Println(i)
-			vi.starView.AsyncLock()
-			vi.starView.Update()
-			vi.fastView.Update()
-			vi.imgView.Update()
-			vi.starView.AsyncUnlock()
+			vi.tabView.AsyncLock()
+			vi.tabView.Update()
+			// vi.fastView.Update()
+			// vi.slowView.Update()
+			// vi.imgView.Update()
+			vi.tabView.AsyncUnlock()
 			fmt.Printf("%d\tL: %7.4g\tR: %7.4g\tB: %7.4g\tT: %7.4g\tN: %7.4g\n", i, vi.FullField.Value1D(0), vi.FullField.Value1D(1), vi.FullField.Value1D(2), vi.FullField.Value1D(3), vi.Motion.NormInteg)
 			time.Sleep(vi.FrameDelay)
 		}
@@ -224,18 +225,19 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	sp := core.NewSplits(b)
 	core.NewForm(sp).SetStruct(vi)
 	tb := core.NewTabs(sp)
+	vi.tabView = tb
 	tf, _ := tb.NewTab("Star")
-	vi.starView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Star)
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.Star)
 	tf, _ = tb.NewTab("Full Field")
-	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.FullField)
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.FullField)
 	tf, _ = tb.NewTab("Fast")
-	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Fast)
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.Fast)
 	tf, _ = tb.NewTab("Slow")
-	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.Slow)
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.Slow)
 	tf, _ = tb.NewTab("DoG")
-	vi.fastView = tensorcore.NewTensorGrid(tf).SetTensor(&vi.DoGOut)
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.DoGOut)
 	tf, _ = tb.NewTab("Image")
-	vi.imgView = tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
+	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
 
 	sp.SetSplits(.3, .7)
 

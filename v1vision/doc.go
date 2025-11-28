@@ -3,12 +3,13 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package v1vision provides filtering methods for the vision package.
-These apply tensor.Tensor filters to a 2D visual input via Conv
-(convolution) function, using filter-parallel approach:
-Each go routine does a different filter in a set of filters,
-e.g., different angles of Gabor filters.  This is coarse-grained,
-strictly parallel, and thus very efficient.
+Package v1vision provides filtering methods for the v1vision package.
+These apply tensor.Tensor filters to a 2D visual input, via Convolve
+(convolution) function. Other more advanced filters are supported too.
+
+Full GPU-based computation is supported via the https://cogentcore.org/lab/GoSL
+Go-as-a-shading-language system. This is also very efficient on CPU because
+everything has been organized in a maximally efficient parallel manner.
 
 image.go contains routines for converting an image into the float32
 tensor.Float32 that is required for doing the convolution.
@@ -20,9 +21,8 @@ dimensionality, consistent with standard DCNN approaches.
 Geom manages the geometry for going from an input image to the
 filtered output of that image.
 
-Unlike the C++ version, no wrapping or clipping is supported directly:
-all input images must be padded so that the filters can be applied with
-appropriate padding border, guaranteeing that there are no bounds issues.
-See WrapPad for wrapping-based padding.
+For maximum efficiency, all input images must be padded so that the filters
+can be applied directly without any range checking. There are support functions
+to add appropriate padding borders (e.g., WrapPad).
 */
 package v1vision

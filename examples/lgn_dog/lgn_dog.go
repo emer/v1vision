@@ -36,7 +36,7 @@ func main() {
 // Vis encapsulates specific visual processing pipeline in
 // use in a given case -- can add / modify this as needed
 type Vis struct { //types:add
-	// GPU means use gpu
+	// GPU means use gpu.
 	GPU bool
 
 	// name of image file to operate on
@@ -61,7 +61,7 @@ type Vis struct { //types:add
 	Image image.Image `display:"-"`
 
 	// input image as tensor
-	ImageTsr tensor.Float32 `display:"no-inline"`
+	ImageTsr *tensor.Float32 `display:"no-inline"`
 
 	// DoG filter output tensor
 	OutTsr tensor.Float32 `display:"no-inline"`
@@ -80,9 +80,7 @@ func (vi *Vis) Defaults() {
 	// any further border sizes on same image need to add Geom.FilterRt!
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 	vi.ImageSize = image.Point{128, 128}
-	// vi.ImageSize = image.Point{64, 64}
 	vi.Geom.SetImageSize(vi.ImageSize)
-	// fmt.Println(vi.Geom)
 }
 
 // Config sets up the V1 processing pipeline.
@@ -90,6 +88,7 @@ func (vi *Vis) Config() {
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
+	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	_, out := vi.V1.AddDoG(wrap, &vi.DoG, &vi.Geom)
 	// _ = out
@@ -140,17 +139,13 @@ func (vi *Vis) Filter() error { //types:add
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
-
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
-	img := vi.V1.Images.SubSpace(1).(*tensor.Float32)
-	vi.ImageTsr.SetShapeSizes(img.ShapeSizes()...)
-	vi.ImageTsr.CopyFrom(img)
 	return nil
 }
 
 func (vi *Vis) ConfigGUI() *core.Body {
 	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
-	tensorcore.AddGridStylerTo(&vi.ImageTsr, func(s *tensorcore.GridStyle) {
+	tensorcore.AddGridStylerTo(vi.ImageTsr, func(s *tensorcore.GridStyle) {
 		s.Image = true
 		s.Range.SetMin(0)
 	})

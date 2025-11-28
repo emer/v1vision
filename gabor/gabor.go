@@ -91,11 +91,9 @@ func (gf *Filter) SetSize(sz, spc int) {
 	gf.Spacing = spc
 }
 
-// ToTensor renders filters into the given table tensor.Tensor,
-// setting dimensions to [angle][Y][X] where Y = X = Size
+// ToTensor renders filters into the given tensor.Tensor.
+// must have dimensions already set to [angle][Y][X] where Y = X = Size
 func (gf *Filter) ToTensor(tsr *tensor.Float32) {
-	tsr.SetShapeSizes(gf.NAngles, gf.Size, gf.Size)
-
 	ctr := 0.5 * float32(gf.Size-1)
 	angInc := math.Pi / float32(gf.NAngles)
 
