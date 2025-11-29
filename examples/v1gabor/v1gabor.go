@@ -7,6 +7,7 @@ package main
 //go:generate core generate -add-types
 
 import (
+	"fmt"
 	"image"
 
 	"cogentcore.org/core/base/errors"
@@ -103,10 +104,14 @@ type Vis struct { //types:add
 	V1AllTsr tensor.Float32 `display:"no-inline"`
 
 	tabView *core.Tabs
+
+	v1sOutIdx, v1sKwtaIdx, v1sPoolIdx int
+
+	v1sPoolGeom v1vision.Geom
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = true
+	vi.GPU = false
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
@@ -135,6 +140,7 @@ func (vi *Vis) Config() {
 	// V1s simple
 	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
 	v1out := out
+	vi.v1sOutIdx = out
 	if vi.V1sKWTA.On.IsTrue() {
 		if vi.V1sNeighInhib.On {
 			vi.V1.NewNeighInhib(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
@@ -142,18 +148,51 @@ func (vi *Vis) Config() {
 			vi.V1.NewNeighInhibOutput(vi.V1sGabor.NAngles, &vi.V1sGeom) // blank
 		}
 		v1out = vi.V1.NewKWTA(out, vi.V1sGabor.NAngles, &vi.V1sGeom)
+		vi.v1sKwtaIdx = v1out
 	}
-	_ = v1out
 
 	// V1c complex
-	// var mpGeom v1vision.Geom
-	// mpGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
-	// omax := vi.V1.NewMaxPool(out, vi.V1sGabor.NAngles, &mpGeom)
+	vi.v1sPoolGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
+	fmt.Println(vi.v1sPoolGeom)
+	pout := vi.V1.NewMaxPool(v1out, vi.V1sGabor.NAngles, &vi.v1sPoolGeom)
+	vi.v1sPoolIdx = pout
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
+}
+
+// Filter is overall method to run filters on current image file name
+// loads the image from ImageFile and then runs filters
+func (vi *Vis) Filter() error { //types:add
+	v1vision.UseGPU = vi.GPU
+	err := vi.OpenImage(string(vi.ImageFile))
+	if err != nil {
+		return errors.Log(err)
+	}
+	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
+
+	out := vi.V1.Values.SubSpace(vi.v1sOutIdx).(*tensor.Float32)
+	vi.V1sTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
+	tensor.CopyFromLargerShape(&vi.V1sTsr, out)
+
+	if vi.v1sKwtaIdx > 0 {
+		out := vi.V1.Values.SubSpace(vi.v1sKwtaIdx).(*tensor.Float32)
+		vi.V1sKwtaTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
+		tensor.CopyFromLargerShape(&vi.V1sKwtaTsr, out)
+	}
+
+	if vi.v1sPoolIdx > 0 {
+		out := vi.V1.Values.SubSpace(vi.v1sPoolIdx).(*tensor.Float32)
+		vi.V1sPoolTsr.SetShapeSizes(int(vi.v1sPoolGeom.Out.Y), int(vi.v1sPoolGeom.Out.X), 2, vi.V1sGabor.NAngles)
+		tensor.CopyFromLargerShape(&vi.V1sPoolTsr, out)
+	}
+
+	// vi.V1Complex()
+	// vi.V1All()
+	// vi.ImageFromV1Simple()
+	return nil
 }
 
 // OpenImage opens given filename as current image Image
@@ -210,31 +249,6 @@ func (vi *Vis) V1All() {
 	// v1vision.FeatAgg([]int{0, 1}, 3, &vi.V1sPoolTsr, &vi.V1AllTsr)
 }
 
-// Filter is overall method to run filters on current image file name
-// loads the image from ImageFile and then runs filters
-func (vi *Vis) Filter() error { //types:add
-	v1vision.UseGPU = vi.GPU
-	err := vi.OpenImage(string(vi.ImageFile))
-	if err != nil {
-		return errors.Log(err)
-	}
-	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
-
-	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
-	vi.V1sTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
-	tensor.CopyFromLargerShape(&vi.V1sTsr, out)
-
-	kout := vi.V1.Values.SubSpace(2).(*tensor.Float32)
-	vi.V1sKwtaTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
-	tensor.CopyFromLargerShape(&vi.V1sKwtaTsr, kout)
-
-	// vi.V1Simple()
-	// vi.V1Complex()
-	// vi.V1All()
-	// vi.ImageFromV1Simple()
-	return nil
-}
-
 func (vi *Vis) ConfigGUI() *core.Body {
 	vi.V1sGaborTab.Init()
 	// vi.V1sGabor.ToTable(&vi.V1sGaborTab) // note: view only, testing
@@ -262,6 +276,8 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sTsr)
 	tf, _ = tb.NewTab("V1sKWTA")
 	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sKwtaTsr)
+	tf, _ = tb.NewTab("V1sPool")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sPoolTsr)
 
 	sp.SetSplits(.3, .7)
 
