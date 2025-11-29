@@ -14,6 +14,7 @@ import (
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
+	_ "cogentcore.org/lab/gosl/slbool/slboolcore" // include to get gui views
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
 	"cogentcore.org/lab/tensorcore"
@@ -108,7 +109,7 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = false
+	vi.GPU = true
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
