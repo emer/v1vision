@@ -25,7 +25,7 @@ type KWTA struct {
 	On slbool.Bool
 
 	// Iters is the maximum number of iterations to perform.
-	Iters int32
+	Iters int32 `default:"10"`
 
 	// Threshold on delta-activation (change in activation) for stopping
 	// updating of activations. Not used on GPU implementation.
@@ -63,7 +63,7 @@ type KWTA struct {
 
 func (kp *KWTA) Defaults() {
 	kp.On.SetBool(true)
-	kp.Iters = 20
+	kp.Iters = 10 // 10 is typically sufficient.
 	kp.DelActThr = 0.005
 	kp.Layer.Defaults()
 	kp.Pool.Defaults()
@@ -102,114 +102,3 @@ func (kp *KWTA) ActFromG(geThr, ge, act float32, delAct *float32) float32 {
 }
 
 //gosl:end
-
-// KWTAPool computes k-Winner-Take-All activation values from raw inputs
-// act output tensor is set to same shape as raw inputs if not already.
-// This version computes both Layer and Pool (feature-group) level
-// inibition -- tensors must be 4 dimensional -- outer 2D is Y, X Layer
-// and inner 2D are features (pools) per location.
-// The inhib slice is required for pool-level inhibition and will
-// be automatically sized to outer X,Y dims if not big enough.
-// For best performance store this and reuse to avoid memory allocations.
-// extGi is extra / external Gi inhibition per unit
-// -- e.g. from neighbor inhib -- must be size of raw, act.
-// func (kwta *KWTA) KWTAPool(raw, act *tensor.Float32, inhib *fffb.Inhibs, extGi *tensor.Float32) {
-// 	layInhib := fffb.Inhib{}
-//
-// 	raws := raw.Values // these are ge
-//
-// 	act.SetShapeSizes(raw.Shape().Sizes...)
-// 	if extGi != nil {
-// 		extGi.SetShapeSizes(raw.Shape().Sizes...)
-// 	}
-//
-// 	acts := act.Values
-//
-// 	layY := raw.DimSize(0)
-// 	layX := raw.DimSize(1)
-// 	layN := layY * layX
-//
-// 	plY := raw.DimSize(2)
-// 	plX := raw.DimSize(3)
-// 	plN := plY * plX
-//
-// 	if len(*inhib) < layN {
-// 		if cap(*inhib) < layN {
-// 			*inhib = make([]fffb.Inhib, layN)
-// 		} else {
-// 			*inhib = (*inhib)[0:layN]
-// 		}
-// 	}
-//
-// 	layInhib.Ge.Init()
-// 	pi := 0
-// 	for ly := 0; ly < layY; ly++ {
-// 		for lx := 0; lx < layX; lx++ {
-// 			plInhib := &((*inhib)[pi])
-// 			plInhib.Ge.Init()
-// 			pui := pi * plN
-// 			ui := 0
-// 			for py := 0; py < plY; py++ {
-// 				for px := 0; px < plX; px++ {
-// 					idx := pui + ui
-// 					ge := raws[idx]
-// 					layInhib.Ge.UpdateValue(ge, int32(idx))
-// 					plInhib.Ge.UpdateValue(ge, int32(ui))
-// 					ui++
-// 				}
-// 			}
-// 			plInhib.Ge.CalcAvg()
-// 			pi++
-// 		}
-// 	}
-// 	layInhib.Ge.CalcAvg()
-//
-// 	for cy := 0; cy < kwta.Iters; cy++ {
-// 		kwta.Layer.Inhib(&layInhib)
-//
-// 		layInhib.Act.Init()
-// 		maxDelAct := float32(0)
-// 		pi := 0
-// 		for ly := 0; ly < layY; ly++ {
-// 			for lx := 0; lx < layX; lx++ {
-// 				plInhib := &((*inhib)[pi])
-//
-// 				kwta.Pool.Inhib(plInhib)
-//
-// 				giPool := math32.Max(layInhib.Gi, plInhib.Gi)
-//
-// 				plInhib.Act.Init()
-// 				pui := pi * plN
-// 				ui := 0
-// 				for py := 0; py < plY; py++ {
-// 					for px := 0; px < plX; px++ {
-// 						idx := pui + ui
-// 						gi := giPool
-// 						if extGi != nil {
-// 							eIn := extGi.Values[idx]
-// 							eGi := kwta.Pool.Gi * kwta.Pool.FFInhib(eIn, eIn)
-// 							gi = math32.Max(gi, eGi)
-// 						}
-// 						geThr := kwta.GeThrFromG(gi)
-// 						ge := raws[idx]
-// 						act := acts[idx]
-// 						nwAct, delAct := kwta.ActFromG(geThr, ge, act)
-// 						maxDelAct = math32.Max(maxDelAct, math32.Abs(delAct))
-// 						layInhib.Act.UpdateValue(nwAct, int32(idx))
-// 						plInhib.Act.UpdateValue(nwAct, int32(ui))
-// 						acts[idx] = nwAct
-//
-// 						ui++
-// 					}
-// 				}
-// 				plInhib.Act.CalcAvg()
-// 				pi++
-// 			}
-// 		}
-// 		layInhib.Act.CalcAvg()
-// 		if cy > 2 && maxDelAct < kwta.DelActThr {
-// 			// fmt.Printf("under thr at cycle: %v\n", cy)
-// 			break
-// 		}
-// 	}
-// }

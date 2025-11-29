@@ -117,13 +117,15 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = false
+	vi.GPU = true
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
 	spc := 4
 	vi.V1sGabor.SetSize(sz, spc)
 	vi.ImageSize = image.Point{128, 128}
+	// vi.ImageSize = image.Point{256, 256}
+
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
 	vi.V1sGeom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), vi.ImageSize)
@@ -131,7 +133,6 @@ func (vi *Vis) Defaults() {
 	vi.V1sKWTA.Defaults()
 	// vi.V1sKWTA.Layer.On.SetBool(true)
 	// vi.V1sKWTA.Pool.On.SetBool(false)
-	vi.V1sKWTA.Iters = 10
 }
 
 // Config sets up the V1 processing pipeline.
@@ -204,13 +205,14 @@ func (vi *Vis) Filter() error { //types:add
 	tmr := timer.Time{}
 	tmr.Start()
 	for range 1000 {
-		vi.V1.Run() // on mac, this is same compute time for GPU, CPU
-		// vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
+		// vi.V1.Run()
+		vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
-	// Note: original version takes 1.337s, new non-GPU is 3.015s, new GPU is 3.99s
-	// with 10 iter: GPU = 2.x, CPU = 1.97s
+	// With 10 Iters on KWTA, on MacBookPro M3Pro, Orig: 2.03, CPU: 1.97, GPU: 2.16
+	// 256 image: CPU: 4.9, GPU: 7.24
+	// note: not sending image at start is the same!
 
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
 
