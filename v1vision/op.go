@@ -184,9 +184,11 @@ func (vv *V1Vision) RunOps() {
 			RunMeanScalarP2(1)
 		case KWTAInhib:
 			kp := &vv.KWTAs[op.KWTA]
-			RunKWTAInit(int(op.RunN))
+			RunKWTAInitLayer(1)
+			RunKWTAInitPool(int(op.RunN))
 			for range kp.Iters {
-				RunKWTAIter(int(op.RunN))
+				RunKWTAIterLayer(1)
+				RunKWTAIterPool(int(op.RunN))
 			}
 		case MotionFullField:
 			RunMotionFullFieldP1(int(op.RunN))

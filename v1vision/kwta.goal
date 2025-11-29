@@ -21,7 +21,7 @@ func (vv *V1Vision) NewNeighInhib(in, fn int, gi float32, geom *Geom) int {
 	}
 	op := vv.NewOp()
 	op.Op = NeighInhib
-	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
+	out := vv.NewNeighInhibOutput(fn, geom)
 	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
 	op.InValue = int32(in)
 	op.OutValue = int32(out)
@@ -31,22 +31,29 @@ func (vv *V1Vision) NewNeighInhib(in, fn int, gi float32, geom *Geom) int {
 	return out
 }
 
+// NewNeighInhibOutput add Values for a [NeighInhib] operation.
+// fn is number of filters (innermost values dimension). returns out index.
+func (vv *V1Vision) NewNeighInhibOutput(fn int, geom *Geom) int {
+	return vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
+}
+
+
 // NewKWTA adds a [KWTAInhib] operation, on Values data.
 // fn is number of filters (innermost values dimension).
 // geom.Out is the size of the outer Y,X dimensions, and 
 // FilterSz is the inner Y,X dimensions.
+// Allocates a Values4D to hold the inhibition compute values,
+// including an additional Y row for the layer-level values at the end.
 func (vv *V1Vision) NewKWTA(in, fn int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = KWTAInhib
 	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
-	oinh := vv.NewValues4D(int(geom.Out.Y), int(geom.Out.X), 1, int(InhibVarsN))
-	layi := vv.NewScalar(1)
+	oinh := vv.NewValues4D(int(geom.Out.Y+1), int(geom.Out.X), 1, int(InhibVarsN))
 	op.RunN = uint32(geom.Out.Y * geom.Out.X)
-	op.InValue = int32(in) // todo: must have neigh inhib just after this!
+	op.InValue = int32(in) // note: must have neigh inhib just after this!
 	op.OutValue = int32(out)
 	op.OutValue4D = int32(oinh)
 	op.FilterN = int32(fn)
-	op.InScalar = int32(layi)
 	op.Geom = *geom
 	return out
 }
@@ -104,14 +111,14 @@ func (op *Op) NeighInhib(i uint32) {
 	Values[op.OutValue, yo, xo, pi, fi] = op.FloatArg1 * gi
 }
 
-// KWTAInit is the kernel to initialize KWTA process, on Values data.
+// KWTAInitPool is the kernel to initialize KWTA process, on Values data.
 // i = op.Geom.Out.Y * X. 2 x FilterN is inner 2 dims
 // Operates on Values4D:
 // InValue = raw initial activations (ge)
 // InValue+1 = extra Gi values
 // OutValue4D = inhibs (inner dims 1, InhibValuesN)
 // OutValue = acts (output result)
-func KWTAInit(i uint32) { //gosl:kernel
+func KWTAInitPool(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	if i >= op.RunN {
 		return
@@ -138,15 +145,82 @@ func KWTAInit(i uint32) { //gosl:kernel
 	Values4D[op.OutValue4D, yo, xo, 0, GeMax] = geMax
 }
 
-// KWTAIter is the kernel to iterate KWTA process.
+// KWTAInitLayer is the kernel to initialize KWTA process for layer 
+// on Values data. Run = 1 only.
+// OutValue4D = inhibs (inner dims 1, InhibValuesN)
+func KWTAInitLayer(i uint32) { //gosl:kernel
+	if i != 0 {
+		return
+	}
+	op := GetCurOp(0)
+	lyi := op.Geom.Out.Y
+	for i := range InhibVarsN {
+		Values4D[op.OutValue4D, lyi, 0, 0, int(i)] = 0.0
+	}
+}
+
+// KWTAIterLayer is the kernel to iterate KWTA process at layer.
+// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
+// Operates on Values4D updated from pool-level:
+// OutValue4D = inhibs (inner dims 1, InhibValuesN)
+// Call this first then IterPool
+func KWTAIterLayer(i uint32) { //gosl:kernel
+	if i != 0 {
+		return
+	}
+	op := GetCurOp(0)
+	lyi := int(op.Geom.Out.Y)
+	ln := float32(op.Geom.Out.Y * op.Geom.Out.X)
+	kp := GetKWTAs(uint32(op.KWTA))
+
+	geAvg := float32(0)
+	geMax := float32(0)
+	actAvg := float32(0)
+	actMax := float32(0)
+	for yo := range op.Geom.Out.Y {
+		for xo := range op.Geom.Out.X {
+			gavg := Values4D[op.OutValue4D, yo, xo, 0, GeAvg]
+			gmx := Values4D[op.OutValue4D, yo, xo, 0, GeMax]
+			aavg := Values4D[op.OutValue4D, yo, xo, 0, ActAvg]
+			amx := Values4D[op.OutValue4D, yo, xo, 0, ActMax]
+			geAvg += gavg
+			geMax = max(geMax, gmx)
+			actAvg += aavg
+			actMax = max(actMax, amx)
+		}
+	}
+	geAvg /= ln
+	actAvg /= ln
+	Values4D[op.OutValue4D, lyi, 0, 0, GeAvg] = geAvg
+	Values4D[op.OutValue4D, lyi, 0, 0, GeMax] = geMax
+	Values4D[op.OutValue4D, lyi, 0, 0, ActAvg] = actAvg
+	Values4D[op.OutValue4D, lyi, 0, 0, ActMax] = actMax
+	
+	fbi := Values4D[op.OutValue4D, lyi, 0, 0, FBi]
+	ffi := kp.Layer.FFInhib(geAvg, geMax)
+	newFBi := kp.Layer.FBInhib(actAvg)
+	fbi = kp.Layer.FBUpdt(fbi, newFBi)
+	if kp.Layer.On.IsFalse() {
+		ffi = float32(0.0)
+		fbi = 0.0
+	}
+	
+	Values4D[op.OutValue4D, lyi, 0, 0, FFi] = ffi
+	Values4D[op.OutValue4D, lyi, 0, 0, FBi] = fbi
+	
+	gi := kp.Layer.Gi * (ffi + fbi)
+	Values4D[op.OutValue4D, lyi, 0, 0, Gi] = gi
+	Values4D[op.OutValue4D, lyi, 0, 0, GiOrig] = gi
+}
+
+// KWTAIterPool is the kernel to iterate KWTA process for Pools.
 // i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
 // Operates on Values4D:
 // InValue = raw initial activations (ge)
 // InValue+1 = extra Gi values
 // OutValue4D = inhibs (inner dims 1, InhibValuesN)
 // OutValue = acts (output result)
-// InScalar = layerGi
-func KWTAIter(i uint32) { //gosl:kernel
+func KWTAIterPool(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	if i >= op.RunN {
 		return
@@ -154,7 +228,8 @@ func KWTAIter(i uint32) { //gosl:kernel
 	yo := int32(i) / op.Geom.Out.X
 	xo := int32(i) % op.Geom.Out.X
 
-	layGi := Scalars.Value1D(int(op.InScalar))
+	lyi := int(op.Geom.Out.Y)
+	layGi := Values4D[op.OutValue4D, lyi, 0, 0, Gi]
 	kp := GetKWTAs(uint32(op.KWTA))
 	
 	pn := 2 * op.FilterN
@@ -164,14 +239,18 @@ func KWTAIter(i uint32) { //gosl:kernel
 	geMax := Values4D[op.OutValue4D, yo, xo, 0, GeMax]
 	actAvg := Values4D[op.OutValue4D, yo, xo, 0, ActAvg]
 	fbi := Values4D[op.OutValue4D, yo, xo, 0, FBi]
-	ffi := kp.PoolFFFB.FFInhib(geAvg, geMax)
-	newFBi := kp.PoolFFFB.FBInhib(actAvg)
-	fbi = kp.PoolFFFB.FBUpdt(fbi, newFBi)
+	ffi := kp.Pool.FFInhib(geAvg, geMax)
+	newFBi := kp.Pool.FBInhib(actAvg)
+	fbi = kp.Pool.FBUpdt(fbi, newFBi)
+	if kp.Pool.On.IsFalse() {
+		ffi = float32(0.0)
+		fbi = 0.0
+	}
 	
 	Values4D[op.OutValue4D, yo, xo, 0, FFi] = ffi
 	Values4D[op.OutValue4D, yo, xo, 0, FBi] = fbi
 	
-	gi := kp.PoolFFFB.Gi * (ffi + fbi)
+	gi := kp.Pool.Gi * (ffi + fbi)
 	Values4D[op.OutValue4D, yo, xo, 0, Gi] = gi
 	Values4D[op.OutValue4D, yo, xo, 0, GiOrig] = gi
 
@@ -183,7 +262,7 @@ func KWTAIter(i uint32) { //gosl:kernel
 		for px := range op.FilterN {
 			pgi := giPool
 			eIn := Values[op.InValue+1, yo, xo, py, px]
-			eGi := kp.PoolFFFB.Gi * kp.PoolFFFB.FFInhib(eIn, eIn)
+			eGi := kp.Pool.Gi * kp.Pool.FFInhib(eIn, eIn)
 			pgi = max(pgi, eGi)
 			geThr := kp.GeThrFromG(pgi)
 			ge := Values[op.InValue, yo, xo, py, px]

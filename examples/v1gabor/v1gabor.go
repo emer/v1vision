@@ -78,9 +78,6 @@ type Vis struct { //types:add
 	// V1 simple gabor filter output tensor
 	V1sTsr tensor.Float32 `display:"no-inline"`
 
-	// V1 simple extra Gi from neighbor inhibition tensor
-	V1sExtGiTsr tensor.Float32 `display:"no-inline"`
-
 	// V1 simple gabor filter output, kwta output tensor
 	V1sKwtaTsr tensor.Float32 `display:"no-inline"`
 
@@ -121,6 +118,8 @@ func (vi *Vis) Defaults() {
 	vi.V1sGeom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), vi.ImageSize)
 	vi.V1sNeighInhib.Defaults()
 	vi.V1sKWTA.Defaults()
+	// vi.V1sKWTA.Layer.On.SetBool(true)
+	// vi.V1sKWTA.Pool.On.SetBool(false)
 }
 
 // Config sets up the V1 processing pipeline.
@@ -135,10 +134,16 @@ func (vi *Vis) Config() {
 
 	// V1s simple
 	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
-	_ = out
-	vi.V1.NewNeighInhib(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
-	v1skw := vi.V1.NewKWTA(out, vi.V1sGabor.NAngles, &vi.V1sGeom)
-	_ = v1skw
+	v1out := out
+	if vi.V1sKWTA.On.IsTrue() {
+		if vi.V1sNeighInhib.On {
+			vi.V1.NewNeighInhib(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
+		} else {
+			vi.V1.NewNeighInhibOutput(vi.V1sGabor.NAngles, &vi.V1sGeom) // blank
+		}
+		v1out = vi.V1.NewKWTA(out, vi.V1sGabor.NAngles, &vi.V1sGeom)
+	}
+	_ = v1out
 
 	// V1c complex
 	// var mpGeom v1vision.Geom
@@ -167,23 +172,6 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	v1vision.RGBToGrey(vi.Image, img, int(vi.V1sGeom.FilterRt.X), false) // pad for filt, bot zero
 	return nil
 }
-
-// // V1Simple runs V1Simple Gabor filtering on input image
-// // must have valid Image in place to start.
-// // Runs kwta and pool steps after gabor filter.
-// func (vi *Vis) V1Simple() {
-// 	v1vision.Conv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImageTsr, &vi.V1sTsr, vi.V1sGabor.Gain)
-// 	if vi.V1sNeighInhib.On {
-// 		vi.V1sNeighInhib.Inhib4(&vi.V1sTsr, &vi.V1sExtGiTsr)
-// 	} else {
-// 		vi.V1sExtGiTsr.SetZeros()
-// 	}
-// 	if vi.V1sKWTA.On {
-// 		vi.V1sKWTA.KWTAPool(&vi.V1sTsr, &vi.V1sKwtaTsr, &vi.V1sInhibs, &vi.V1sExtGiTsr)
-// 	} else {
-// 		vi.V1sKwtaTsr.CopyFrom(&vi.V1sTsr)
-// 	}
-// }
 
 // ImageFromV1Simple reverses V1Simple Gabor filtering from V1s back to input image
 func (vi *Vis) ImageFromV1Simple() {

@@ -21,31 +21,33 @@ import (
 // k-Winner-Take-All behavior.
 type KWTA struct {
 
-	// whether to run kWTA or not
+	// On is whether to run kWTA or not.
 	On slbool.Bool
 
-	// maximum number of iterations to perform
+	// Iters is the maximum number of iterations to perform.
 	Iters int32
 
-	// threshold on delta-activation (change in activation) for stopping updating of activations
+	// Threshold on delta-activation (change in activation) for stopping
+	// updating of activations. Not used on GPU implementation.
 	DelActThr float32 `default:"0.005"`
 
-	// time constant for integrating activation
+	// Time constant for integrating activation
 	ActTau float32 `default:"3"`
 
-	// layer-level feedforward & feedback inhibition -- applied over entire set of values
-	LayFFFB fffb.FFFB `display:"inline"`
+	// Layer-level feedforward & feedback inhibition, applied over entire set of values.
+	Layer fffb.FFFB `display:"inline"`
 
-	// pool-level (feature groups) feedforward and feedback inhibition -- applied within inner-most dimensions inside outer 2 dimensions (if Pool method is called)
-	PoolFFFB fffb.FFFB `display:"inline"`
+	// Pool-level (feature groups) feedforward and feedback inhibition.
+	// applied within inner-most dimensions inside outer 2 dimensions.
+	Pool fffb.FFFB `display:"inline"`
 
-	// Noisy X/X+1 rate code activation function parameters
+	// XX1 are the Noisy X/X+1 rate code activation function parameters.
 	XX1 nxx1.Params `display:"inline"`
 
-	// maximal conductances levels for channels
+	// GBar are maximal conductances levels for channels.
 	Gbar Chans `display:"inline"`
 
-	// reversal potentials for each channel
+	// Erev are reversal potentials for each channel.
 	Erev Chans `display:"inline"`
 
 	// Erev - Act.Thr for each channel -- used in computing GeThrFromG among others
@@ -63,11 +65,11 @@ func (kp *KWTA) Defaults() {
 	kp.On.SetBool(true)
 	kp.Iters = 20
 	kp.DelActThr = 0.005
-	kp.LayFFFB.Defaults()
-	kp.PoolFFFB.Defaults()
-	kp.LayFFFB.On.SetBool(true)
-	kp.PoolFFFB.On.SetBool(true)
-	kp.PoolFFFB.Gi = 2.0
+	kp.Layer.Defaults()
+	kp.Pool.Defaults()
+	kp.Layer.On.SetBool(true)
+	kp.Pool.On.SetBool(true)
+	kp.Pool.Gi = 2.0
 	kp.XX1.Defaults()
 	kp.ActTau = 3
 	kp.Gbar.SetAll(0.5, 0.1, 1.0, 1.0) // 0.5 is key for 1.0 inputs
@@ -77,8 +79,8 @@ func (kp *KWTA) Defaults() {
 
 // Update must be called after any changes to parameters
 func (kp *KWTA) Update() {
-	kp.LayFFFB.Update()
-	kp.PoolFFFB.Update()
+	kp.Layer.Update()
+	kp.Pool.Update()
 	kp.XX1.Update()
 	kp.ErevSubThr.SetFromOtherMinus(kp.Erev, kp.XX1.Thr)
 	kp.ThrSubErev.SetFromMinusOther(kp.XX1.Thr, kp.Erev)
@@ -163,7 +165,7 @@ func (kp *KWTA) ActFromG(geThr, ge, act float32, delAct *float32) float32 {
 // 	layInhib.Ge.CalcAvg()
 //
 // 	for cy := 0; cy < kwta.Iters; cy++ {
-// 		kwta.LayFFFB.Inhib(&layInhib)
+// 		kwta.Layer.Inhib(&layInhib)
 //
 // 		layInhib.Act.Init()
 // 		maxDelAct := float32(0)
@@ -172,7 +174,7 @@ func (kp *KWTA) ActFromG(geThr, ge, act float32, delAct *float32) float32 {
 // 			for lx := 0; lx < layX; lx++ {
 // 				plInhib := &((*inhib)[pi])
 //
-// 				kwta.PoolFFFB.Inhib(plInhib)
+// 				kwta.Pool.Inhib(plInhib)
 //
 // 				giPool := math32.Max(layInhib.Gi, plInhib.Gi)
 //
@@ -185,7 +187,7 @@ func (kp *KWTA) ActFromG(geThr, ge, act float32, delAct *float32) float32 {
 // 						gi := giPool
 // 						if extGi != nil {
 // 							eIn := extGi.Values[idx]
-// 							eGi := kwta.PoolFFFB.Gi * kwta.PoolFFFB.FFInhib(eIn, eIn)
+// 							eGi := kwta.Pool.Gi * kwta.Pool.FFInhib(eIn, eIn)
 // 							gi = math32.Max(gi, eGi)
 // 						}
 // 						geThr := kwta.GeThrFromG(gi)

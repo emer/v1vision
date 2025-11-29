@@ -154,8 +154,8 @@ struct KWTA {
 	Iters: i32,
 	DelActThr: f32,
 	ActTau: f32,
-	LayFFFB: FFFB,
-	PoolFFFB: FFFB,
+	Layer: FFFB,
+	Pool: FFFB,
 	XX1: Params,
 	Gbar: Chans,
 	Erev: Chans,
@@ -201,8 +201,7 @@ fn Op_NeighInhib(op: Op, i: u32) {
 	var npX = xo + nx;
 	var npY = yo + ny;
 	if (npX >= 0 && npX < op.Geom.Out.x && npY >= 0 && npY < op.Geom.Out.y) {
-		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24],
-		u32(op.InValue), u32(npY), u32(npX), u32(pi), u32(fi))];
+		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(npY), u32(npX), u32(pi), u32(fi))];
 		gi = max(gi, v);
 	}
 	npX = xo - nx;
