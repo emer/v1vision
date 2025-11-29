@@ -217,7 +217,8 @@ func (vv *V1Vision) RunOps() {
 			RunKWTAInitLayer(1)
 			RunKWTAInitPool(int(op.RunN))
 			for range kp.Iters {
-				RunKWTAIterLayer(1)
+				RunKWTAIterLayer1(int(op.Geom.Out.Y))
+				RunKWTAIterLayer2(1)
 				RunKWTAIterPool(int(op.RunN))
 			}
 		case MotionFullField:

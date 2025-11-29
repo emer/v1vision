@@ -211,7 +211,7 @@ func (vi *Vis) Filter() error { //types:add
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
 	// With 10 Iters on KWTA, on MacBookPro M3Pro, Orig: 2.03, CPU: 1.97, GPU: 2.16
-	// 256 image: CPU: 4.9, GPU: 7.24
+	// 256 image: CPU: 4.9, GPU: 3.96
 	// note: not sending image at start is the same!
 
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
