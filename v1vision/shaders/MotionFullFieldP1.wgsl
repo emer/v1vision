@@ -101,6 +101,20 @@ struct KWTA {
 
 //////// import: "logrenorm.go"
 
+//////// import: "math32-fastexp.go"
+
+//////// import: "math32-vector2.go"
+struct Vector2 {
+	X: f32,
+	Y: f32,
+}
+
+//////// import: "math32-vector2i.go"
+struct Vector2i {
+	X: i32,
+	Y: i32,
+}
+
 //////// import: "maxpool.go"
 
 //////// import: "motion.go"
@@ -180,6 +194,7 @@ struct Op {
 	InImageRGB: i32,
 	InValue: i32,
 	OutValue: i32,
+	OutValue4D: i32,
 	OutImage: i32,
 	FilterType: i32,
 	FilterN: i32,
@@ -189,6 +204,5 @@ struct Op {
 	InScalar: i32,
 	OutScalar: i32,
 	KWTA: i32,
-	pad: i32,
 	Geom: Geom,
 }

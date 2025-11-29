@@ -122,6 +122,7 @@ func (vv *V1Vision) NewFilter(filtN, y, x int) int {
 // processed in the code (on the GPU).
 func (vv *V1Vision) SetAsCurrent() {
 	CurOp = vv.CurOp
+	KWTAs = vv.KWTAs
 	Filters = vv.Filters
 	Images = vv.Images
 	Values = vv.Values
@@ -136,6 +137,9 @@ func (vv *V1Vision) GPUInit() {
 	UseGPU = true
 	ToGPUTensorStrides()
 	ToGPU(CurOpVar, FiltersVar)
+	if len(vv.KWTAs) > 0 {
+		ToGPU(KWTAsVar)
+	}
 	// note: essential to copy up to GPU to init variable size.
 	if vv.Values.Len() > 0 {
 		ToGPU(ValuesVar)

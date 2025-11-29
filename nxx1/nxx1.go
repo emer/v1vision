@@ -26,6 +26,7 @@ import (
 )
 
 //gosl:start
+//gosl:import "cogentcore.org/core/math32"
 
 // Params are the Noisy X/(X+1) rate-coded activation function parameters.
 // This function well-characterizes the neural response function empirically,

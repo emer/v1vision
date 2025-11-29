@@ -8,6 +8,8 @@ var<storage, read> TensorStrides: array<u32>;
 var<storage, read> CurOp: array<Op>;
 // // Filters are one general stack of rendered filters, sized to the max of each // of the inner dimensional values: [FilterTypes][FilterN][Y][X] // FilterTypes = different filter types (DoG, Gabor, etc) // FilterN = number of filters within the group (On, Off, angle, etc) // Y, X = sizes. 
 // // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
+@group(2) @binding(1)
+var<storage, read_write> Values: array<f32>;
 @group(2) @binding(2)
 var<storage, read_write> Values4D: array<f32>;
 
@@ -105,25 +107,39 @@ fn KWTAInit(i: u32) { //gosl:kernel
 	}
 	var yo = i32(i) / op.Geom.Out.x;
 	var xo = i32(i) % op.Geom.Out.x;
-	var pn = op.Geom.FilterSz.y * op.Geom.FilterSz.x;
+	var pn = 2 * op.FilterN;
 	var geAvg = f32(0);
 	var geMax = f32(0);
-	for (var py=0; py<op.Geom.FilterSz.y; py++) {
-		for (var px=0; px<op.Geom.FilterSz.x; px++) {
-			var ge = Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.InValue), u32(yo), u32(xo), u32(py), u32(px))];
+	for (var py=0; py<2; py++) { // for 4D, FilterSz.Y
+		for (var px=0; px<op.FilterN; px++) {
+			var ge = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(py), u32(px))];
 			geAvg += ge;
 			geMax = max(geMax, ge);
 		}
 	}
 	for (var i=0; i<InhibVarsN; i++) {
-		Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(i32(i)))] = 0.0;
+		Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(i32(i)))] = 0.0;
 	}
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(GeAvg))] = geAvg / f32(pn);
+	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(GeAvg))] = geAvg / f32(pn);
 	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33],
-	TensorStrides[34], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(GeMax))] = geMax;
+	TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(GeMax))] = geMax;
 }
 
 //////// import: "logrenorm.go"
+
+//////// import: "math32-fastexp.go"
+
+//////// import: "math32-vector2.go"
+struct Vector2 {
+	X: f32,
+	Y: f32,
+}
+
+//////// import: "math32-vector2i.go"
+struct Vector2i {
+	X: i32,
+	Y: i32,
+}
 
 //////// import: "maxpool.go"
 
@@ -172,6 +188,7 @@ struct Op {
 	InImageRGB: i32,
 	InValue: i32,
 	OutValue: i32,
+	OutValue4D: i32,
 	OutImage: i32,
 	FilterType: i32,
 	FilterN: i32,
@@ -181,6 +198,5 @@ struct Op {
 	InScalar: i32,
 	OutScalar: i32,
 	KWTA: i32,
-	pad: i32,
 	Geom: Geom,
 }

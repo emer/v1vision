@@ -59,42 +59,42 @@ type KWTA struct {
 	pad, pad1, pad2 float32
 }
 
-func (kwta *KWTA) Defaults() {
-	kwta.On.SetBool(true)
-	kwta.Iters = 20
-	kwta.DelActThr = 0.005
-	kwta.LayFFFB.Defaults()
-	kwta.PoolFFFB.Defaults()
-	kwta.LayFFFB.On.SetBool(true)
-	kwta.PoolFFFB.On.SetBool(true)
-	kwta.PoolFFFB.Gi = 2.0
-	kwta.XX1.Defaults()
-	kwta.ActTau = 3
-	kwta.Gbar.SetAll(0.5, 0.1, 1.0, 1.0) // 0.5 is key for 1.0 inputs
-	kwta.Erev.SetAll(1.0, 0.3, 0.3, 0.1)
-	kwta.Update()
+func (kp *KWTA) Defaults() {
+	kp.On.SetBool(true)
+	kp.Iters = 20
+	kp.DelActThr = 0.005
+	kp.LayFFFB.Defaults()
+	kp.PoolFFFB.Defaults()
+	kp.LayFFFB.On.SetBool(true)
+	kp.PoolFFFB.On.SetBool(true)
+	kp.PoolFFFB.Gi = 2.0
+	kp.XX1.Defaults()
+	kp.ActTau = 3
+	kp.Gbar.SetAll(0.5, 0.1, 1.0, 1.0) // 0.5 is key for 1.0 inputs
+	kp.Erev.SetAll(1.0, 0.3, 0.3, 0.1)
+	kp.Update()
 }
 
 // Update must be called after any changes to parameters
-func (kwta *KWTA) Update() {
-	kwta.LayFFFB.Update()
-	kwta.PoolFFFB.Update()
-	kwta.XX1.Update()
-	kwta.ErevSubThr.SetFromOtherMinus(kwta.Erev, kwta.XX1.Thr)
-	kwta.ThrSubErev.SetFromMinusOther(kwta.XX1.Thr, kwta.Erev)
-	kwta.ActDt = 1 / kwta.ActTau
+func (kp *KWTA) Update() {
+	kp.LayFFFB.Update()
+	kp.PoolFFFB.Update()
+	kp.XX1.Update()
+	kp.ErevSubThr.SetFromOtherMinus(kp.Erev, kp.XX1.Thr)
+	kp.ThrSubErev.SetFromMinusOther(kp.XX1.Thr, kp.Erev)
+	kp.ActDt = 1 / kp.ActTau
 }
 
 // GeThrFromG computes the threshold for Ge based on other conductances
-func (kwta *KWTA) GeThrFromG(gi float32) float32 {
-	ge := ((kwta.Gbar.I*gi*kwta.ErevSubThr.I + kwta.Gbar.L*kwta.ErevSubThr.L) / kwta.ThrSubErev.E)
+func (kp *KWTA) GeThrFromG(gi float32) float32 {
+	ge := ((kp.Gbar.I*gi*kp.ErevSubThr.I + kp.Gbar.L*kp.ErevSubThr.L) / kp.ThrSubErev.E)
 	return ge
 }
 
 // ActFromG computes rate-coded activation Act from conductances Ge and Gi
-func (kwta *KWTA) ActFromG(geThr, ge, act float32, delAct *float32) float32 {
-	nwAct := kwta.XX1.NoisyXX1(ge*kwta.Gbar.E - geThr)
-	*delAct = kwta.ActDt * (nwAct - act)
+func (kp *KWTA) ActFromG(geThr, ge, act float32, delAct *float32) float32 {
+	nwAct := kp.XX1.NoisyXX1(ge*kp.Gbar.E - geThr)
+	*delAct = kp.ActDt * (nwAct - act)
 	nwAct = act + *delAct
 	return nwAct
 }

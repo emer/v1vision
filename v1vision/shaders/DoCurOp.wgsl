@@ -168,6 +168,52 @@ struct KWTA {
 }
 
 //////// import: "kwta.go"
+fn Op_NeighInhib(op: Op, i: u32) {
+	var fi = i32(i) % op.FilterN; // inner
+	var pii = i32(i) / op.FilterN;
+	var pi = pii % 2; // plus-minus
+	var ii = pii / 2;
+	var yo = ii / op.Geom.Out.x;
+	var xo = ii % op.Geom.Out.x;
+	var gi = f32(0);
+	var nx = i32(0);
+	switch (fi) { // angle
+	case 1, 3: {
+		nx = i32(-1);
+	}
+	case 2: {
+		nx = i32(1);
+	}
+	default: {
+	}
+	}
+	var ny = i32(0);
+	switch (fi) {
+	case 0, 1: {
+		ny = i32(1);
+	}
+	case 3: {
+		ny = i32(-1);
+	}
+	default: {
+	}
+	}
+	var npX = xo + nx;
+	var npY = yo + ny;
+	if (npX >= 0 && npX < op.Geom.Out.x && npY >= 0 && npY < op.Geom.Out.y) {
+		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24],
+		u32(op.InValue), u32(npY), u32(npX), u32(pi), u32(fi))];
+		gi = max(gi, v);
+	}
+	npX = xo - nx;
+	npY = yo - ny;
+	if (npX >= 0 && npX < op.Geom.Out.x && npY >= 0 && npY < op.Geom.Out.y) {
+		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(npY), u32(npX), u32(pi), u32(fi))];
+		gi = max(gi, v);
+	}
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = op.FloatArg1 * gi;
+}
 
 //////// import: "logrenorm.go"
 fn Op_LogValues(op: Op, i: u32) {
@@ -194,6 +240,20 @@ fn Op_NormDiv(op: Op, i: u32) {
 		v /= sc;
 	}
 	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = v;
+}
+
+//////// import: "math32-fastexp.go"
+
+//////// import: "math32-vector2.go"
+struct Vector2 {
+	X: f32,
+	Y: f32,
+}
+
+//////// import: "math32-vector2i.go"
+struct Vector2i {
+	X: i32,
+	Y: i32,
 }
 
 //////// import: "maxpool.go"
@@ -328,6 +388,7 @@ struct Op {
 	InImageRGB: i32,
 	InValue: i32,
 	OutValue: i32,
+	OutValue4D: i32,
 	OutImage: i32,
 	FilterType: i32,
 	FilterN: i32,
@@ -337,7 +398,6 @@ struct Op {
 	InScalar: i32,
 	OutScalar: i32,
 	KWTA: i32,
-	pad: i32,
 	Geom: Geom,
 }
 fn Op_Run(op: Op, i: u32) {
@@ -353,6 +413,9 @@ fn Op_Run(op: Op, i: u32) {
 	}
 	case NormDiv: {
 		Op_NormDiv(op, i);
+	}
+	case NeighInhib: {
+		Op_NeighInhib(op, i);
 	}
 	case MaxPool: {
 		Op_MaxPool(op, i);

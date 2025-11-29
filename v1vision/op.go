@@ -96,6 +96,9 @@ type Op struct {
 	// OutValue is the Values index output to write to.
 	OutValue int32
 
+	// OutValue4D is the Values4D index output to write to.
+	OutValue4D int32
+
 	// OutImage is the index of an image to send output for image ops.
 	OutImage int32
 
@@ -125,8 +128,6 @@ type Op struct {
 	// KWTA is the index of the KWTA parameters to use.
 	KWTA int32
 
-	pad int32
-
 	// Geom is the geometry to use for this operation.
 	Geom Geom
 }
@@ -142,6 +143,8 @@ func (op *Op) Run(i uint32) {
 		op.LogValues(i)
 	case NormDiv:
 		op.NormDiv(i)
+	case NeighInhib:
+		op.NeighInhib(i)
 	case MaxPool:
 		op.MaxPool(i)
 	case MotionIntegrate:

@@ -7,7 +7,6 @@ package main
 //go:generate core generate -add-types
 
 import (
-	"fmt"
 	"image"
 
 	"cogentcore.org/core/base/errors"
@@ -20,7 +19,6 @@ import (
 	"cogentcore.org/lab/tensorcore"
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
-	"github.com/emer/v1vision/fffb"
 	"github.com/emer/v1vision/gabor"
 	"github.com/emer/v1vision/kwta"
 	"github.com/emer/v1vision/v1vision"
@@ -106,14 +104,11 @@ type Vis struct { //types:add
 	// Combined V1 output tensor with V1s simple as first two rows, then length sum, then end stops = 5 rows total
 	V1AllTsr tensor.Float32 `display:"no-inline"`
 
-	// inhibition values for V1s KWTA
-	V1sInhibs fffb.Inhibs `display:"no-inline"`
-
 	tabView *core.Tabs
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = true
+	vi.GPU = false
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
@@ -130,6 +125,8 @@ func (vi *Vis) Defaults() {
 // Config sets up the V1 processing pipeline.
 func (vi *Vis) Config() {
 	vi.V1.Init()
+	kw := vi.V1.NewKWTAParams()
+	*kw = vi.V1sKWTA
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
@@ -138,12 +135,14 @@ func (vi *Vis) Config() {
 	// V1s simple
 	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
 	_ = out
-	// todo: NeighInhib and/or KWTA here, but typically don't
+	vi.V1.NewNeighInhib(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
+	v1skw := vi.V1.NewKWTA(out, vi.V1sGabor.NAngles, &vi.V1sGeom)
+	_ = v1skw
 
 	// V1c complex
-	var mpGeom v1vision.Geom
-	mpGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
-	omax := vi.V1.NewMaxPool(out, vi.V1sGabor.NAngles, &mpGeom)
+	// var mpGeom v1vision.Geom
+	// mpGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
+	// omax := vi.V1.NewMaxPool(out, vi.V1sGabor.NAngles, &mpGeom)
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
@@ -234,9 +233,11 @@ func (vi *Vis) Filter() error { //types:add
 
 	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
 	vi.V1sTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
-	_ = out
-	fmt.Println(vi.V1sTsr.ShapeSizes(), out.ShapeSizes())
 	tensor.CopyFromLargerShape(&vi.V1sTsr, out)
+
+	kout := vi.V1.Values.SubSpace(2).(*tensor.Float32)
+	vi.V1sKwtaTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
+	tensor.CopyFromLargerShape(&vi.V1sKwtaTsr, kout)
 
 	// vi.V1Simple()
 	// vi.V1Complex()
@@ -270,6 +271,8 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
 	tf, _ = tb.NewTab("V1s")
 	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sTsr)
+	tf, _ = tb.NewTab("V1sKWTA")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sKwtaTsr)
 
 	sp.SetSplits(.3, .7)
 
