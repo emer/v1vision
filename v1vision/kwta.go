@@ -13,16 +13,17 @@ import (
 // alias so it works locally too.
 type KWTA = kwta.KWTA
 
-// NewNeighInhib adds a [NeighInhib] operation, from in value -> out value.
-// fn is number of filters (innermost values dimension). gi is inhibition strength.
-// Out value has additional inhibition for active neighbors of same filter index.
+// NewNeighInhib4 adds a [NeighInhib4] operation, from in value -> out value.
+// fn is number of filters (innermost values dimension). must be 4!
+// gi is inhibition strength.
+// Output value has additional inhibition for active neighbors of same filter index.
 // returns out index.
-func (vv *V1Vision) NewNeighInhib(in, fn int, gi float32, geom *Geom) int {
+func (vv *V1Vision) NewNeighInhib4(in, fn int, gi float32, geom *Geom) int {
 	if fn != 4 {
-		panic("only 4 angles are currently supported for NeighInhib!")
+		panic("only 4 angles are currently supported for NeighInhib4!")
 	}
 	op := vv.NewOp()
-	op.Op = NeighInhib
+	op.Op = NeighInhib4
 	out := vv.NewNeighInhibOutput(fn, geom)
 	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
 	op.InValue = int32(in)
@@ -40,20 +41,23 @@ func (vv *V1Vision) NewNeighInhibOutput(fn int, geom *Geom) int {
 }
 
 // NewKWTA adds a [KWTAInhib] operation, on Values data.
+// in = raw initial inputs, inExtGi = extra Gi inhibition
+// typically from [NeighInhib4] -- if 0 then not used.
 // fn is number of filters (innermost values dimension).
 // geom.Out is the size of the outer Y,X dimensions, and
 // FilterSz is the inner Y,X dimensions.
-// Allocates a Values4D to hold the inhibition compute values,
+// Allocates a Inhibsto hold the inhibition compute values,
 // including an additional Y row for the layer-level values at the end.
-func (vv *V1Vision) NewKWTA(in, fn int, geom *Geom) int {
+func (vv *V1Vision) NewKWTA(in, inExtGi, fn int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = KWTAInhib
 	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
-	oinh := vv.NewValues4D(int(geom.Out.Y+1), int(geom.Out.X), 1, int(InhibVarsN))
+	inh := vv.NewInhibs(int(geom.Out.Y+1), int(geom.Out.X))
 	op.RunN = uint32(geom.Out.Y * geom.Out.X)
-	op.InValue = int32(in) // note: must have neigh inhib just after this!
+	op.InValue = int32(in)
+	op.InValue2 = int32(inExtGi)
 	op.OutValue = int32(out)
-	op.OutValue4D = int32(oinh)
+	op.Inhibs = int32(inh)
 	op.FilterN = int32(fn)
 	op.Geom = *geom
 	return out
@@ -61,9 +65,9 @@ func (vv *V1Vision) NewKWTA(in, fn int, geom *Geom) int {
 
 //gosl:start
 
-// NeighInhib is kernel.
-func (op *Op) NeighInhib(i uint32) {
-	fi := int32(i) % op.FilterN // inner
+// NeighInhib4 is kernel.
+func (op *Op) NeighInhib4(i uint32) {
+	ang := int32(i) % op.FilterN // inner
 	pii := int32(i) / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
@@ -72,52 +76,27 @@ func (op *Op) NeighInhib(i uint32) {
 
 	gi := float32(0)
 
-	// ortho neighbor coordinates for 4 angles, also uses negated version
-	//  .
-	// --- = (0,1) (X,Y)
-	// . /
-	//  /  = (-1,1)
-	// | .  = (1,0)
-	//  \
-	// . \  = (-1,-1)
+	var ox, oy int32
+	NeighInhibOffsets(ang, &ox, &oy)
 
-	nx := int32(0)
-	switch fi { // angle
-	case 1, 3:
-		nx = -1
-	case 2:
-		nx = 1
-	default:
-	}
-	ny := int32(0)
-	switch fi {
-	case 0, 1:
-		ny = 1
-	case 3:
-		ny = -1
-	default:
-	}
-	npX := xo + nx
-	npY := yo + ny
+	npX := xo + ox
+	npY := yo + oy
 	if npX >= 0 && npX < op.Geom.Out.X && npY >= 0 && npY < op.Geom.Out.Y {
-		v := Values.Value(int(op.InValue), int(npY), int(npX), int(pi), int(fi))
+		v := Values.Value(int(op.InValue), int(npY), int(npX), int(pi), int(ang))
 		gi = max(gi, v)
 	}
-	npX = xo - nx
-	npY = yo - ny
+	npX = xo - ox
+	npY = yo - oy
 	if npX >= 0 && npX < op.Geom.Out.X && npY >= 0 && npY < op.Geom.Out.Y {
-		v := Values.Value(int(op.InValue), int(npY), int(npX), int(pi), int(fi))
+		v := Values.Value(int(op.InValue), int(npY), int(npX), int(pi), int(ang))
 		gi = max(gi, v)
 	}
-	Values.Set(op.FloatArg1*gi, int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(op.FloatArg1*gi, int(op.OutValue), int(yo), int(xo), int(pi), int(ang))
 }
 
 // KWTAInitPool is the kernel to initialize KWTA process, on Values data.
-// i = op.Geom.Out.Y * X. 2 x FilterN is inner 2 dims
-// Operates on Values4D:
+// i = op.Geom.Out.Y * X. 2 x FilterN is inner 2 dims. Operates on Inhibs.
 // InValue = raw initial activations (ge)
-// InValue+1 = extra Gi values
-// OutValue4D = inhibs (inner dims 1, InhibValuesN)
 // OutValue = acts (output result)
 func KWTAInitPool(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
@@ -140,15 +119,14 @@ func KWTAInitPool(i uint32) { //gosl:kernel
 	}
 
 	for i := range InhibVarsN {
-		Values4D.Set(0.0, int(op.OutValue4D), int(yo), int(xo), int(0), int(int(i)))
+		Inhibs.Set(0.0, int(op.Inhibs), int(yo), int(xo), int(int(i)))
 	}
-	Values4D.Set(geAvg/float32(pn), int(op.OutValue4D), int(yo), int(xo), int(0), int(GeAvg))
-	Values4D.Set(geMax, int(op.OutValue4D), int(yo), int(xo), int(0), int(GeMax))
+	Inhibs.Set(geAvg/float32(pn), int(op.Inhibs), int(yo), int(xo), int(GeAvg))
+	Inhibs.Set(geMax, int(op.Inhibs), int(yo), int(xo), int(GeMax))
 }
 
 // KWTAInitLayer is the kernel to initialize KWTA process for layer
-// on Values data. Run = 1 only.
-// OutValue4D = inhibs (inner dims 1, InhibValuesN)
+// on Values data. Run = 1 only. Operates on Inhibs.
 func KWTAInitLayer(i uint32) { //gosl:kernel
 	if i != 0 {
 		return
@@ -156,14 +134,13 @@ func KWTAInitLayer(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	lyi := op.Geom.Out.Y
 	for i := range InhibVarsN {
-		Values4D.Set(0.0, int(op.OutValue4D), int(lyi), int(0), int(0), int(int(i)))
+		Inhibs.Set(0.0, int(op.Inhibs), int(lyi), int(0), int(int(i)))
 	}
 }
 
 // KWTAIterLayer is the kernel to iterate KWTA process at layer.
 // i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
-// Operates on Values4D updated from pool-level:
-// OutValue4D = inhibs (inner dims 1, InhibValuesN)
+// Operates on Inhibs updated from pool-level.
 // Call this first then IterPool
 func KWTAIterLayer(i uint32) { //gosl:kernel
 	if i != 0 {
@@ -180,10 +157,10 @@ func KWTAIterLayer(i uint32) { //gosl:kernel
 	actMax := float32(0)
 	for yo := range op.Geom.Out.Y {
 		for xo := range op.Geom.Out.X {
-			gavg := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(GeAvg))
-			gmx := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(GeMax))
-			aavg := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(ActAvg))
-			amx := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(ActMax))
+			gavg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeAvg))
+			gmx := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeMax))
+			aavg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActAvg))
+			amx := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActMax))
 			geAvg += gavg
 			geMax = max(geMax, gmx)
 			actAvg += aavg
@@ -192,12 +169,12 @@ func KWTAIterLayer(i uint32) { //gosl:kernel
 	}
 	geAvg /= ln
 	actAvg /= ln
-	Values4D.Set(geAvg, int(op.OutValue4D), int(lyi), int(0), int(0), int(GeAvg))
-	Values4D.Set(geMax, int(op.OutValue4D), int(lyi), int(0), int(0), int(GeMax))
-	Values4D.Set(actAvg, int(op.OutValue4D), int(lyi), int(0), int(0), int(ActAvg))
-	Values4D.Set(actMax, int(op.OutValue4D), int(lyi), int(0), int(0), int(ActMax))
+	Inhibs.Set(geAvg, int(op.Inhibs), int(lyi), int(0), int(GeAvg))
+	Inhibs.Set(geMax, int(op.Inhibs), int(lyi), int(0), int(GeMax))
+	Inhibs.Set(actAvg, int(op.Inhibs), int(lyi), int(0), int(ActAvg))
+	Inhibs.Set(actMax, int(op.Inhibs), int(lyi), int(0), int(ActMax))
 
-	fbi := Values4D.Value(int(op.OutValue4D), int(lyi), int(0), int(0), int(FBi))
+	fbi := Inhibs.Value(int(op.Inhibs), int(lyi), int(0), int(FBi))
 	ffi := kp.Layer.FFInhib(geAvg, geMax)
 	newFBi := kp.Layer.FBInhib(actAvg)
 	fbi = kp.Layer.FBUpdt(fbi, newFBi)
@@ -206,20 +183,18 @@ func KWTAIterLayer(i uint32) { //gosl:kernel
 		fbi = 0.0
 	}
 
-	Values4D.Set(ffi, int(op.OutValue4D), int(lyi), int(0), int(0), int(FFi))
-	Values4D.Set(fbi, int(op.OutValue4D), int(lyi), int(0), int(0), int(FBi))
+	Inhibs.Set(ffi, int(op.Inhibs), int(lyi), int(0), int(FFi))
+	Inhibs.Set(fbi, int(op.Inhibs), int(lyi), int(0), int(FBi))
 
 	gi := kp.Layer.Gi * (ffi + fbi)
-	Values4D.Set(gi, int(op.OutValue4D), int(lyi), int(0), int(0), int(Gi))
-	Values4D.Set(gi, int(op.OutValue4D), int(lyi), int(0), int(0), int(GiOrig))
+	Inhibs.Set(gi, int(op.Inhibs), int(lyi), int(0), int(Gi))
+	Inhibs.Set(gi, int(op.Inhibs), int(lyi), int(0), int(GiOrig))
 }
 
 // KWTAIterPool is the kernel to iterate KWTA process for Pools.
-// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
-// Operates on Values4D:
+// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims. Operates on Inhibs.
 // InValue = raw initial activations (ge)
-// InValue+1 = extra Gi values
-// OutValue4D = inhibs (inner dims 1, InhibValuesN)
+// InValue2 = extra Gi values, if non-0
 // OutValue = acts (output result)
 func KWTAIterPool(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
@@ -230,16 +205,16 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 	xo := int32(i) % op.Geom.Out.X
 
 	lyi := int(op.Geom.Out.Y)
-	layGi := Values4D.Value(int(op.OutValue4D), int(lyi), int(0), int(0), int(Gi))
+	layGi := Inhibs.Value(int(op.Inhibs), int(lyi), int(0), int(Gi))
 	kp := GetKWTAs(uint32(op.KWTA))
 
 	pn := 2 * op.FilterN
 	// pn := op.Geom.FilterSz.Y * op.Geom.FilterSz.X
 
-	geAvg := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(GeAvg))
-	geMax := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(GeMax))
-	actAvg := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(ActAvg))
-	fbi := Values4D.Value(int(op.OutValue4D), int(yo), int(xo), int(0), int(FBi))
+	geAvg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeAvg))
+	geMax := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeMax))
+	actAvg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActAvg))
+	fbi := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(FBi))
 	ffi := kp.Pool.FFInhib(geAvg, geMax)
 	newFBi := kp.Pool.FBInhib(actAvg)
 	fbi = kp.Pool.FBUpdt(fbi, newFBi)
@@ -248,12 +223,12 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 		fbi = 0.0
 	}
 
-	Values4D.Set(ffi, int(op.OutValue4D), int(yo), int(xo), int(0), int(FFi))
-	Values4D.Set(fbi, int(op.OutValue4D), int(yo), int(xo), int(0), int(FBi))
+	Inhibs.Set(ffi, int(op.Inhibs), int(yo), int(xo), int(FFi))
+	Inhibs.Set(fbi, int(op.Inhibs), int(yo), int(xo), int(FBi))
 
 	gi := kp.Pool.Gi * (ffi + fbi)
-	Values4D.Set(gi, int(op.OutValue4D), int(yo), int(xo), int(0), int(Gi))
-	Values4D.Set(gi, int(op.OutValue4D), int(yo), int(xo), int(0), int(GiOrig))
+	Inhibs.Set(gi, int(op.Inhibs), int(yo), int(xo), int(Gi))
+	Inhibs.Set(gi, int(op.Inhibs), int(yo), int(xo), int(GiOrig))
 
 	giPool := max(layGi, gi)
 
@@ -262,9 +237,11 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 	for py := range 2 { // op.Geom.FilterSz.Y {
 		for px := range op.FilterN {
 			pgi := giPool
-			eIn := Values.Value(int(op.InValue+1), int(yo), int(xo), int(py), int(px))
-			eGi := kp.Pool.Gi * kp.Pool.FFInhib(eIn, eIn)
-			pgi = max(pgi, eGi)
+			if op.InValue2 > 0 {
+				eIn := Values.Value(int(op.InValue2), int(yo), int(xo), int(py), int(px))
+				eGi := kp.Pool.Gi * kp.Pool.FFInhib(eIn, eIn)
+				pgi = max(pgi, eGi)
+			}
 			geThr := kp.GeThrFromG(pgi)
 			ge := Values.Value(int(op.InValue), int(yo), int(xo), int(py), int(px))
 			act := Values.Value(int(op.OutValue), int(yo), int(xo), int(py), int(px))
@@ -278,8 +255,44 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 			actMax = max(actMax, nwAct)
 		}
 	}
-	Values4D.Set(actAvg/float32(pn), int(op.OutValue4D), int(yo), int(xo), int(0), int(ActAvg))
-	Values4D.Set(actMax, int(op.OutValue4D), int(yo), int(xo), int(0), int(ActMax))
+	Inhibs.Set(actAvg/float32(pn), int(op.Inhibs), int(yo), int(xo), int(ActAvg))
+	Inhibs.Set(actMax, int(op.Inhibs), int(yo), int(xo), int(ActMax))
+}
+
+// Neigh4X = []int{0, -1, 1, -1}
+// Neigh4Y = []int{1, 1, 0, -1}
+
+// ortho neighbor coordinates for 4 angles, also uses negated version
+//
+//	.
+//
+// --- = (0,1) (X,Y)
+// . /
+//
+//	/  = (-1,1)
+//
+// | .  = (1,0)
+//
+//	\
+//
+// . \  = (-1,-1)
+func NeighInhibOffsets(ang int32, ox, oy *int32) {
+	switch ang {
+	case 1, 3:
+		*ox = -1
+	case 2:
+		*ox = 1
+	default:
+		*ox = 0
+	}
+	switch ang {
+	case 0, 1:
+		*oy = 1
+	case 3:
+		*oy = -1
+	default:
+		*oy = 0
+	}
 }
 
 //gosl:end

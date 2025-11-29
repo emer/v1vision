@@ -6,20 +6,20 @@ import (
 	"cogentcore.org/core/enums"
 )
 
-var _GPUVarsValues = []GPUVars{0, 1, 2, 3, 4, 5, 6}
+var _GPUVarsValues = []GPUVars{0, 1, 2, 3, 4, 5, 6, 7}
 
 // GPUVarsN is the highest valid value for type GPUVars, plus one.
 //
 //gosl:start
-const GPUVarsN GPUVars = 7
+const GPUVarsN GPUVars = 8
 
 //gosl:end
 
-var _GPUVarsValueMap = map[string]GPUVars{`CurOpVar`: 0, `KWTAsVar`: 1, `FiltersVar`: 2, `ImagesVar`: 3, `ValuesVar`: 4, `Values4DVar`: 5, `ScalarsVar`: 6}
+var _GPUVarsValueMap = map[string]GPUVars{`CurOpVar`: 0, `KWTAsVar`: 1, `FiltersVar`: 2, `ImagesVar`: 3, `ValuesVar`: 4, `Values4DVar`: 5, `ScalarsVar`: 6, `InhibsVar`: 7}
 
-var _GPUVarsDescMap = map[GPUVars]string{0: ``, 1: ``, 2: ``, 3: ``, 4: ``, 5: ``, 6: ``}
+var _GPUVarsDescMap = map[GPUVars]string{0: ``, 1: ``, 2: ``, 3: ``, 4: ``, 5: ``, 6: ``, 7: ``}
 
-var _GPUVarsMap = map[GPUVars]string{0: `CurOpVar`, 1: `KWTAsVar`, 2: `FiltersVar`, 3: `ImagesVar`, 4: `ValuesVar`, 5: `Values4DVar`, 6: `ScalarsVar`}
+var _GPUVarsMap = map[GPUVars]string{0: `CurOpVar`, 1: `KWTAsVar`, 2: `FiltersVar`, 3: `ImagesVar`, 4: `ValuesVar`, 5: `Values4DVar`, 6: `ScalarsVar`, 7: `InhibsVar`}
 
 // String returns the string representation of this GPUVars value.
 func (i GPUVars) String() string { return enums.String(i, _GPUVarsMap) }
@@ -98,20 +98,20 @@ func (i *InhibVars) UnmarshalText(text []byte) error {
 	return enums.UnmarshalText(i, text, "InhibVars")
 }
 
-var _OperationsValues = []Operations{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
+var _OperationsValues = []Operations{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
 // OperationsN is the highest valid value for type Operations, plus one.
 //
 //gosl:start
-const OperationsN Operations = 14
+const OperationsN Operations = 17
 
 //gosl:end
 
-var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3, `MaxScalar`: 4, `SumScalar`: 5, `MeanScalar`: 6, `NormDiv`: 7, `NeighInhib`: 8, `KWTAInhib`: 9, `MaxPool`: 10, `MotionIntegrate`: 11, `MotionStar`: 12, `MotionFullField`: 13}
+var _OperationsValueMap = map[string]Operations{`NoOp`: 0, `WrapPad`: 1, `ConvolveImage`: 2, `LogValues`: 3, `MaxScalar`: 4, `SumScalar`: 5, `MeanScalar`: 6, `NormDiv`: 7, `NeighInhib4`: 8, `KWTAInhib`: 9, `MaxPool`: 10, `MaxPolarity`: 11, `LenSum4`: 12, `EndStop4`: 13, `MotionIntegrate`: 14, `MotionStar`: 15, `MotionFullField`: 16}
 
-var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values * Gain. InValue -&gt; OutValue (can be the same).`, 4: `MaxScalar computes Max over values. InValue = values, OutScalar = result.`, 5: `SumScalar computes Sum over values InValue = values, OutScalar = result.`, 6: `MeanScalar computes Mean over values InValue = values, OutScalar = result.`, 7: `NormDiv normalizes values by scalar InValue -&gt; OutValue (can be same), InScalar = norm factor.`, 8: `NeighInhib computes neighbor inhibition, as an optional preliminary step prior to KWTA. Currently only works with 4 angles (n features=4).`, 9: `KWTAInhib computes k-winners-take-all inhibition, rate-code version, based on overall levels of activity, over multiple iterations.`, 10: `MaxPool performs max-pooling over given pool size and spacing. Size must = spacing or 2 * spacing.`, 11: `MotionIntegrate does fast and slow motion integration from values to values: InValue -&gt; OutValue (should be different)`, 12: `MotionStar computes starburst-style motion on integrate fast and slow input values. Result is 4 * FilterN filter outputs, for Left, Right, Down, Up motion directions. InValue -&gt; OutValue (different, X and Y are -1 in output).`, 13: `MotionFullField computes full-field summary of output from MotionStar, into 4 Scalars for Left, Right, Down, Up. Opposite directions compete. OutScalar[0-3] = instantaneous full-field values per this frame OutScalar[4-7] = integrated full-field values over time`}
+var _OperationsDescMap = map[Operations]string{0: ``, 1: `WrapPad wraps given padding width of float32 image around sides i.e., padding for left side of image is the (mirrored) bits from the right side of image, etc. InImage -&gt; OutImage, over InImageRGB (if 3, does all).`, 2: `ConvolveImage applies a filter to Image, writing to Values. InImage -&gt; OutValue, using FilterType, FilterN`, 3: `LogValues sets values to 1 + log of values * Gain. InValue -&gt; OutValue (can be the same).`, 4: `MaxScalar computes Max over values. InValue = values, OutScalar = result.`, 5: `SumScalar computes Sum over values InValue = values, OutScalar = result.`, 6: `MeanScalar computes Mean over values InValue = values, OutScalar = result.`, 7: `NormDiv normalizes values by scalar InValue -&gt; OutValue (can be same), InScalar = norm factor.`, 8: `NeighInhib4 computes neighbor inhibition, as an optional preliminary step prior to KWTA. Currently only works with 4 angles (n features=4). Each unit gets inhibition from same feature in nearest orthogonal neighbors. Reduces redundancy of feature code.`, 9: `KWTAInhib computes k-winners-take-all inhibition, rate-code version, based on overall levels of activity, over multiple iterations.`, 10: `MaxPool performs max-pooling over given pool size and spacing. Size must = spacing or 2 * spacing.`, 11: `MaxPolarity performs max-pooling over the polarity (on vs. off) dimension.`, 12: `LenSum4 performs V1 complex-cell length-summing, extending the receptive field along the orientation angle one step. Works on output from [MaxPolarity] (first polarity dimension), only for the 4 angles case.`, 13: `EndStop4 performs V1 complex-cell end-stop, detecting an orthoginal angle at the end of a length-sum line. Only for the 4 angles case.`, 14: `MotionIntegrate does fast and slow motion integration from values to values: InValue -&gt; OutValue (should be different)`, 15: `MotionStar computes starburst-style motion on integrate fast and slow input values. Result is 4 * FilterN filter outputs, for Left, Right, Down, Up motion directions. InValue -&gt; OutValue (different, X and Y are -1 in output).`, 16: `MotionFullField computes full-field summary of output from MotionStar, into 4 Scalars for Left, Right, Down, Up. Opposite directions compete. OutScalar[0-3] = instantaneous full-field values per this frame OutScalar[4-7] = integrated full-field values over time`}
 
-var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`, 4: `MaxScalar`, 5: `SumScalar`, 6: `MeanScalar`, 7: `NormDiv`, 8: `NeighInhib`, 9: `KWTAInhib`, 10: `MaxPool`, 11: `MotionIntegrate`, 12: `MotionStar`, 13: `MotionFullField`}
+var _OperationsMap = map[Operations]string{0: `NoOp`, 1: `WrapPad`, 2: `ConvolveImage`, 3: `LogValues`, 4: `MaxScalar`, 5: `SumScalar`, 6: `MeanScalar`, 7: `NormDiv`, 8: `NeighInhib4`, 9: `KWTAInhib`, 10: `MaxPool`, 11: `MaxPolarity`, 12: `LenSum4`, 13: `EndStop4`, 14: `MotionIntegrate`, 15: `MotionStar`, 16: `MotionFullField`}
 
 // String returns the string representation of this Operations value.
 func (i Operations) String() string { return enums.String(i, _OperationsMap) }

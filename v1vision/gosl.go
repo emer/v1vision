@@ -36,6 +36,7 @@ const (
 	ValuesVar GPUVars = 4
 	Values4DVar GPUVars = 5
 	ScalarsVar GPUVars = 6
+	InhibsVar GPUVars = 7
 )
 
 // Tensor stride variables
@@ -83,6 +84,7 @@ func GPUInit() {
 			vr = sgp.Add("Values", gpu.Float32, 1, gpu.ComputeShader)
 			vr = sgp.Add("Values4D", gpu.Float32, 1, gpu.ComputeShader)
 			vr = sgp.Add("Scalars", gpu.Float32, 1, gpu.ComputeShader)
+			vr = sgp.Add("Inhibs", gpu.Float32, 1, gpu.ComputeShader)
 			sgp.SetNValues(1)
 		}
 		var pl *gpu.ComputePipeline
@@ -96,23 +98,23 @@ func GPUInit() {
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAInitLayer.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Values4D")
+		pl.AddVarUsed(2, "Inhibs")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAInitPool.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(2, "Values")
-		pl.AddVarUsed(2, "Values4D")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayer.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(0, "KWTAs")
-		pl.AddVarUsed(2, "Values4D")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterPool.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(0, "KWTAs")
 		pl.AddVarUsed(2, "Values")
-		pl.AddVarUsed(2, "Values4D")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MaxScalarP1.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
@@ -713,6 +715,9 @@ func ToGPU(vars ...GPUVars) {
 		case ScalarsVar:
 			v, _ := syVars.ValueByIndex(2, "Scalars", 0)
 			gpu.SetValueFrom(v, Scalars.Values)
+		case InhibsVar:
+			v, _ := syVars.ValueByIndex(2, "Inhibs", 0)
+			gpu.SetValueFrom(v, Inhibs.Values)
 		}
 	}
 }
@@ -734,7 +739,7 @@ func ToGPUTensorStrides() {
 	}
 	sy := GPUSystem
 	syVars := sy.Vars()
-	TensorStrides.SetShapeSizes(50)
+	TensorStrides.SetShapeSizes(60)
 	TensorStrides.SetInt1D(Filters.Shape().Strides[0], 0)
 	TensorStrides.SetInt1D(Filters.Shape().Strides[1], 1)
 	TensorStrides.SetInt1D(Filters.Shape().Strides[2], 2)
@@ -754,6 +759,10 @@ func ToGPUTensorStrides() {
 	TensorStrides.SetInt1D(Values4D.Shape().Strides[3], 33)
 	TensorStrides.SetInt1D(Values4D.Shape().Strides[4], 34)
 	TensorStrides.SetInt1D(Scalars.Shape().Strides[0], 40)
+	TensorStrides.SetInt1D(Inhibs.Shape().Strides[0], 50)
+	TensorStrides.SetInt1D(Inhibs.Shape().Strides[1], 51)
+	TensorStrides.SetInt1D(Inhibs.Shape().Strides[2], 52)
+	TensorStrides.SetInt1D(Inhibs.Shape().Strides[3], 53)
 	v, _ := syVars.ValueByIndex(0, "TensorStrides", 0)
 	gpu.SetValueFrom(v, TensorStrides.Values)
 }
@@ -784,6 +793,9 @@ func ReadFromGPU(vars ...GPUVars) {
 			v.GPUToRead(sy.CommandEncoder)
 		case ScalarsVar:
 			v, _ := syVars.ValueByIndex(2, "Scalars", 0)
+			v.GPUToRead(sy.CommandEncoder)
+		case InhibsVar:
+			v, _ := syVars.ValueByIndex(2, "Inhibs", 0)
 			v.GPUToRead(sy.CommandEncoder)
 		}
 	}
@@ -823,6 +835,10 @@ func SyncFromGPU(vars ...GPUVars) {
 			v, _ := syVars.ValueByIndex(2, "Scalars", 0)
 			v.ReadSync()
 			gpu.ReadToBytes(v, Scalars.Values)
+		case InhibsVar:
+			v, _ := syVars.ValueByIndex(2, "Inhibs", 0)
+			v.ReadSync()
+			gpu.ReadToBytes(v, Inhibs.Values)
 		}
 	}
 }

@@ -49,13 +49,14 @@ var (
 	//gosl:dims 4
 	Images *tensor.Float32
 
-	// Values are intermediate input / output data: [ValueNo][Y][X][PosNeg][FilterN]
+	// Values are intermediate input / output data: [ValueNo][Y][X][Polarity][FilterN]
 	// where FilterN corresponds to the different filters applied or other such data,
-	// and PosNeg is 0 for positive (on) values and 1 for negative (off) values.
+	// and Polarity is 0 for positive (on) values and 1 for negative (off) values.
 	//gosl:dims 5
 	Values *tensor.Float32
 
-	// Values4D are 4D aggregated data (e.g., outputs): [ValueNo][GpY][GpX][Y][X]
+	// Values4D are 4D aggregated data (e.g., outputs):
+	// [ValueNo][PoolY][PoolX][UnitY][UnitX]
 	//gosl:dims 5
 	Values4D *tensor.Float32
 
@@ -63,6 +64,11 @@ var (
 	// More efficient to use these versus using large Values allocations.
 	//gosl:dims 1
 	Scalars *tensor.Float32
+
+	// Inhibs are [KWTAInhib] inhibitory state values:
+	// [InhibNo][PoolY][PoolX][InhibVarsN]
+	//gosl:dims 4
+	Inhibs *tensor.Float32
 )
 
 //gosl:end

@@ -12,8 +12,8 @@ var<storage, read> KWTAs: array<KWTA>;
 // // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
 @group(2) @binding(1)
 var<storage, read_write> Values: array<f32>;
-@group(2) @binding(2)
-var<storage, read_write> Values4D: array<f32>;
+@group(2) @binding(4)
+var<storage, read_write> Inhibs: array<f32>;
 
 alias GPUVars = i32;
 
@@ -27,15 +27,21 @@ fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u3
 	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
 }
 
+fn Index4D(s0: u32, s1: u32, s2: u32, s3: u32, i0: u32, i1: u32, i2: u32, i3: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3;
+}
+
 
 //////// import: "vars.go"
+
+//////// import: "complex.go"
 
 //////// import: "convolve.go"
 
 //////// import: "enumgen.go"
-const GPUVarsN: GPUVars = 7;
+const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 14;
+const OperationsN: Operations = 17;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -132,13 +138,13 @@ fn KWTAIterPool(i: u32) { //gosl:kernel
 	var yo = i32(i) / op.Geom.Out.x;
 	var xo = i32(i) % op.Geom.Out.x;
 	var lyi = i32(op.Geom.Out.y);
-	var layGi = Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(lyi), u32(0), u32(0), u32(Gi))];
+	var layGi = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(lyi), u32(0), u32(Gi))];
 	let kp = KWTAs[u32(op.KWTA)];
 	var pn = 2 * op.FilterN;
-	var geAvg = Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(GeAvg))];
-	var geMax = Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(GeMax))];
-	var actAvg = Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(ActAvg))];
-	var fbi = Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(FBi))];
+	var geAvg = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GeAvg))];
+	var geMax = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GeMax))];
+	var actAvg = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(ActAvg))];
+	var fbi = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(FBi))];
 	var ffi = FFFB_FFInhib(kp.Pool, geAvg, geMax);
 	var newFBi = FFFB_FBInhib(kp.Pool, actAvg);
 	fbi = FFFB_FBUpdt(kp.Pool, fbi, newFBi);
@@ -146,20 +152,22 @@ fn KWTAIterPool(i: u32) { //gosl:kernel
 		ffi = f32(0.0);
 		fbi = f32(0.0);
 	}
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(FFi))] = ffi;
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(FBi))] = fbi;
+	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(FFi))] = ffi;
+	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(FBi))] = fbi;
 	var gi = kp.Pool.Gi * (ffi + fbi);
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(Gi))] = gi;
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(GiOrig))] = gi;
+	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(Gi))] = gi;
+	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GiOrig))] = gi;
 	var giPool = max(layGi, gi);
 	actAvg = f32(0.0);
 	var actMax = f32(0.0);
 	for (var py=0; py<2; py++) { // op.Geom.FilterSz.Y {
 		for (var px=0; px<op.FilterN; px++) {
 			var pgi = giPool;
-			var eIn = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue + 1), u32(yo), u32(xo), u32(py), u32(px))];
-			var eGi = kp.Pool.Gi * FFFB_FFInhib(kp.Pool, eIn, eIn);
-			pgi = max(pgi, eGi);
+			if (op.InValue2 > 0) {
+				var eIn = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue2), u32(yo), u32(xo), u32(py), u32(px))];
+				var eGi = kp.Pool.Gi * FFFB_FFInhib(kp.Pool, eIn, eIn);
+				pgi = max(pgi, eGi);
+			}
 			var geThr = KWTA_GeThrFromG(kp, pgi);
 			var ge = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(py), u32(px))];
 			var act = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(py), u32(px))];
@@ -172,8 +180,9 @@ fn KWTAIterPool(i: u32) { //gosl:kernel
 			actMax = max(actMax, nwAct);
 		}
 	}
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(ActAvg))] = actAvg / f32(pn);
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(0), u32(ActMax))] = actMax;
+	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(ActAvg))] = actAvg / f32(pn);
+	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53],
+	u32(op.Inhibs), u32(yo), u32(xo), u32(ActMax))] = actMax;
 }
 
 //////// import: "logrenorm.go"
@@ -248,18 +257,22 @@ const  MaxScalar: Operations = 4;
 const  SumScalar: Operations = 5;
 const  MeanScalar: Operations = 6;
 const  NormDiv: Operations = 7;
-const  NeighInhib: Operations = 8;
+const  NeighInhib4: Operations = 8;
 const  KWTAInhib: Operations = 9;
 const  MaxPool: Operations = 10;
-const  MotionIntegrate: Operations = 11;
-const  MotionStar: Operations = 12;
-const  MotionFullField: Operations = 13;
+const  MaxPolarity: Operations = 11;
+const  LenSum4: Operations = 12;
+const  EndStop4: Operations = 13;
+const  MotionIntegrate: Operations = 14;
+const  MotionStar: Operations = 15;
+const  MotionFullField: Operations = 16;
 struct Op {
 	Op: Operations,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
 	InValue: i32,
+	InValue2: i32,
 	OutValue: i32,
 	OutValue4D: i32,
 	OutImage: i32,
@@ -270,6 +283,9 @@ struct Op {
 	IntArg1: i32,
 	InScalar: i32,
 	OutScalar: i32,
+	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
 	Geom: Geom,
 }

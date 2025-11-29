@@ -10,12 +10,28 @@ package v1vision
 // fn is number of filters (innermost values dimension).
 // geom.In is the size of the input values, and geom.Out is the output,
 // where geom is: Out = (In / Spacing), and FilterSz <= Spacing.
-// (e.g., use geom.SetFilter)
+// (e.g., use geom.SetFilter). returns index of new output.
 func (vv *V1Vision) NewMaxPool(in, fn int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = MaxPool
 	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
 	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
+	op.InValue = int32(in)
+	op.OutValue = int32(out)
+	op.FilterN = int32(fn)
+	op.Geom = *geom
+	return out
+}
+
+// NewMaxPolarity adds a [MaxPolarity] operation, from in value -> out values.
+// fn is number of filters (innermost values dimension).
+// geom.Out is the size of both input and output,
+// just maxes over the polarity dimension. returns index of new output.
+func (vv *V1Vision) NewMaxPolarity(in, fn int, geom *Geom) int {
+	op := vv.NewOp()
+	op.Op = MaxPolarity
+	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn))
 	op.InValue = int32(in)
 	op.OutValue = int32(out)
 	op.FilterN = int32(fn)
@@ -47,6 +63,23 @@ func (op *Op) MaxPool(i uint32) {
 		}
 	}
 	Values.Set(mx, int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
+}
+
+// MaxPolarity is kernel.
+func (op *Op) MaxPolarity(i uint32) {
+	fi := int32(i) % op.FilterN // inner
+	ii := int32(i) / op.FilterN
+	yo := ii / op.Geom.Out.X
+	xo := ii % op.Geom.Out.X
+
+	mx := float32(0)
+	for pi := range 2 {
+		iv := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
+		if iv > mx {
+			mx = iv
+		}
+	}
+	Values.Set(mx, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 }
 
 //gosl:end

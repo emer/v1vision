@@ -42,9 +42,11 @@ const (
 	// InValue -> OutValue (can be same), InScalar = norm factor.
 	NormDiv
 
-	// NeighInhib computes neighbor inhibition, as an optional preliminary
+	// NeighInhib4 computes neighbor inhibition, as an optional preliminary
 	// step prior to KWTA. Currently only works with 4 angles (n features=4).
-	NeighInhib
+	// Each unit gets inhibition from same feature in nearest orthogonal neighbors.
+	// Reduces redundancy of feature code.
+	NeighInhib4
 
 	// KWTAInhib computes k-winners-take-all inhibition, rate-code version,
 	// based on overall levels of activity, over multiple iterations.
@@ -53,6 +55,20 @@ const (
 	// MaxPool performs max-pooling over given pool size and spacing.
 	// Size must = spacing or 2 * spacing.
 	MaxPool
+
+	// MaxPolarity performs max-pooling over the polarity (on vs. off)
+	// dimension.
+	MaxPolarity
+
+	// LenSum4 performs V1 complex-cell length-summing, extending the
+	// receptive field along the orientation angle one step.
+	// Works on output from [MaxPolarity] (first polarity dimension),
+	// only for the 4 angles case.
+	LenSum4
+
+	// EndStop4 performs V1 complex-cell end-stop, detecting an orthoginal
+	// angle at the end of a length-sum line. Only for the 4 angles case.
+	EndStop4
 
 	// MotionIntegrate does fast and slow motion integration from
 	// values to values: InValue -> OutValue (should be different)
@@ -93,6 +109,9 @@ type Op struct {
 	// InValue is the Values index input to use.
 	InValue int32
 
+	// InValue2 is the second Values index input to use, where needed.
+	InValue2 int32
+
 	// OutValue is the Values index output to write to.
 	OutValue int32
 
@@ -125,8 +144,13 @@ type Op struct {
 	// OutScalar is the Scalars index output to write to.
 	OutScalar int32
 
+	// Inhibs is the index of the Inhibs state variables to use.
+	Inhibs int32
+
 	// KWTA is the index of the KWTA parameters to use.
 	KWTA int32
+
+	pad, pad1 int32
 
 	// Geom is the geometry to use for this operation.
 	Geom Geom
@@ -143,10 +167,16 @@ func (op *Op) Run(i uint32) {
 		op.LogValues(i)
 	case NormDiv:
 		op.NormDiv(i)
-	case NeighInhib:
-		op.NeighInhib(i)
+	case NeighInhib4:
+		op.NeighInhib4(i)
 	case MaxPool:
 		op.MaxPool(i)
+	case MaxPolarity:
+		op.MaxPolarity(i)
+	case LenSum4:
+		op.LenSum4(i)
+	case EndStop4:
+		op.EndStop4(i)
 	case MotionIntegrate:
 		op.MotionIntegrate(i)
 	case MotionStar:

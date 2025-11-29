@@ -12,6 +12,7 @@ import (
 
 	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
+	"cogentcore.org/core/base/timer"
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
@@ -49,7 +50,12 @@ type Vis struct { //types:add
 	// geometry of input, output for V1 simple-cell processing
 	V1sGeom v1vision.Geom `edit:"-"`
 
-	// neighborhood inhibition for V1s -- each unit gets inhibition from same feature in nearest orthogonal neighbors -- reduces redundancy of feature code
+	// geometry of input, output for V1 complex-cell processing from V1s inputs.
+	V1cGeom v1vision.Geom `edit:"-"`
+
+	// neighborhood inhibition for V1s. Each unit gets inhibition from
+	// same feature in nearest orthogonal neighbors.
+	// Reduces redundancy of feature code.
 	V1sNeighInhib kwta.NeighInhib
 
 	// kwta parameters for V1s
@@ -73,26 +79,20 @@ type Vis struct { //types:add
 	// input image as tensor
 	ImageTsr *tensor.Float32 `display:"no-inline"`
 
-	// input image reconstructed from V1s tensor
-	ImageFromV1sTsr tensor.Float32 `display:"no-inline"`
-
 	// V1 simple gabor filter output tensor
 	V1sTsr tensor.Float32 `display:"no-inline"`
 
 	// V1 simple gabor filter output, kwta output tensor
 	V1sKwtaTsr tensor.Float32 `display:"no-inline"`
 
-	// V1 simple gabor filter output, max-pooled 2x2 of V1sKwta tensor
-	V1sPoolTsr tensor.Float32 `display:"no-inline"`
+	// V1 complex gabor filter output, max-pooled 2x2 of V1cKwta tensor
+	V1cPoolTsr tensor.Float32 `display:"no-inline"`
 
-	// V1 simple gabor filter output, un-max-pooled 2x2 of V1sPool tensor
-	V1sUnPoolTsr tensor.Float32 `display:"no-inline"`
+	// V1 complex gabor filter output, max-polarity (angle-only) features tensor
+	V1cMaxPolTsr tensor.Float32 `display:"no-inline"`
 
-	// V1 simple gabor filter output, angle-only features tensor
-	V1sAngOnlyTsr tensor.Float32 `display:"no-inline"`
-
-	// V1 simple gabor filter output, max-pooled 2x2 of AngOnly tensor
-	V1sAngPoolTsr tensor.Float32 `display:"no-inline"`
+	// V1 complex gabor filter output, max-pooled 2x2 of MaxPol tensor
+	V1cPolPoolTsr tensor.Float32 `display:"no-inline"`
 
 	// V1 complex length sum filter output tensor
 	V1cLenSumTsr tensor.Float32 `display:"no-inline"`
@@ -100,18 +100,24 @@ type Vis struct { //types:add
 	// V1 complex end stop filter output tensor
 	V1cEndStopTsr tensor.Float32 `display:"no-inline"`
 
-	// Combined V1 output tensor with V1s simple as first two rows, then length sum, then end stops = 5 rows total
+	// Combined V1 output tensor with V1cPool as first two rows
+	// then length sum, end stop = 5 rows total
 	V1AllTsr tensor.Float32 `display:"no-inline"`
+
+	// V1 complex gabor filter output, un-max-pooled 2x2 of V1cPool tensor
+	V1cUnPoolTsr tensor.Float32 `display:"no-inline"`
+
+	// input image reconstructed from V1s tensor
+	ImageFromV1sTsr tensor.Float32 `display:"no-inline"`
 
 	tabView *core.Tabs
 
-	v1sOutIdx, v1sKwtaIdx, v1sPoolIdx int
-
-	v1sPoolGeom v1vision.Geom
+	v1sOutIdx, v1sKwtaIdx                                                int
+	v1cPoolIdx, v1cMaxPolIdx, v1cPolPoolIdx, v1cLenSumIdx, v1cEndStopIdx int
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = false
+	vi.GPU = true
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
@@ -142,25 +148,48 @@ func (vi *Vis) Config() {
 	v1out := out
 	vi.v1sOutIdx = out
 	if vi.V1sKWTA.On.IsTrue() {
+		ninh := 0
 		if vi.V1sNeighInhib.On {
-			vi.V1.NewNeighInhib(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
-		} else {
-			vi.V1.NewNeighInhibOutput(vi.V1sGabor.NAngles, &vi.V1sGeom) // blank
+			ninh = vi.V1.NewNeighInhib4(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 		}
-		v1out = vi.V1.NewKWTA(out, vi.V1sGabor.NAngles, &vi.V1sGeom)
+		v1out = vi.V1.NewKWTA(out, ninh, vi.V1sGabor.NAngles, &vi.V1sGeom)
 		vi.v1sKwtaIdx = v1out
 	}
 
 	// V1c complex
-	vi.v1sPoolGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
-	fmt.Println(vi.v1sPoolGeom)
-	pout := vi.V1.NewMaxPool(v1out, vi.V1sGabor.NAngles, &vi.v1sPoolGeom)
-	vi.v1sPoolIdx = pout
+	vi.V1cGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
+	pout := vi.V1.NewMaxPool(v1out, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	vi.v1cPoolIdx = pout
+
+	mpout := vi.V1.NewMaxPolarity(v1out, vi.V1sGabor.NAngles, &vi.V1sGeom)
+	vi.v1cMaxPolIdx = mpout
+
+	pmpout := vi.V1.NewMaxPool(mpout, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	vi.v1cPolPoolIdx = pmpout
+
+	lsout := vi.V1.NewLenSum4(pmpout, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	vi.v1cLenSumIdx = lsout
+
+	esout := vi.V1.NewEndStop4(pmpout, lsout, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	vi.v1cEndStopIdx = esout
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
+}
+
+func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x, pol int32) {
+	out := vi.V1.Values.SubSpace(idx).(*tensor.Float32)
+	tsr.SetShapeSizes(int(y), int(x), int(pol), int(vi.V1sGabor.NAngles))
+	tensor.CopyFromLargerShape(tsr, out)
+}
+
+func (vi *Vis) getTsrOpt(idx int, tsr *tensor.Float32, y, x, pol int32) {
+	if idx == 0 {
+		return
+	}
+	vi.getTsr(idx, tsr, y, x, pol)
 }
 
 // Filter is overall method to run filters on current image file name
@@ -171,23 +200,25 @@ func (vi *Vis) Filter() error { //types:add
 	if err != nil {
 		return errors.Log(err)
 	}
+	tmr := timer.Time{}
+	tmr.Start()
+	for range 100 {
+		vi.V1.Run() // on mac, this is same compute time for GPU, CPU
+		// vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
+	}
+	tmr.Stop()
+	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
+
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
 
-	out := vi.V1.Values.SubSpace(vi.v1sOutIdx).(*tensor.Float32)
-	vi.V1sTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
-	tensor.CopyFromLargerShape(&vi.V1sTsr, out)
+	vi.getTsr(vi.v1sOutIdx, &vi.V1sTsr, vi.V1sGeom.Out.Y, vi.V1sGeom.Out.X, 2)
 
-	if vi.v1sKwtaIdx > 0 {
-		out := vi.V1.Values.SubSpace(vi.v1sKwtaIdx).(*tensor.Float32)
-		vi.V1sKwtaTsr.SetShapeSizes(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), 2, vi.V1sGabor.NAngles)
-		tensor.CopyFromLargerShape(&vi.V1sKwtaTsr, out)
-	}
-
-	if vi.v1sPoolIdx > 0 {
-		out := vi.V1.Values.SubSpace(vi.v1sPoolIdx).(*tensor.Float32)
-		vi.V1sPoolTsr.SetShapeSizes(int(vi.v1sPoolGeom.Out.Y), int(vi.v1sPoolGeom.Out.X), 2, vi.V1sGabor.NAngles)
-		tensor.CopyFromLargerShape(&vi.V1sPoolTsr, out)
-	}
+	vi.getTsrOpt(vi.v1sKwtaIdx, &vi.V1sKwtaTsr, vi.V1sGeom.Out.Y, vi.V1sGeom.Out.X, 2)
+	vi.getTsrOpt(vi.v1cPoolIdx, &vi.V1cPoolTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 2)
+	vi.getTsrOpt(vi.v1cMaxPolIdx, &vi.V1cMaxPolTsr, vi.V1sGeom.Out.Y, vi.V1sGeom.Out.X, 1)
+	vi.getTsrOpt(vi.v1cPolPoolIdx, &vi.V1cPolPoolTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 1)
+	vi.getTsrOpt(vi.v1cLenSumIdx, &vi.V1cLenSumTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 1)
+	vi.getTsrOpt(vi.v1cEndStopIdx, &vi.V1cEndStopTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 2)
 
 	// vi.V1Complex()
 	// vi.V1All()
@@ -221,16 +252,6 @@ func (vi *Vis) ImageFromV1Simple() {
 	// v1vision.UnPool(math32.Vec2(2, 2), math32.Vec2(2, 2), &vi.V1sUnPoolTsr, &vi.V1sPoolTsr, true)
 	// v1vision.Deconv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImageFromV1sTsr, &vi.V1sUnPoolTsr, vi.V1sGabor.Gain)
 	// stats.UnitNormOut(&vi.ImageFromV1sTsr, &vi.ImageFromV1sTsr)
-}
-
-// V1Complex runs V1 complex filters on top of V1Simple features.
-// it computes Angle-only, max-pooled version of V1Simple inputs.
-func (vi *Vis) V1Complex() {
-	// v1vision.MaxPool(math32.Vec2(2, 2), math32.Vec2(2, 2), &vi.V1sKwtaTsr, &vi.V1sPoolTsr)
-	// v1vision.MaxReduceFilterY(&vi.V1sKwtaTsr, &vi.V1sAngOnlyTsr)
-	// v1vision.MaxPool(math32.Vec2(2, 2), math32.Vec2(2, 2), &vi.V1sAngOnlyTsr, &vi.V1sAngPoolTsr)
-	// v1complex.LenSum4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr)
-	// v1complex.EndStop4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr, &vi.V1cEndStopTsr)
 }
 
 // V1All aggregates all the relevant simple and complex features
@@ -276,8 +297,17 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sTsr)
 	tf, _ = tb.NewTab("V1sKWTA")
 	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sKwtaTsr)
-	tf, _ = tb.NewTab("V1sPool")
-	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sPoolTsr)
+
+	tf, _ = tb.NewTab("V1cMaxPool")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1cPoolTsr)
+	tf, _ = tb.NewTab("V1cMaxPol")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1cMaxPolTsr)
+	tf, _ = tb.NewTab("V1cPolPool")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1cPolPoolTsr)
+	tf, _ = tb.NewTab("V1cLenSum")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1cLenSumTsr)
+	tf, _ = tb.NewTab("V1cEndStop")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1cEndStopTsr)
 
 	sp.SetSplits(.3, .7)
 

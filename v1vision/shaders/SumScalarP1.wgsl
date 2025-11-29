@@ -26,12 +26,14 @@ fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u3
 
 //////// import: "vars.go"
 
+//////// import: "complex.go"
+
 //////// import: "convolve.go"
 
 //////// import: "enumgen.go"
-const GPUVarsN: GPUVars = 7;
+const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 14;
+const OperationsN: Operations = 17;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -166,18 +168,22 @@ const  MaxScalar: Operations = 4;
 const  SumScalar: Operations = 5;
 const  MeanScalar: Operations = 6;
 const  NormDiv: Operations = 7;
-const  NeighInhib: Operations = 8;
+const  NeighInhib4: Operations = 8;
 const  KWTAInhib: Operations = 9;
 const  MaxPool: Operations = 10;
-const  MotionIntegrate: Operations = 11;
-const  MotionStar: Operations = 12;
-const  MotionFullField: Operations = 13;
+const  MaxPolarity: Operations = 11;
+const  LenSum4: Operations = 12;
+const  EndStop4: Operations = 13;
+const  MotionIntegrate: Operations = 14;
+const  MotionStar: Operations = 15;
+const  MotionFullField: Operations = 16;
 struct Op {
 	Op: Operations,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
 	InValue: i32,
+	InValue2: i32,
 	OutValue: i32,
 	OutValue4D: i32,
 	OutImage: i32,
@@ -188,6 +194,9 @@ struct Op {
 	IntArg1: i32,
 	InScalar: i32,
 	OutScalar: i32,
+	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
 	Geom: Geom,
 }
