@@ -117,7 +117,7 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = true
+	vi.GPU = false
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
@@ -131,6 +131,7 @@ func (vi *Vis) Defaults() {
 	vi.V1sKWTA.Defaults()
 	// vi.V1sKWTA.Layer.On.SetBool(true)
 	// vi.V1sKWTA.Pool.On.SetBool(false)
+	vi.V1sKWTA.Iters = 10
 }
 
 // Config sets up the V1 processing pipeline.
@@ -202,12 +203,14 @@ func (vi *Vis) Filter() error { //types:add
 	}
 	tmr := timer.Time{}
 	tmr.Start()
-	for range 100 {
+	for range 1000 {
 		vi.V1.Run() // on mac, this is same compute time for GPU, CPU
 		// vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
+	// Note: original version takes 1.337s, new non-GPU is 3.015s, new GPU is 3.99s
+	// with 10 iter: GPU = 2.x, CPU = 1.97s
 
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
 
