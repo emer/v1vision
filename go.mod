@@ -3,8 +3,8 @@ module github.com/emer/v1vision
 go 1.23.4
 
 require (
-	cogentcore.org/core v0.3.13-0.20251014173120-c673b546ed44
-	cogentcore.org/lab v0.1.3-0.20251014144642-a12de9e660c7
+	cogentcore.org/core v0.3.13-0.20251122080528-7dff9fe2d85b
+	cogentcore.org/lab v0.1.3-0.20251130204630-53a7c5b47a76
 	github.com/anthonynsimon/bild v0.13.0
 	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20250804171546-85b6ef7a8688
 )

@@ -24,7 +24,6 @@ import (
 	"github.com/emer/v1vision/fffb"
 	"github.com/emer/v1vision/gabor"
 	"github.com/emer/v1vision/kwta"
-	"github.com/emer/v1vision/v1complex"
 	"github.com/emer/v1vision/v1vision"
 )
 
@@ -255,11 +254,11 @@ func (vi *Vis) ImgFromV1Simple() {
 // V1Complex runs V1 complex filters on top of V1Simple features.
 // it computes Angle-only, max-pooled version of V1Simple inputs.
 func (vi *Vis) V1Complex() {
-	v1vision.MaxPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sMaxTsr, &vi.V1sPoolTsr)
-	v1vision.MaxReduceFilterY(&vi.V1sMaxTsr, &vi.V1sAngOnlyTsr)
-	v1vision.MaxPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sAngOnlyTsr, &vi.V1sAngPoolTsr)
-	v1complex.LenSum4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr)
-	v1complex.EndStop4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr, &vi.V1cEndStopTsr)
+	// v1vision.MaxPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sMaxTsr, &vi.V1sPoolTsr)
+	// v1vision.MaxReduceFilterY(&vi.V1sMaxTsr, &vi.V1sAngOnlyTsr)
+	// v1vision.MaxPool(math32.Vector2i{2, 2}, math32.Vector2i{2, 2}, &vi.V1sAngOnlyTsr, &vi.V1sAngPoolTsr)
+	// v1complex.LenSum4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr)
+	// v1complex.EndStop4(&vi.V1sAngPoolTsr, &vi.V1cLenSumTsr, &vi.V1cEndStopTsr)
 }
 
 // V1All aggregates all the relevant simple and complex features
