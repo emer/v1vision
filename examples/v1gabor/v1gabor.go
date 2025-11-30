@@ -249,8 +249,7 @@ func (vi *Vis) Filter() error { //types:add
 
 	// vi.ImageFromV1Simple()
 
-	vi.StdImage.SetImageGrey(&vi.V1cGrey.V1, vi.Image, int(vi.V1cGrey.V1sGeom.Border.X))
-	vi.V1cGrey.Run()
+	vi.V1cGrey.RunImage(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()

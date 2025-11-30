@@ -65,15 +65,24 @@ func (vi *DoGGrey) Config(imageSize image.Point) {
 	// _ = out
 	vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
 	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)
+
 	vi.V1.SetAsCurrent()
-	vi.V1.GPUInit()
+	if vi.GPU {
+		vi.V1.GPUInit()
+	}
 }
 
-// Run runs the configured filtering pipeline.
-// MUST have set the input image as the first [V1Vision.Images],
-// e.g., by calling [v1vision.RGBToGrey], via [Image.SetImageGrey].
-func (vi *DoGGrey) Run() {
+// SetImage sets current image for processing, using [Image].
+func (vi *DoGGrey) SetImage(im *Image, img image.Image) {
+
+}
+
+// RunImage runs the configured filtering pipeline.
+// on given Image, using given [Image] handler.
+func (vi *DoGGrey) RunImage(im *Image, img image.Image) {
+	v1vision.UseGPU = vi.GPU
 	vi.V1.SetAsCurrent()
+	im.SetImageGrey(&vi.V1, img, int(vi.Geom.Border.X))
 	vi.V1.Run(v1vision.ValuesVar)
 	vi.Output = vi.V1.Values.SubSpace(0).(*tensor.Float32)
 }

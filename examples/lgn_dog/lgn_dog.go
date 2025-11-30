@@ -163,8 +163,7 @@ func (vi *Vis) Filter() error { //types:add
 	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
 	vi.OutTsr.CopyFrom(out)
 
-	vi.StdImage.SetImageGrey(&vi.DoGGrey.V1, vi.Image, int(vi.DoGGrey.Geom.Border.X))
-	vi.DoGGrey.Run()
+	vi.DoGGrey.RunImage(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()

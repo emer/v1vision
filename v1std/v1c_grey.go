@@ -108,14 +108,17 @@ func (vi *V1cGrey) Config(imageSize image.Point) {
 	vi.V1.NewTo4D(pout, out4, 2, nang, 3, &vi.V1cGeom)
 
 	vi.V1.SetAsCurrent()
-	vi.V1.GPUInit()
+	if vi.GPU {
+		vi.V1.GPUInit()
+	}
 }
 
-// Run runs the configured filtering pipeline.
-// MUST have set the input image as the first [V1Vision.Images],
-// e.g., by calling [v1vision.RGBToGrey], via [Image.SetImageGrey].
-func (vi *V1cGrey) Run() {
+// RunImage runs the configured filtering pipeline.
+// on given Image, using given [Image] handler.
+func (vi *V1cGrey) RunImage(im *Image, img image.Image) {
 	vi.V1.SetAsCurrent()
+	v1vision.UseGPU = vi.GPU
+	im.SetImageGrey(&vi.V1, img, int(vi.V1sGeom.Border.X))
 	vi.V1.Run(v1vision.Values4DVar)
 	vi.Output = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 }
