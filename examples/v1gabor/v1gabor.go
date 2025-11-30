@@ -123,9 +123,9 @@ func (vi *Vis) Defaults() {
 	sz := 12 // V1mF16 typically = 12, no border
 	spc := 4
 	vi.V1sGabor.SetSize(sz, spc)
-	// vi.ImageSize = image.Point{128, 128}
+	vi.ImageSize = image.Point{128, 128}
 	// vi.ImageSize = image.Point{256, 256}
-	vi.ImageSize = image.Point{512, 512}
+	// vi.ImageSize = image.Point{512, 512}
 
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
@@ -212,9 +212,10 @@ func (vi *Vis) Filter() error { //types:add
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
-	// With 10 Iters on KWTA, on MacBookPro M3Pro, Orig: 2.03, CPU: 1.97, GPU: 2.16
-	// 256 image: CPU: 4.9, GPU: 935ms
-	// 512 image: CPU: , GPU: 1.07s (1.3s with 2 step kwta)
+	// With 10 Iters on KWTA, on MacBookPro M3Pro:
+	// 128 image: Orig: 2.03, CPU: 1.97, GPU: 625ms
+	// 256 image: CPU: 4.5, GPU: 717ms (935ms with 2 step kwtalayer)
+	// 512 image: CPU: 13.8s, GPU: 1.04s (1.3s with 2 step kwtalayer)
 	// note: not sending image at start is the same!
 
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)

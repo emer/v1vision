@@ -292,4 +292,3 @@ struct Op {
 }
 
 //////// import: "scalar.go"
-const ScalarSteps = 2;

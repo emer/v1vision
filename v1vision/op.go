@@ -204,29 +204,26 @@ func (vv *V1Vision) RunOps() {
 		op := &vv.Ops[i]
 		switch op.Op {
 		case MaxScalar:
-			RunMaxScalarP1(int(op.RunN))
-			RunMaxScalarP2(1)
+			RunMaxScalarX(int(op.RunN))
+			RunMaxScalarY(1)
 		case SumScalar:
-			RunSumScalarP1(int(op.RunN))
-			RunSumScalarP2(1)
+			RunSumScalarX(int(op.RunN))
+			RunSumScalarY(1)
 		case MeanScalar:
-			RunSumScalarP1(int(op.RunN))
-			RunMeanScalarP2(1)
+			RunSumScalarX(int(op.RunN))
+			RunMeanScalarY(1)
 		case KWTAInhib:
 			kp := &vv.KWTAs[op.KWTA]
 			RunKWTAInitLayer(1)
 			RunKWTAInitPool(int(op.RunN))
 			for range kp.Iters {
-				RunKWTAIterLayerX0(int(op.Geom.Out.Y))
-				RunKWTAIterLayerX1(int(op.Geom.Out.Y))
-				RunKWTAIterLayerY0(1)
-				RunKWTAIterLayerY1(1)
-				RunKWTAIterLayerFinal(1)
+				RunKWTAIterLayerX(int(op.Geom.Out.Y))
+				RunKWTAIterLayerY(1)
 				RunKWTAIterPool(int(op.RunN))
 			}
 		case MotionFullField:
-			RunMotionFullFieldP1(int(op.RunN))
-			RunMotionFullFieldP2(2)
+			RunMotionFullFieldX(int(op.RunN))
+			RunMotionFullFieldY(2)
 		default:
 			RunDoCurOp(int(op.RunN))
 		}

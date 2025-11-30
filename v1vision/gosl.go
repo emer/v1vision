@@ -104,61 +104,49 @@ func GPUInit() {
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerFinal.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerX.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerY.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(0, "KWTAs")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerX0.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Inhibs")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerX1.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Inhibs")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerY0.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Inhibs")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerY1.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Inhibs")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterPool.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(0, "KWTAs")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MaxScalarP1.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MaxScalarX.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MaxScalarP2.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Scalars")
-		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MeanScalarP2.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MaxScalarY.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Scalars")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MotionFullFieldP1.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MotionFullFieldP2.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MeanScalarY.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Scalars")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/SumScalarP1.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MotionFullFieldX.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/SumScalarP2.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/MotionFullFieldY.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Scalars")
+		pl.AddVarUsed(2, "Values")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/SumScalarX.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Values")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/SumScalarY.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Scalars")
@@ -307,214 +295,88 @@ func RunOneKWTAInitPool(n int, syncVars ...GPUVars) {
 		RunKWTAInitPoolCPU(n)
 	}
 }
-// RunKWTAIterLayerFinal runs the KWTAIterLayerFinal kernel with given number of elements,
+// RunKWTAIterLayerX runs the KWTAIterLayerX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayerFinal call does Run and Done for a
+// Alternatively, a single-shot RunOneKWTAIterLayerX call does Run and Done for a
 // single run-and-sync case.
-func RunKWTAIterLayerFinal(n int) {
+func RunKWTAIterLayerX(n int) {
 	if UseGPU {
-		RunKWTAIterLayerFinalGPU(n)
+		RunKWTAIterLayerXGPU(n)
 	} else {
-		RunKWTAIterLayerFinalCPU(n)
+		RunKWTAIterLayerXCPU(n)
 	}
 }
 
-// RunKWTAIterLayerFinalGPU runs the KWTAIterLayerFinal kernel on the GPU. See [RunKWTAIterLayerFinal] for more info.
-func RunKWTAIterLayerFinalGPU(n int) {
+// RunKWTAIterLayerXGPU runs the KWTAIterLayerX kernel on the GPU. See [RunKWTAIterLayerX] for more info.
+func RunKWTAIterLayerXGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayerFinal"]
+	pl := sy.ComputePipelines["KWTAIterLayerX"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunKWTAIterLayerFinalCPU runs the KWTAIterLayerFinal kernel on the CPU.
-func RunKWTAIterLayerFinalCPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayerFinal)
+// RunKWTAIterLayerXCPU runs the KWTAIterLayerX kernel on the CPU.
+func RunKWTAIterLayerXCPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerX)
 }
 
-// RunOneKWTAIterLayerFinal runs the KWTAIterLayerFinal kernel with given number of elements,
+// RunOneKWTAIterLayerX runs the KWTAIterLayerX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneKWTAIterLayerFinal(n int, syncVars ...GPUVars) {
+func RunOneKWTAIterLayerX(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunKWTAIterLayerFinalGPU(n)
+		RunKWTAIterLayerXGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunKWTAIterLayerFinalCPU(n)
+		RunKWTAIterLayerXCPU(n)
 	}
 }
-// RunKWTAIterLayerX0 runs the KWTAIterLayerX0 kernel with given number of elements,
+// RunKWTAIterLayerY runs the KWTAIterLayerY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayerX0 call does Run and Done for a
+// Alternatively, a single-shot RunOneKWTAIterLayerY call does Run and Done for a
 // single run-and-sync case.
-func RunKWTAIterLayerX0(n int) {
+func RunKWTAIterLayerY(n int) {
 	if UseGPU {
-		RunKWTAIterLayerX0GPU(n)
+		RunKWTAIterLayerYGPU(n)
 	} else {
-		RunKWTAIterLayerX0CPU(n)
+		RunKWTAIterLayerYCPU(n)
 	}
 }
 
-// RunKWTAIterLayerX0GPU runs the KWTAIterLayerX0 kernel on the GPU. See [RunKWTAIterLayerX0] for more info.
-func RunKWTAIterLayerX0GPU(n int) {
+// RunKWTAIterLayerYGPU runs the KWTAIterLayerY kernel on the GPU. See [RunKWTAIterLayerY] for more info.
+func RunKWTAIterLayerYGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayerX0"]
+	pl := sy.ComputePipelines["KWTAIterLayerY"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunKWTAIterLayerX0CPU runs the KWTAIterLayerX0 kernel on the CPU.
-func RunKWTAIterLayerX0CPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayerX0)
+// RunKWTAIterLayerYCPU runs the KWTAIterLayerY kernel on the CPU.
+func RunKWTAIterLayerYCPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerY)
 }
 
-// RunOneKWTAIterLayerX0 runs the KWTAIterLayerX0 kernel with given number of elements,
+// RunOneKWTAIterLayerY runs the KWTAIterLayerY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneKWTAIterLayerX0(n int, syncVars ...GPUVars) {
+func RunOneKWTAIterLayerY(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunKWTAIterLayerX0GPU(n)
+		RunKWTAIterLayerYGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunKWTAIterLayerX0CPU(n)
-	}
-}
-// RunKWTAIterLayerX1 runs the KWTAIterLayerX1 kernel with given number of elements,
-// on either the CPU or GPU depending on the UseGPU variable.
-// Can call multiple Run* kernels in a row, which are then all launched
-// in the same command submission on the GPU, which is by far the most efficient.
-// MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayerX1 call does Run and Done for a
-// single run-and-sync case.
-func RunKWTAIterLayerX1(n int) {
-	if UseGPU {
-		RunKWTAIterLayerX1GPU(n)
-	} else {
-		RunKWTAIterLayerX1CPU(n)
-	}
-}
-
-// RunKWTAIterLayerX1GPU runs the KWTAIterLayerX1 kernel on the GPU. See [RunKWTAIterLayerX1] for more info.
-func RunKWTAIterLayerX1GPU(n int) {
-	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayerX1"]
-	ce, _ := sy.BeginComputePass()
-	pl.Dispatch1D(ce, n, 64)
-}
-
-// RunKWTAIterLayerX1CPU runs the KWTAIterLayerX1 kernel on the CPU.
-func RunKWTAIterLayerX1CPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayerX1)
-}
-
-// RunOneKWTAIterLayerX1 runs the KWTAIterLayerX1 kernel with given number of elements,
-// on either the CPU or GPU depending on the UseGPU variable.
-// This version then calls RunDone with the given variables to sync
-// after the Run, for a single-shot Run-and-Done call. If multiple kernels
-// can be run in sequence, it is much more efficient to do multiple Run*
-// calls followed by a RunDone call.
-func RunOneKWTAIterLayerX1(n int, syncVars ...GPUVars) {
-	if UseGPU {
-		RunKWTAIterLayerX1GPU(n)
-		RunDone(syncVars...)
-	} else {
-		RunKWTAIterLayerX1CPU(n)
-	}
-}
-// RunKWTAIterLayerY0 runs the KWTAIterLayerY0 kernel with given number of elements,
-// on either the CPU or GPU depending on the UseGPU variable.
-// Can call multiple Run* kernels in a row, which are then all launched
-// in the same command submission on the GPU, which is by far the most efficient.
-// MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayerY0 call does Run and Done for a
-// single run-and-sync case.
-func RunKWTAIterLayerY0(n int) {
-	if UseGPU {
-		RunKWTAIterLayerY0GPU(n)
-	} else {
-		RunKWTAIterLayerY0CPU(n)
-	}
-}
-
-// RunKWTAIterLayerY0GPU runs the KWTAIterLayerY0 kernel on the GPU. See [RunKWTAIterLayerY0] for more info.
-func RunKWTAIterLayerY0GPU(n int) {
-	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayerY0"]
-	ce, _ := sy.BeginComputePass()
-	pl.Dispatch1D(ce, n, 64)
-}
-
-// RunKWTAIterLayerY0CPU runs the KWTAIterLayerY0 kernel on the CPU.
-func RunKWTAIterLayerY0CPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayerY0)
-}
-
-// RunOneKWTAIterLayerY0 runs the KWTAIterLayerY0 kernel with given number of elements,
-// on either the CPU or GPU depending on the UseGPU variable.
-// This version then calls RunDone with the given variables to sync
-// after the Run, for a single-shot Run-and-Done call. If multiple kernels
-// can be run in sequence, it is much more efficient to do multiple Run*
-// calls followed by a RunDone call.
-func RunOneKWTAIterLayerY0(n int, syncVars ...GPUVars) {
-	if UseGPU {
-		RunKWTAIterLayerY0GPU(n)
-		RunDone(syncVars...)
-	} else {
-		RunKWTAIterLayerY0CPU(n)
-	}
-}
-// RunKWTAIterLayerY1 runs the KWTAIterLayerY1 kernel with given number of elements,
-// on either the CPU or GPU depending on the UseGPU variable.
-// Can call multiple Run* kernels in a row, which are then all launched
-// in the same command submission on the GPU, which is by far the most efficient.
-// MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayerY1 call does Run and Done for a
-// single run-and-sync case.
-func RunKWTAIterLayerY1(n int) {
-	if UseGPU {
-		RunKWTAIterLayerY1GPU(n)
-	} else {
-		RunKWTAIterLayerY1CPU(n)
-	}
-}
-
-// RunKWTAIterLayerY1GPU runs the KWTAIterLayerY1 kernel on the GPU. See [RunKWTAIterLayerY1] for more info.
-func RunKWTAIterLayerY1GPU(n int) {
-	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayerY1"]
-	ce, _ := sy.BeginComputePass()
-	pl.Dispatch1D(ce, n, 64)
-}
-
-// RunKWTAIterLayerY1CPU runs the KWTAIterLayerY1 kernel on the CPU.
-func RunKWTAIterLayerY1CPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayerY1)
-}
-
-// RunOneKWTAIterLayerY1 runs the KWTAIterLayerY1 kernel with given number of elements,
-// on either the CPU or GPU depending on the UseGPU variable.
-// This version then calls RunDone with the given variables to sync
-// after the Run, for a single-shot Run-and-Done call. If multiple kernels
-// can be run in sequence, it is much more efficient to do multiple Run*
-// calls followed by a RunDone call.
-func RunOneKWTAIterLayerY1(n int, syncVars ...GPUVars) {
-	if UseGPU {
-		RunKWTAIterLayerY1GPU(n)
-		RunDone(syncVars...)
-	} else {
-		RunKWTAIterLayerY1CPU(n)
+		RunKWTAIterLayerYCPU(n)
 	}
 }
 // RunKWTAIterPool runs the KWTAIterPool kernel with given number of elements,
@@ -559,298 +421,298 @@ func RunOneKWTAIterPool(n int, syncVars ...GPUVars) {
 		RunKWTAIterPoolCPU(n)
 	}
 }
-// RunMaxScalarP1 runs the MaxScalarP1 kernel with given number of elements,
+// RunMaxScalarX runs the MaxScalarX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneMaxScalarP1 call does Run and Done for a
+// Alternatively, a single-shot RunOneMaxScalarX call does Run and Done for a
 // single run-and-sync case.
-func RunMaxScalarP1(n int) {
+func RunMaxScalarX(n int) {
 	if UseGPU {
-		RunMaxScalarP1GPU(n)
+		RunMaxScalarXGPU(n)
 	} else {
-		RunMaxScalarP1CPU(n)
+		RunMaxScalarXCPU(n)
 	}
 }
 
-// RunMaxScalarP1GPU runs the MaxScalarP1 kernel on the GPU. See [RunMaxScalarP1] for more info.
-func RunMaxScalarP1GPU(n int) {
+// RunMaxScalarXGPU runs the MaxScalarX kernel on the GPU. See [RunMaxScalarX] for more info.
+func RunMaxScalarXGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["MaxScalarP1"]
+	pl := sy.ComputePipelines["MaxScalarX"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunMaxScalarP1CPU runs the MaxScalarP1 kernel on the CPU.
-func RunMaxScalarP1CPU(n int) {
-	gpu.VectorizeFunc(0, n, MaxScalarP1)
+// RunMaxScalarXCPU runs the MaxScalarX kernel on the CPU.
+func RunMaxScalarXCPU(n int) {
+	gpu.VectorizeFunc(0, n, MaxScalarX)
 }
 
-// RunOneMaxScalarP1 runs the MaxScalarP1 kernel with given number of elements,
+// RunOneMaxScalarX runs the MaxScalarX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneMaxScalarP1(n int, syncVars ...GPUVars) {
+func RunOneMaxScalarX(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunMaxScalarP1GPU(n)
+		RunMaxScalarXGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunMaxScalarP1CPU(n)
+		RunMaxScalarXCPU(n)
 	}
 }
-// RunMaxScalarP2 runs the MaxScalarP2 kernel with given number of elements,
+// RunMaxScalarY runs the MaxScalarY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneMaxScalarP2 call does Run and Done for a
+// Alternatively, a single-shot RunOneMaxScalarY call does Run and Done for a
 // single run-and-sync case.
-func RunMaxScalarP2(n int) {
+func RunMaxScalarY(n int) {
 	if UseGPU {
-		RunMaxScalarP2GPU(n)
+		RunMaxScalarYGPU(n)
 	} else {
-		RunMaxScalarP2CPU(n)
+		RunMaxScalarYCPU(n)
 	}
 }
 
-// RunMaxScalarP2GPU runs the MaxScalarP2 kernel on the GPU. See [RunMaxScalarP2] for more info.
-func RunMaxScalarP2GPU(n int) {
+// RunMaxScalarYGPU runs the MaxScalarY kernel on the GPU. See [RunMaxScalarY] for more info.
+func RunMaxScalarYGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["MaxScalarP2"]
+	pl := sy.ComputePipelines["MaxScalarY"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunMaxScalarP2CPU runs the MaxScalarP2 kernel on the CPU.
-func RunMaxScalarP2CPU(n int) {
-	gpu.VectorizeFunc(0, n, MaxScalarP2)
+// RunMaxScalarYCPU runs the MaxScalarY kernel on the CPU.
+func RunMaxScalarYCPU(n int) {
+	gpu.VectorizeFunc(0, n, MaxScalarY)
 }
 
-// RunOneMaxScalarP2 runs the MaxScalarP2 kernel with given number of elements,
+// RunOneMaxScalarY runs the MaxScalarY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneMaxScalarP2(n int, syncVars ...GPUVars) {
+func RunOneMaxScalarY(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunMaxScalarP2GPU(n)
+		RunMaxScalarYGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunMaxScalarP2CPU(n)
+		RunMaxScalarYCPU(n)
 	}
 }
-// RunMeanScalarP2 runs the MeanScalarP2 kernel with given number of elements,
+// RunMeanScalarY runs the MeanScalarY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneMeanScalarP2 call does Run and Done for a
+// Alternatively, a single-shot RunOneMeanScalarY call does Run and Done for a
 // single run-and-sync case.
-func RunMeanScalarP2(n int) {
+func RunMeanScalarY(n int) {
 	if UseGPU {
-		RunMeanScalarP2GPU(n)
+		RunMeanScalarYGPU(n)
 	} else {
-		RunMeanScalarP2CPU(n)
+		RunMeanScalarYCPU(n)
 	}
 }
 
-// RunMeanScalarP2GPU runs the MeanScalarP2 kernel on the GPU. See [RunMeanScalarP2] for more info.
-func RunMeanScalarP2GPU(n int) {
+// RunMeanScalarYGPU runs the MeanScalarY kernel on the GPU. See [RunMeanScalarY] for more info.
+func RunMeanScalarYGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["MeanScalarP2"]
+	pl := sy.ComputePipelines["MeanScalarY"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunMeanScalarP2CPU runs the MeanScalarP2 kernel on the CPU.
-func RunMeanScalarP2CPU(n int) {
-	gpu.VectorizeFunc(0, n, MeanScalarP2)
+// RunMeanScalarYCPU runs the MeanScalarY kernel on the CPU.
+func RunMeanScalarYCPU(n int) {
+	gpu.VectorizeFunc(0, n, MeanScalarY)
 }
 
-// RunOneMeanScalarP2 runs the MeanScalarP2 kernel with given number of elements,
+// RunOneMeanScalarY runs the MeanScalarY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneMeanScalarP2(n int, syncVars ...GPUVars) {
+func RunOneMeanScalarY(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunMeanScalarP2GPU(n)
+		RunMeanScalarYGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunMeanScalarP2CPU(n)
+		RunMeanScalarYCPU(n)
 	}
 }
-// RunMotionFullFieldP1 runs the MotionFullFieldP1 kernel with given number of elements,
+// RunMotionFullFieldX runs the MotionFullFieldX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneMotionFullFieldP1 call does Run and Done for a
+// Alternatively, a single-shot RunOneMotionFullFieldX call does Run and Done for a
 // single run-and-sync case.
-func RunMotionFullFieldP1(n int) {
+func RunMotionFullFieldX(n int) {
 	if UseGPU {
-		RunMotionFullFieldP1GPU(n)
+		RunMotionFullFieldXGPU(n)
 	} else {
-		RunMotionFullFieldP1CPU(n)
+		RunMotionFullFieldXCPU(n)
 	}
 }
 
-// RunMotionFullFieldP1GPU runs the MotionFullFieldP1 kernel on the GPU. See [RunMotionFullFieldP1] for more info.
-func RunMotionFullFieldP1GPU(n int) {
+// RunMotionFullFieldXGPU runs the MotionFullFieldX kernel on the GPU. See [RunMotionFullFieldX] for more info.
+func RunMotionFullFieldXGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["MotionFullFieldP1"]
+	pl := sy.ComputePipelines["MotionFullFieldX"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunMotionFullFieldP1CPU runs the MotionFullFieldP1 kernel on the CPU.
-func RunMotionFullFieldP1CPU(n int) {
-	gpu.VectorizeFunc(0, n, MotionFullFieldP1)
+// RunMotionFullFieldXCPU runs the MotionFullFieldX kernel on the CPU.
+func RunMotionFullFieldXCPU(n int) {
+	gpu.VectorizeFunc(0, n, MotionFullFieldX)
 }
 
-// RunOneMotionFullFieldP1 runs the MotionFullFieldP1 kernel with given number of elements,
+// RunOneMotionFullFieldX runs the MotionFullFieldX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneMotionFullFieldP1(n int, syncVars ...GPUVars) {
+func RunOneMotionFullFieldX(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunMotionFullFieldP1GPU(n)
+		RunMotionFullFieldXGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunMotionFullFieldP1CPU(n)
+		RunMotionFullFieldXCPU(n)
 	}
 }
-// RunMotionFullFieldP2 runs the MotionFullFieldP2 kernel with given number of elements,
+// RunMotionFullFieldY runs the MotionFullFieldY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneMotionFullFieldP2 call does Run and Done for a
+// Alternatively, a single-shot RunOneMotionFullFieldY call does Run and Done for a
 // single run-and-sync case.
-func RunMotionFullFieldP2(n int) {
+func RunMotionFullFieldY(n int) {
 	if UseGPU {
-		RunMotionFullFieldP2GPU(n)
+		RunMotionFullFieldYGPU(n)
 	} else {
-		RunMotionFullFieldP2CPU(n)
+		RunMotionFullFieldYCPU(n)
 	}
 }
 
-// RunMotionFullFieldP2GPU runs the MotionFullFieldP2 kernel on the GPU. See [RunMotionFullFieldP2] for more info.
-func RunMotionFullFieldP2GPU(n int) {
+// RunMotionFullFieldYGPU runs the MotionFullFieldY kernel on the GPU. See [RunMotionFullFieldY] for more info.
+func RunMotionFullFieldYGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["MotionFullFieldP2"]
+	pl := sy.ComputePipelines["MotionFullFieldY"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunMotionFullFieldP2CPU runs the MotionFullFieldP2 kernel on the CPU.
-func RunMotionFullFieldP2CPU(n int) {
-	gpu.VectorizeFunc(0, n, MotionFullFieldP2)
+// RunMotionFullFieldYCPU runs the MotionFullFieldY kernel on the CPU.
+func RunMotionFullFieldYCPU(n int) {
+	gpu.VectorizeFunc(0, n, MotionFullFieldY)
 }
 
-// RunOneMotionFullFieldP2 runs the MotionFullFieldP2 kernel with given number of elements,
+// RunOneMotionFullFieldY runs the MotionFullFieldY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneMotionFullFieldP2(n int, syncVars ...GPUVars) {
+func RunOneMotionFullFieldY(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunMotionFullFieldP2GPU(n)
+		RunMotionFullFieldYGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunMotionFullFieldP2CPU(n)
+		RunMotionFullFieldYCPU(n)
 	}
 }
-// RunSumScalarP1 runs the SumScalarP1 kernel with given number of elements,
+// RunSumScalarX runs the SumScalarX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneSumScalarP1 call does Run and Done for a
+// Alternatively, a single-shot RunOneSumScalarX call does Run and Done for a
 // single run-and-sync case.
-func RunSumScalarP1(n int) {
+func RunSumScalarX(n int) {
 	if UseGPU {
-		RunSumScalarP1GPU(n)
+		RunSumScalarXGPU(n)
 	} else {
-		RunSumScalarP1CPU(n)
+		RunSumScalarXCPU(n)
 	}
 }
 
-// RunSumScalarP1GPU runs the SumScalarP1 kernel on the GPU. See [RunSumScalarP1] for more info.
-func RunSumScalarP1GPU(n int) {
+// RunSumScalarXGPU runs the SumScalarX kernel on the GPU. See [RunSumScalarX] for more info.
+func RunSumScalarXGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["SumScalarP1"]
+	pl := sy.ComputePipelines["SumScalarX"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunSumScalarP1CPU runs the SumScalarP1 kernel on the CPU.
-func RunSumScalarP1CPU(n int) {
-	gpu.VectorizeFunc(0, n, SumScalarP1)
+// RunSumScalarXCPU runs the SumScalarX kernel on the CPU.
+func RunSumScalarXCPU(n int) {
+	gpu.VectorizeFunc(0, n, SumScalarX)
 }
 
-// RunOneSumScalarP1 runs the SumScalarP1 kernel with given number of elements,
+// RunOneSumScalarX runs the SumScalarX kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneSumScalarP1(n int, syncVars ...GPUVars) {
+func RunOneSumScalarX(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunSumScalarP1GPU(n)
+		RunSumScalarXGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunSumScalarP1CPU(n)
+		RunSumScalarXCPU(n)
 	}
 }
-// RunSumScalarP2 runs the SumScalarP2 kernel with given number of elements,
+// RunSumScalarY runs the SumScalarY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneSumScalarP2 call does Run and Done for a
+// Alternatively, a single-shot RunOneSumScalarY call does Run and Done for a
 // single run-and-sync case.
-func RunSumScalarP2(n int) {
+func RunSumScalarY(n int) {
 	if UseGPU {
-		RunSumScalarP2GPU(n)
+		RunSumScalarYGPU(n)
 	} else {
-		RunSumScalarP2CPU(n)
+		RunSumScalarYCPU(n)
 	}
 }
 
-// RunSumScalarP2GPU runs the SumScalarP2 kernel on the GPU. See [RunSumScalarP2] for more info.
-func RunSumScalarP2GPU(n int) {
+// RunSumScalarYGPU runs the SumScalarY kernel on the GPU. See [RunSumScalarY] for more info.
+func RunSumScalarYGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["SumScalarP2"]
+	pl := sy.ComputePipelines["SumScalarY"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunSumScalarP2CPU runs the SumScalarP2 kernel on the CPU.
-func RunSumScalarP2CPU(n int) {
-	gpu.VectorizeFunc(0, n, SumScalarP2)
+// RunSumScalarYCPU runs the SumScalarY kernel on the CPU.
+func RunSumScalarYCPU(n int) {
+	gpu.VectorizeFunc(0, n, SumScalarY)
 }
 
-// RunOneSumScalarP2 runs the SumScalarP2 kernel with given number of elements,
+// RunOneSumScalarY runs the SumScalarY kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneSumScalarP2(n int, syncVars ...GPUVars) {
+func RunOneSumScalarY(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunSumScalarP2GPU(n)
+		RunSumScalarYGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunSumScalarP2CPU(n)
+		RunSumScalarYCPU(n)
 	}
 }
 // RunDone must be called after Run* calls to start compute kernels.

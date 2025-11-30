@@ -133,8 +133,8 @@ func (op *Op) MotionStar(i uint32) {
 	}
 }
 
-// MotionFullFieldP1 is the kernel: i = 2 * Y, first pass, FilterN = orig filtn
-func MotionFullFieldP1(i uint32) { //gosl:kernel
+// MotionFullFieldX is the kernel: i = 2 * Y, first pass, FilterN = orig filtn
+func MotionFullFieldX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	if i >= op.RunN {
 		return
@@ -165,8 +165,8 @@ func MotionFullFieldP1(i uint32) { //gosl:kernel
 	Values.Set(nsum, int(op.OutValue), int(yo), int(0), int(0), int(doff+1))
 }
 
-// MotionFullFieldP2 is the kernel: i = 2, second pass
-func MotionFullFieldP2(i uint32) { //gosl:kernel
+// MotionFullFieldY is the kernel: i = 2, second pass
+func MotionFullFieldY(i uint32) { //gosl:kernel
 	if i >= 2 {
 		return
 	}

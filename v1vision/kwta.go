@@ -52,7 +52,7 @@ func (vv *V1Vision) NewKWTA(in, inExtGi, fn int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = KWTAInhib
 	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
-	inh := vv.NewInhibs(int(geom.Out.Y+ScalarSteps), int(geom.Out.X+ScalarSteps))
+	inh := vv.NewInhibs(int(geom.Out.Y+1), int(geom.Out.X+1))
 	op.RunN = uint32(geom.Out.Y * geom.Out.X)
 	op.InValue = int32(in)
 	op.InValue2 = int32(inExtGi)
@@ -138,20 +138,12 @@ func KWTAInitLayer(i uint32) { //gosl:kernel
 	}
 }
 
-func KWTAIterLayerX0(i uint32) { //gosl:kernel
-	KWTAIterLayerX(i, 0)
-}
-
-func KWTAIterLayerX1(i uint32) { //gosl:kernel
-	KWTAIterLayerX(i, 1)
-}
-
 // KWTAIterLayerX is the kernel to iterate KWTA process at layer,
-// first pass.
+// first pass, operating on X dimension.
 // i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
 // Operates on Inhibs updated from pool-level.
 // Call this first then IterPool
-func KWTAIterLayerX(i uint32, step int32) {
+func KWTAIterLayerX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	szY := op.Geom.Out.Y
 	szX := op.Geom.Out.X
@@ -159,15 +151,13 @@ func KWTAIterLayerX(i uint32, step int32) {
 	if yo >= szY {
 		return
 	}
-	xst := ScalarStart(step, szX)
-	xed := ScalarEnd(step, szX)
 	ln := float32(szY)
 
 	geAvg := float32(0)
 	geMax := float32(0)
 	actAvg := float32(0)
 	actMax := float32(0)
-	for xo := xst; xo < xed; xo++ {
+	for xo := range szX {
 		gavg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeAvg))
 		gmx := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeMax))
 		aavg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActAvg))
@@ -179,82 +169,34 @@ func KWTAIterLayerX(i uint32, step int32) {
 	}
 	geAvg /= ln
 	actAvg /= ln
-	Inhibs.Set(geAvg, int(op.Inhibs), int(yo), int(szX+step), int(GeAvg))
-	Inhibs.Set(geMax, int(op.Inhibs), int(yo), int(szX+step), int(GeMax))
-	Inhibs.Set(actAvg, int(op.Inhibs), int(yo), int(szX+step), int(ActAvg))
-	Inhibs.Set(actMax, int(op.Inhibs), int(yo), int(szX+step), int(ActMax))
-}
-
-func KWTAIterLayerY0(i uint32) { //gosl:kernel
-	KWTAIterLayerY(i, 0)
-}
-
-func KWTAIterLayerY1(i uint32) { //gosl:kernel
-	KWTAIterLayerY(i, 1)
+	Inhibs.Set(geAvg, int(op.Inhibs), int(yo), int(szX), int(GeAvg))
+	Inhibs.Set(geMax, int(op.Inhibs), int(yo), int(szX), int(GeMax))
+	Inhibs.Set(actAvg, int(op.Inhibs), int(yo), int(szX), int(ActAvg))
+	Inhibs.Set(actMax, int(op.Inhibs), int(yo), int(szX), int(ActMax))
 }
 
 // KWTAIterLayerY is the kernel to iterate KWTA process at layer.
 // i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
 // Operates on Inhibs updated from pool-level.
 // Call this first then IterPool
-func KWTAIterLayerY(i uint32, step int32) {
+func KWTAIterLayerY(i uint32) { //gosl:kernel
 	if i != 0 {
 		return
 	}
 	op := GetCurOp(0)
 	szY := op.Geom.Out.Y
 	szX := op.Geom.Out.X
-	yst := ScalarStart(step, szY)
-	yed := ScalarEnd(step, szY)
-	xo := 1 + step
-	ln := float32((yed - yst) * ScalarSteps)
+	ln := float32(szY)
 
 	geAvg := float32(0)
 	geMax := float32(0)
 	actAvg := float32(0)
 	actMax := float32(0)
-	for yo := yst; yo < yed; yo++ {
-		for xs := int32(0); xs < ScalarSteps; xs++ {
-			gavg := Inhibs.Value(int(op.Inhibs), int(yo), int(szX+xs), int(GeAvg))
-			gmx := Inhibs.Value(int(op.Inhibs), int(yo), int(szX+xs), int(GeMax))
-			aavg := Inhibs.Value(int(op.Inhibs), int(yo), int(szX+xs), int(ActAvg))
-			amx := Inhibs.Value(int(op.Inhibs), int(yo), int(szX+xs), int(ActMax))
-			geAvg += gavg
-			geMax = max(geMax, gmx)
-			actAvg += aavg
-			actMax = max(actMax, amx)
-		}
-	}
-	geAvg /= ln
-	actAvg /= ln
-	Inhibs.Set(geAvg, int(op.Inhibs), int(szY), int(xo), int(GeAvg))
-	Inhibs.Set(geMax, int(op.Inhibs), int(szY), int(xo), int(GeMax))
-	Inhibs.Set(actAvg, int(op.Inhibs), int(szY), int(xo), int(ActAvg))
-	Inhibs.Set(actMax, int(op.Inhibs), int(szY), int(xo), int(ActMax))
-}
-
-// KWTAIterLayerFinal is the kernel to iterate KWTA process at layer.
-// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
-// Operates on Inhibs updated from pool-level.
-// Call this first then IterPool
-func KWTAIterLayerFinal(i uint32) { //gosl:kernel
-	if i != 0 {
-		return
-	}
-	op := GetCurOp(0)
-	szY := op.Geom.Out.Y
-	ln := float32(ScalarSteps)
-
-	geAvg := float32(0)
-	geMax := float32(0)
-	actAvg := float32(0)
-	actMax := float32(0)
-	for xs := range ScalarSteps {
-		xo := 1 + xs
-		gavg := Inhibs.Value(int(op.Inhibs), int(szY), int(xo), int(GeAvg))
-		gmx := Inhibs.Value(int(op.Inhibs), int(szY), int(xo), int(GeMax))
-		aavg := Inhibs.Value(int(op.Inhibs), int(szY), int(xo), int(ActAvg))
-		amx := Inhibs.Value(int(op.Inhibs), int(szY), int(xo), int(ActMax))
+	for yo := range szY {
+		gavg := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(GeAvg))
+		gmx := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(GeMax))
+		aavg := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(ActAvg))
+		amx := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(ActMax))
 		geAvg += gavg
 		geMax = max(geMax, gmx)
 		actAvg += aavg

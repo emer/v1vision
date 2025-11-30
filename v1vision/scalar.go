@@ -27,24 +27,26 @@ func (vv *V1Vision) NewAggScalar(aggOp Operations, in, fn int, geom *Geom) int {
 
 //gosl:start
 
-const ScalarSteps = 2
+// note: multiple sub-steps for scalar integration is slower up to 512 x 512 v1gabor images
 
-func ScalarStart(i, n int32) int32 {
-	ssz := n / ScalarSteps
-	return i * ssz
-}
+// const ScalarSteps = 2
+//
+// func ScalarStart(i, n int32) int32 {
+// 	ssz := n / ScalarSteps
+// 	return i * ssz
+// }
+//
+// func ScalarEnd(i, n int32) int32 {
+// 	ssz := n / ScalarSteps
+// 	if i == n-1 {
+// 		return n
+// 	}
+// 	return (i+1) * ssz
+// }
 
-func ScalarEnd(i, n int32) int32 {
-	ssz := n / ScalarSteps
-	if i == n-1 {
-		return n
-	}
-	return (i + 1) * ssz
-}
-
-// MaxScalarP1 is the first kernel for MaxScalar,
+// MaxScalarX is the first kernel for MaxScalar,
 // operating over X rows.
-func MaxScalarP1(i uint32) { //gosl:kernel
+func MaxScalarX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	if i >= op.RunN {
 		return
@@ -61,9 +63,9 @@ func MaxScalarP1(i uint32) { //gosl:kernel
 	Values.Set(mx, int(op.OutValue), int(i), int(0), int(0), int(0))
 }
 
-// MaxScalarP2 is the second kernel for MaxScalar.
+// MaxScalarY is the second kernel for MaxScalar.
 // operating over Y intermediate sum.
-func MaxScalarP2(i uint32) { //gosl:kernel
+func MaxScalarY(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	if i != 0 {
 		return
@@ -76,9 +78,9 @@ func MaxScalarP2(i uint32) { //gosl:kernel
 	Scalars.Set1D(mx, int(op.OutScalar))
 }
 
-// SumScalarP1 is the first kernel for SumScalar,
+// SumScalarX is the first kernel for SumScalar,
 // operating over X rows.
-func SumScalarP1(i uint32) { //gosl:kernel
+func SumScalarX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	if i >= op.RunN {
 		return
@@ -95,9 +97,9 @@ func SumScalarP1(i uint32) { //gosl:kernel
 	Values.Set(sum, int(op.OutValue), int(i), int(0), int(0), int(0))
 }
 
-// SumScalarP2 is the second kernel for SumScalar.
+// SumScalarY is the second kernel for SumScalar.
 // operating over Y intermediate sum.
-func SumScalarP2(i uint32) { //gosl:kernel
+func SumScalarY(i uint32) { //gosl:kernel
 	if i != 0 {
 		return
 	}
@@ -110,9 +112,9 @@ func SumScalarP2(i uint32) { //gosl:kernel
 	Scalars.Set1D(sum, int(op.OutScalar))
 }
 
-// MeanScalarP2 is the second kernel for MeanScalar.
+// MeanScalarY is the second kernel for MeanScalar.
 // operating over Y intermediate sum.
-func MeanScalarP2(i uint32) { //gosl:kernel
+func MeanScalarY(i uint32) { //gosl:kernel
 	if i != 0 {
 		return
 	}
