@@ -6,6 +6,8 @@ package colorspace
 
 import "cogentcore.org/core/math32"
 
+//gosl:start
+
 // SRGBToLinearComp converts an sRGB rgb component to linear space (removes gamma).
 // Used in converting from sRGB to XYZ colors.
 func SRGBToLinearComp(srgb float32) float32 {
@@ -27,19 +29,18 @@ func SRGBFromLinearComp(lin float32) float32 {
 
 // SRGBToLinear converts set of sRGB components to linear values,
 // removing gamma correction.
-func SRGBToLinear(r, g, b float32) (rl, gl, bl float32) {
-	rl = SRGBToLinearComp(r)
-	gl = SRGBToLinearComp(g)
-	bl = SRGBToLinearComp(b)
-	return
+func SRGBToLinear(r, g, b float32, rl, gl, bl *float32) {
+	*rl = SRGBToLinearComp(r)
+	*gl = SRGBToLinearComp(g)
+	*bl = SRGBToLinearComp(b)
 }
 
 // SRGBFromLinear converts set of sRGB components from linear values,
 // adding gamma correction.
-func SRGBFromLinear(rl, gl, bl float32) (r, g, b float32) {
-	r = SRGBFromLinearComp(rl)
-	g = SRGBFromLinearComp(gl)
-	b = SRGBFromLinearComp(bl)
+func SRGBFromLinear(rl, gl, bl float32, r, g, b *float32) {
+	*r = SRGBFromLinearComp(rl)
+	*g = SRGBFromLinearComp(gl)
+	*b = SRGBFromLinearComp(bl)
 	return
 }
 
@@ -49,8 +50,22 @@ func SRGBFromLinear(rl, gl, bl float32) (r, g, b float32) {
 // Uses the CIECAM02 color appearance model (MoroneyFairchildHuntEtAl02)
 // https://en.wikipedia.org/wiki/CIECAM02
 // using the Hunt-Pointer-Estevez transform.
-func SRGBToLMSComps(r, g, b float32) (lc, mc, sc, lmc, lvm, svlm, grey float32) {
-	l, m, s := SRGBToLMS_HPE(r, g, b) // note: HPE
-	lc, mc, sc, lmc, lvm, svlm, grey = LMSToComps(l, m, s)
-	return
+func SRGBToLMSComps(r, g, b float32, lc, mc, sc, lmc, lvm, svlm, grey *float32) {
+	var l, m, s float32
+	SRGBToLMS_HPE(r, g, b, &l, &m, &s) // note: HPE
+	LMSToComps(l, m, s, lc, mc, sc, lmc, lvm, svlm, grey)
 }
+
+// SRGBToLMSOppos converts sRGB to LMS opponent components and grey,
+// using the HPE cone values: Red - Green (LvM) and Blue - Yellow (SvLM).
+// Uses the CIECAM02 color appearance model (MoroneyFairchildHuntEtAl02)
+// https://en.wikipedia.org/wiki/CIECAM02
+// using the Hunt-Pointer-Estevez transform.
+func SRGBToLMSOppos(r, g, b float32, lvm, svlm, grey *float32) {
+	var l, m, s float32
+	var lc, mc, sc, lmc float32
+	SRGBToLMS_HPE(r, g, b, &l, &m, &s) // note: HPE
+	LMSToComps(l, m, s, &lc, &mc, &sc, &lmc, lvm, svlm, grey)
+}
+
+//gosl:end

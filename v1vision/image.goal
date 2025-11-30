@@ -10,6 +10,7 @@ import (
 
 	"cogentcore.org/core/colors"
 	"cogentcore.org/lab/tensor"
+	"github.com/emer/v1vision/colorspace"
 )
 
 const (
@@ -22,6 +23,9 @@ const (
 	BottomZero = false
 )
 
+// NewWrapImage configures a new WrapPad operation for given input image
+// and RGB index (3 = all). Output goes to another image.
+// padWidth is the border padding around edges.
 func (vv *V1Vision) NewWrapImage(in, irgb, out, padWidth int, geom *Geom) {
 	op := vv.NewOp()
 	op.Op = WrapPad
@@ -37,7 +41,42 @@ func (vv *V1Vision) NewWrapImage(in, irgb, out, padWidth int, geom *Geom) {
 	op.Geom = *geom
 }
 
+// NewFadeImage configures a new FadePad operation for given input image
+// and RGB index (3 = all). Output goes to another image.
+// padWidth is the border padding around edges. r,g,b are edge average
+// values that are faded into.
+func (vv *V1Vision) NewFadeImage(in, irgb, out, padWidth int, r, g, b float32, geom *Geom) {
+	op := vv.NewOp()
+	op.Op = FadePad
+	nin := geom.In.Y * geom.In.X
+	if irgb == 3 {
+		nin *= 3
+	}
+	op.RunN = uint32(nin)
+	op.InImage = int32(in)
+	op.InImageRGB = int32(irgb)
+	op.OutImage = int32(out)
+	op.IntArg1 = int32(padWidth)
+	op.FloatArg1 = r
+	op.FloatArg2 = g
+	op.FloatArg3 = b
+	op.Geom = *geom
+}
+
+// NewLMSImage configures a new LMSImage operation for given input image,
+// setting output index 0 = grey, 1 = RedGreen, 2 = BlueYellow
+func (vv *V1Vision) NewLMSImage(in, out int, r, g, b float32, geom *Geom) {
+	op := vv.NewOp()
+	op.Op = FadePad
+	nin := geom.In.Y * geom.In.X
+	op.RunN = uint32(nin)
+	op.InImage = int32(in)
+	op.OutImage = int32(out)
+	op.Geom = *geom
+}
+
 //gosl:start
+//gosl:import "github.com/emer/v1vision/colorspace"
 
 // WrapPad is the kernel for WrapPad.
 // wraps given padding width of float32 image around sides
@@ -71,6 +110,74 @@ func (op *Op) WrapPad(i uint32) {
 	iv := Images[op.InImage, ri, sy, sx]
 	Images[op.OutImage, ri, y, x] = iv
 }
+
+// FadePad is the kernel for FadePad.
+// wraps given padding width of float32 image around sides
+// i.e., padding for left side of image is the (mirrored) bits
+// from the right side of image, etc.
+func (op *Op) FadePad(i uint32) {
+	ii := int32(i)
+	ri := op.InImageRGB
+	avg := op.FloatArg1
+	if ri == 3 {
+		xy := op.Geom.In.X * op.Geom.In.Y
+		ri = int32(i) / xy
+		ii = int32(i) % xy
+		switch ri {
+		case 0:
+			avg = op.FloatArg1
+		case 1:
+			avg = op.FloatArg2
+		case 2:
+			avg = op.FloatArg3
+		default:
+		}
+	}
+	y := ii / op.Geom.In.X
+	x := ii % op.Geom.In.X
+	padWidth := op.IntArg1
+	uY := op.Geom.In.Y - padWidth
+	uX := op.Geom.In.X - padWidth
+	sy := y
+	p := float32(1)
+	if y < padWidth {
+		p = float32(y) / float32(padWidth)
+		sy = uY - (padWidth - y)
+	} else if y >= uY {
+		p = 1.0 - float32(y-uY)/float32(padWidth)
+		sy = padWidth + (y - uY)
+	}
+	sx := x
+	if x < padWidth {
+		p = float32(x) / float32(padWidth)
+		sx = uX - (padWidth - x)
+	} else if x >= uX {
+		p = 1.0 - float32(x-uX)/float32(padWidth)
+		sx = padWidth + (x - uX)
+	}
+	pavg := (1.0 - p) * avg
+	iv := Images[op.InImage, ri, sy, sx]
+	Images[op.OutImage, ri, y, x] = p*iv + pavg
+}
+
+// LMSImage is the kernel for LMSImage.
+func (op *Op) LMSImage(i uint32) {
+	ii := int32(i)
+	y := ii / op.Geom.In.X
+	x := ii % op.Geom.In.X
+	
+	r := Images[op.InImage, 0, y, x]
+	g := Images[op.InImage, 1, y, x]
+	b := Images[op.InImage, 2, y, x]
+	
+	var lvm, svlm, grey float32
+	colorspace.SRGBToLMSOppos(r, g, b, &lvm, &svlm, &grey)
+	
+	Images[op.OutImage, 0, y, x] = grey
+	Images[op.OutImage, 1, y, x] = lvm
+	Images[op.OutImage, 2, y, x] = svlm
+}
+
 
 //gosl:end
 
@@ -192,97 +299,94 @@ func GreyTensorToImage(img *image.Gray, tsr *tensor.Float32, padWidth int, topZe
 	return img
 }
 
-// EdgeAvg returns the average value around the effective edge of image
+// EdgeAvg returns the average value around the effective edge of RGB image
 // at padWidth in from each side
-func EdgeAvg(tsr *tensor.Float32, padWidth int) float32 {
+func EdgeAvg(tsr *tensor.Float32, padWidth int) (r, g, b float32) {
 	sz := image.Point{tsr.DimSize(1), tsr.DimSize(0)}
 	esz := sz
 	esz.X -= 2 * padWidth
 	esz.Y -= 2 * padWidth
-	var avg float32
+	var avg [3]float32
 	n := 0
 	for y := 0; y < esz.Y; y++ {
 		oy := y + padWidth
-		avg += tsr.Value(oy, padWidth)
-		avg += tsr.Value(oy, padWidth+esz.X-1)
+		for rgb := range 3 {
+			avg[rgb] += tsr.Value(rgb, oy, padWidth)
+			avg[rgb] += tsr.Value(rgb, oy, padWidth+esz.X-1)
+		}
 	}
 	n += 2 * esz.X
 	for x := 0; x < esz.X; x++ {
 		ox := x + padWidth
-		avg += tsr.Value(padWidth, ox)
-		avg += tsr.Value(padWidth+esz.Y-1, ox)
+		for rgb := range 3 {
+			avg[rgb] += tsr.Value(rgb, padWidth, ox)
+			avg[rgb] += tsr.Value(rgb, padWidth+esz.Y-1, ox)
+		}
 	}
 	n += 2 * esz.X
-	return avg / float32(n)
+	r = avg[0] / float32(n)
+	g = avg[1] / float32(n)
+	b = avg[2] / float32(n)
+	return
 }
 
-// FadePad fades given padding width of float32 image around sides
+// FadePadOld fades given padding width of float32 image around sides
 // gradually fading the edge value toward a mean edge value
-func FadePad(tsr *tensor.Float32, padWidth int) {
-	sz := image.Point{tsr.DimSize(1), tsr.DimSize(0)}
-	usz := sz
-	usz.Y -= padWidth
-	usz.X -= padWidth
-	avg := EdgeAvg(tsr, padWidth)
-	for y := 0; y < sz.Y; y++ {
-		var lv, rv float32
-		switch {
-		case y < padWidth:
-			lv = tsr.Value(padWidth, padWidth)
-			rv = tsr.Value(padWidth, usz.X-1)
-		case y >= usz.Y:
-			lv = tsr.Value(usz.Y-1, padWidth)
-			rv = tsr.Value(usz.Y-1, usz.X-1)
-		default:
-			lv = tsr.Value(y, padWidth)
-			rv = tsr.Value(y, usz.X-1)
-		}
-		for x := 0; x < padWidth; x++ {
-			if y < x || y >= sz.Y-x {
-				continue
-			}
-			p := float32(x) / float32(padWidth)
-			pavg := (1 - p) * avg
-			lpv := p*lv + pavg
-			rpv := p*rv + pavg
-			tsr.Set(lpv, y, x)
-			tsr.Set(rpv, y, sz.X-1-x)
-		}
-	}
-	for x := 0; x < sz.X; x++ {
-		var tv, bv float32
-		switch {
-		case x < padWidth:
-			tv = tsr.Value(padWidth, padWidth)
-			bv = tsr.Value(usz.Y-1, padWidth)
-		case x >= usz.X:
-			tv = tsr.Value(padWidth, usz.X-1)
-			bv = tsr.Value(usz.Y-1, usz.X-1)
-		default:
-			tv = tsr.Value(padWidth, x)
-			bv = tsr.Value(usz.X-1, x)
-		}
-		for y := 0; y < padWidth; y++ {
-			if x < y || x >= sz.X-y {
-				continue
-			}
-			p := float32(y) / float32(padWidth)
-			pavg := (1 - p) * avg
-			tpv := p*tv + pavg
-			bpv := p*bv + pavg
-			tsr.Set(tpv, y, x)
-			tsr.Set(bpv, sz.Y-1-y, x)
-		}
-	}
-}
+// func FadePadOld(tsr *tensor.Float32, padWidth int) {
+// 	sz := image.Point{tsr.DimSize(1), tsr.DimSize(0)}
+// 	usz := sz
+// 	usz.Y -= padWidth
+// 	usz.X -= padWidth
+// 	avg := EdgeAvg(tsr, padWidth)
+// 	for y := 0; y < sz.Y; y++ {
+// 		var lv, rv float32
+// 		switch {
+// 		case y < padWidth:
+// 			lv = tsr.Value(padWidth, padWidth)
+// 			rv = tsr.Value(padWidth, usz.X-1)
+// 		case y >= usz.Y:
+// 			lv = tsr.Value(usz.Y-1, padWidth)
+// 			rv = tsr.Value(usz.Y-1, usz.X-1)
+// 		default:
+// 			lv = tsr.Value(y, padWidth)
+// 			rv = tsr.Value(y, usz.X-1)
+// 		}
+// 		for x := 0; x < padWidth; x++ {
+// 			if y < x || y >= sz.Y-x {
+// 				continue
+// 			}
+// 			p := float32(x) / float32(padWidth)
+// 			pavg := (1 - p) * avg
+// 			lpv := p*lv + pavg
+// 			rpv := p*rv + pavg
+// 			tsr.Set(lpv, y, x)
+// 			tsr.Set(rpv, y, sz.X-1-x)
+// 		}
+// 	}
+// 	for x := 0; x < sz.X; x++ {
+// 		var tv, bv float32
+// 		switch {
+// 		case x < padWidth:
+// 			tv = tsr.Value(padWidth, padWidth)
+// 			bv = tsr.Value(usz.Y-1, padWidth)
+// 		case x >= usz.X:
+// 			tv = tsr.Value(padWidth, usz.X-1)
+// 			bv = tsr.Value(usz.Y-1, usz.X-1)
+// 		default:
+// 			tv = tsr.Value(padWidth, x)
+// 			bv = tsr.Value(usz.X-1, x)
+// 		}
+// 		for y := 0; y < padWidth; y++ {
+// 			if x < y || x >= sz.X-y {
+// 				continue
+// 			}
+// 			p := float32(y) / float32(padWidth)
+// 			pavg := (1 - p) * avg
+// 			tpv := p*tv + pavg
+// 			bpv := p*bv + pavg
+// 			tsr.Set(tpv, y, x)
+// 			tsr.Set(bpv, sz.Y-1-y, x)
+// 		}
+// 	}
+// }
 
-// FadePadRGB fades given padding width of float32 image around sides
-// gradually fading the edge value toward a mean edge value.
-// RGB version iterates over outer-most dimension of components.
-func FadePadRGB(tsr *tensor.Float32, padWidth int) {
-	nc := tsr.DimSize(0)
-	for i := 0; i < nc; i++ {
-		simg := tsr.SubSpace(i).(*tensor.Float32)
-		FadePad(simg, padWidth)
-	}
-}

@@ -42,6 +42,87 @@ fn Index1D(s0: u32, i0: u32) -> u32 {
 
 //////// import: "vars.go"
 
+//////// import: "colorspace-lms.go"
+alias LMSComponents = i32; //enums:enum
+const  LC: LMSComponents = 0;
+const  MC: LMSComponents = 1;
+const  SC: LMSComponents = 2;
+const  LMC: LMSComponents = 3;
+const  LvMC: LMSComponents = 4;
+const  SvLMC: LMSComponents = 5;
+const  GREY: LMSComponents = 6;
+alias Opponents = i32; //enums:enum
+const  WhiteBlack: Opponents = 0;
+const  RedGreen: Opponents = 1;
+const  BlueYellow: Opponents = 2;
+/*
+func LMSToXYZ_CAT02(l, m, s f32) (x, y, z f32) {
+    x = 1.096124 * l + 0.4296f * Y + -0.1624f * Z;
+    y = -0.7036f * X + 1.6975f * Y + 0.0061f * Z;
+    z = 0.0030f * X + 0.0136f * Y + 0.9834 * Z;
+  }
+*/
+fn SRGBLinToLMS_HPE(rl: f32,gl: f32,bl: f32, l: ptr<function,f32>,m: ptr<function,f32>,s: ptr<function,f32>) {
+	*l = 0.30567503*rl + 0.62274014*gl + 0.04530167*bl;
+	*m = 0.15771291*rl + 0.7697197*gl + 0.08807348*bl;
+	*s = 0.0193*rl + 0.1192*gl + 0.9505*bl;
+}
+fn SRGBToLMS_HPE(r: f32,g: f32,b: f32, l: ptr<function,f32>,m: ptr<function,f32>,s: ptr<function,f32>) {
+	var rl: f32;
+	var gl: f32;
+	var bl: f32;
+	SRGBToLinear(r, g, b, &rl, &gl, &bl);
+	SRGBLinToLMS_HPE(rl, gl, bl, l, m, s);
+}
+/*
+  func LMStoXYZ_HPE(float& X, float& Y, float& Z,
+                                    L, M, S) {
+    X = 1.096124f * L + 0.4296f * Y + -0.1624f * Z;
+    Y = -0.7036f * X + 1.6975f * Y + 0.0061f * Z;
+    Z = 0.0030f * X + 0.0136f * Y + 0.9834 * Z;
+  }
+*/
+fn ResponseCompression(val: f32) -> f32 {
+	var pval = pow(val, 0.42);
+	var rc = 0.1 + 4.0*pval/(27.13+pval);return rc;
+}
+fn LMSToComps(l: f32,m: f32,s: f32, lc: ptr<function,f32>,mc: ptr<function,f32>,sc: ptr<function,f32>,lmc: ptr<function,f32>,lvm: ptr<function,f32>,svlm: ptr<function,f32>,grey: ptr<function,f32>) {
+	var lrc = ResponseCompression(l);
+	var mrc = ResponseCompression(m);
+	var src = ResponseCompression(s);
+	*lc = 6.0 * ((lrc + (1.0/11.0)*src) - 0.109091);
+	*mc = 6.0 * (((12.0 / 11.0) * mrc) - 0.109091);
+	*lvm = *lc - *mc; // red-green subtracting "criterion for unique yellow"
+	*lmc = 6.0 * (((1.0 / 9.0) * (lrc + mrc)) - 0.0222222);
+	*sc = 6.0 * (((2.0 / 9.0) * src) - 0.0222222);
+	*svlm = *sc - *lmc; // blue-yellow contrast
+	*grey = (1.0 / 0.431787) * (2.0*lrc + mrc + .05*src - 0.305);
+return;
+}
+
+//////// import: "colorspace-srgb.go"
+fn SRGBToLinearComp(srgb: f32) -> f32 {
+	if (srgb <= 0.04045) {
+		return srgb / 12.92;
+	}return pow((srgb+0.055)/1.055, 2.4);
+}
+fn SRGBToLinear(r: f32,g: f32,b: f32, rl: ptr<function,f32>,gl: ptr<function,f32>,bl: ptr<function,f32>) {
+	*rl = SRGBToLinearComp(r);
+	*gl = SRGBToLinearComp(g);
+	*bl = SRGBToLinearComp(b);
+}
+fn SRGBToLMSOppos(r: f32,g: f32,b: f32, lvm: ptr<function,f32>,svlm: ptr<function,f32>,grey: ptr<function,f32>) {
+	var l: f32;
+	var m: f32;
+	var s: f32;
+	var lc: f32;
+	var mc: f32;
+	var sc: f32;
+	var lmc: f32;
+	SRGBToLMS_HPE(r, g, b, &l, &m, &s); // note: HPE
+	LMSToComps(l, m, s, &lc, &mc, &sc, &lmc, lvm, svlm, grey);
+}
+
 //////// import: "complex.go"
 fn Op_LenSum4(op: Op, i: u32) {
 	var szX = op.Geom.Out.x;
@@ -192,7 +273,7 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 18;
+const OperationsN: Operations = 20;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -244,7 +325,72 @@ fn Op_WrapPad(op: Op, i: u32) {
 		sx = padWidth + (x - uX);
 	}
 	var iv = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(ri), u32(sy), u32(sx))];
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = iv;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12],
+	TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = iv;
+}
+fn Op_FadePad(op: Op, i: u32) {
+	var ii = i32(i);
+	var ri = op.InImageRGB;
+	var avg = op.FloatArg1;
+	if (ri == 3) {
+		var xy = op.Geom.In.x * op.Geom.In.y;
+		ri = i32(i) / xy;
+		ii = i32(i) % xy;
+		switch (ri) {
+		case 0: {
+			avg = op.FloatArg1;
+		}
+		case 1: {
+			avg = op.FloatArg2;
+		}
+		case 2: {
+			avg = op.FloatArg3;
+		}
+		default: {
+		}
+		}
+	}
+	var y = ii / op.Geom.In.x;
+	var x = ii % op.Geom.In.x;
+	var padWidth = op.IntArg1;
+	var uY = op.Geom.In.y - padWidth;
+	var uX = op.Geom.In.x - padWidth;
+	var sy = y;
+	var p = f32(1);
+	if (y < padWidth) {
+		p = f32(y) / f32(padWidth);
+		sy = uY - (padWidth - y);
+	} else if (y >= uY) {
+		p = 1.0 - f32(y-uY)/f32(padWidth);
+		sy = padWidth + (y - uY);
+	}
+	var sx = x;
+	if (x < padWidth) {
+		p = f32(x) / f32(padWidth);
+		sx = uX - (padWidth - x);
+	} else if (x >= uX) {
+		p = 1.0 - f32(x-uX)/f32(padWidth);
+		sx = padWidth + (x - uX);
+	}
+	var pavg = (1.0 - p) * avg;
+	var iv = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(ri), u32(sy), u32(sx))];
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12],
+	TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = p*iv + pavg;
+}
+fn Op_LMSImage(op: Op, i: u32) {
+	var ii = i32(i);
+	var y = ii / op.Geom.In.x;
+	var x = ii % op.Geom.In.x;
+	var r = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(0), u32(y), u32(x))];
+	var g = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(1), u32(y), u32(x))];
+	var b = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(2), u32(y), u32(x))];
+	var lvm: f32;
+	var svlm: f32;
+	var grey: f32;
+	SRGBToLMSOppos(r, g, b, &lvm, &svlm, &grey);
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(0), u32(y), u32(x))] = grey;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = lvm;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = svlm;
 }
 
 //////// import: "inhib.go"
@@ -366,18 +512,6 @@ fn Op_NormDiv(op: Op, i: u32) {
 }
 
 //////// import: "math32-fastexp.go"
-
-//////// import: "math32-vector2.go"
-struct Vector2 {
-	X: f32,
-	Y: f32,
-}
-
-//////// import: "math32-vector2i.go"
-struct Vector2i {
-	X: i32,
-	Y: i32,
-}
 
 //////// import: "maxpool.go"
 fn Op_MaxPool(op: Op, i: u32) {
@@ -512,22 +646,24 @@ struct Params {
 alias Operations = i32; //enums:enum
 const  NoOp: Operations = 0;
 const  WrapPad: Operations = 1;
-const  ConvolveImage: Operations = 2;
-const  LogValues: Operations = 3;
-const  MaxScalar: Operations = 4;
-const  SumScalar: Operations = 5;
-const  MeanScalar: Operations = 6;
-const  NormDiv: Operations = 7;
-const  NeighInhib4: Operations = 8;
-const  KWTAInhib: Operations = 9;
-const  MaxPool: Operations = 10;
-const  MaxPolarity: Operations = 11;
-const  LenSum4: Operations = 12;
-const  EndStop4: Operations = 13;
-const  To4D: Operations = 14;
-const  MotionIntegrate: Operations = 15;
-const  MotionStar: Operations = 16;
-const  MotionFullField: Operations = 17;
+const  FadePad: Operations = 2;
+const  LMSImage: Operations = 3;
+const  ConvolveImage: Operations = 4;
+const  LogValues: Operations = 5;
+const  MaxScalar: Operations = 6;
+const  SumScalar: Operations = 7;
+const  MeanScalar: Operations = 8;
+const  NormDiv: Operations = 9;
+const  NeighInhib4: Operations = 10;
+const  KWTAInhib: Operations = 11;
+const  MaxPool: Operations = 12;
+const  MaxPolarity: Operations = 13;
+const  LenSum4: Operations = 14;
+const  EndStop4: Operations = 15;
+const  To4D: Operations = 16;
+const  MotionIntegrate: Operations = 17;
+const  MotionStar: Operations = 18;
+const  MotionFullField: Operations = 19;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -542,13 +678,13 @@ struct Op {
 	FilterN: i32,
 	FloatArg1: f32,
 	FloatArg2: f32,
+	FloatArg3: f32,
 	IntArg1: i32,
 	InScalar: i32,
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
 	pad: i32,
-	pad1: i32,
 	Geom: Geom,
 }
 fn Op_Run(op: Op, i: u32) {
@@ -558,6 +694,12 @@ fn Op_Run(op: Op, i: u32) {
 	}
 	case WrapPad: {
 		Op_WrapPad(op, i);
+	}
+	case FadePad: {
+		Op_FadePad(op, i);
+	}
+	case LMSImage: {
+		Op_LMSImage(op, i);
 	}
 	case LogValues: {
 		Op_LogValues(op, i);

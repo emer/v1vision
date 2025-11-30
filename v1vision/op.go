@@ -18,6 +18,17 @@ const (
 	// InImage -> OutImage, over InImageRGB (if 3, does all).
 	WrapPad
 
+	// FadePad wraps given padding width of float32 image around sides
+	// i.e., padding for left side of image is the (mirrored) bits
+	// from the right side of image, etc, and fades result toward average
+	// edge value (passed in as arg).
+	// InImage -> OutImage, over InImageRGB (if 3, does all).
+	FadePad
+
+	// LMSImage computes
+	// InImage -> OutImage
+	LMSImage
+
 	// ConvolveImage applies a filter to Image, writing to Values.
 	// InImage -> OutValue, using FilterType, FilterN
 	ConvolveImage
@@ -138,6 +149,9 @@ type Op struct {
 	// FloatArg2 is a float argument
 	FloatArg2 float32
 
+	// FloatArg3 is a float argument
+	FloatArg3 float32
+
 	// IntArg1 is an arbitrary integer arg, used for different ops.
 	// e.g., PadWidth in WrapPad
 	IntArg1 int32
@@ -154,7 +168,7 @@ type Op struct {
 	// KWTA is the index of the KWTA parameters to use.
 	KWTA int32
 
-	pad, pad1 int32
+	pad int32
 
 	// Geom is the geometry to use for this operation.
 	Geom Geom
@@ -167,6 +181,10 @@ func (op *Op) Run(i uint32) {
 		op.ConvolveImage(i)
 	case WrapPad:
 		op.WrapPad(i)
+	case FadePad:
+		op.FadePad(i)
+	case LMSImage:
+		op.LMSImage(i)
 	case LogValues:
 		op.LogValues(i)
 	case NormDiv:
