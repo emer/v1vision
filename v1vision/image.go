@@ -14,6 +14,16 @@ import (
 	"cogentcore.org/lab/tensor"
 )
 
+const (
+	// TopZero is arg to pass to image routines to put Y=0 at top of tensors.
+	// Default is bottom.
+	TopZero = true
+
+	// BottomZero is arg to pass to image routines to put Y=0 at bottom of tensors.
+	// This is the default.
+	BottomZero = false
+)
+
 func (vv *V1Vision) NewWrapImage(in, irgb, out, padWidth int, geom *Geom) {
 	op := vv.NewOp()
 	op.Op = WrapPad
@@ -129,7 +139,7 @@ func RGBTensorToImage(img *image.RGBA, tsr *tensor.Float32, padWidth int, topZer
 }
 
 // RGBToGrey converts an RGB input image to a greyscale tensor
-// in preparation for processing.
+// in preparation for processing. Writes to first (red) component.
 // padWidth is the amount of padding to add on all sides.
 // topZero retains the Y=0 value at the top of the tensor --
 // otherwise it is flipped with Y=0 at the bottom to be consistent
@@ -147,7 +157,7 @@ func RGBToGrey(img image.Image, tsr *tensor.Float32, padWidth int, topZero bool)
 			cv := img.At(bd.Min.X+x, bd.Min.Y+sy)
 			r, g, b, _ := colors.ToFloat32(cv)
 			gv := (r + g + b) / 3
-			tsr.Set(gv, y+padWidth, x+padWidth)
+			tsr.Set(gv, 0, y+padWidth, x+padWidth)
 		}
 	}
 }

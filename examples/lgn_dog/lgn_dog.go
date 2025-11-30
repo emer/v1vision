@@ -22,6 +22,7 @@ import (
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/dog"
+	"github.com/emer/v1vision/v1std"
 	"github.com/emer/v1vision/v1vision"
 )
 
@@ -65,6 +66,15 @@ type Vis struct { //types:add
 
 	// DoG filter output tensor
 	OutTsr tensor.Float32 `display:"no-inline"`
+
+	// DoGGrey is an encapsulated version of this functionality,
+	// which we test here for comparison.
+	DoGGrey v1std.DoGGrey
+
+	// StdImage manages images for DoGGrey
+	StdImage v1std.Image
+
+	tabView *core.Tabs
 }
 
 func (vi *Vis) Defaults() {
@@ -72,7 +82,7 @@ func (vi *Vis) Defaults() {
 	vi.ImageFile = core.Filename("side-tee-128.png")
 	vi.DoGTab.Init()
 	vi.DoG.Defaults()
-	sz := 12 // V1mF16 typically = 12, no border
+	sz := 12 // V1mF16 typically = 12, no border -- defaults
 	spc := 4
 	vi.DoG.SetSize(sz, spc)
 	// note: first arg is border -- we are relying on Geom
@@ -83,6 +93,9 @@ func (vi *Vis) Defaults() {
 	// vi.ImageSize = image.Point{256, 256}
 	// vi.ImageSize = image.Point{512, 512}
 	vi.Geom.SetImageSize(vi.ImageSize)
+
+	vi.DoGGrey.Defaults()
+	vi.StdImage.Defaults()
 }
 
 // Config sets up the V1 processing pipeline.
@@ -100,6 +113,8 @@ func (vi *Vis) Config() {
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
+
+	vi.DoGGrey.Config(vi.StdImage.Size)
 }
 
 // OpenImage opens given filename as current image Image
@@ -114,14 +129,15 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImageSize {
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
-	img := vi.V1.Images.SubSpace(0, 0).(*tensor.Float32)
-	v1vision.RGBToGrey(vi.Image, img, int(vi.Geom.FilterRt.X), false) // pad for filt, bot zero
+	img := vi.V1.Images.SubSpace(0).(*tensor.Float32)
+	v1vision.RGBToGrey(vi.Image, img, int(vi.Geom.FilterRt.X), v1vision.BottomZero)
 	return nil
 }
 
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters.
 func (vi *Vis) Filter() error { //types:add
+	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
 	err := vi.OpenImage(string(vi.ImageFile))
 	if err != nil {
@@ -147,6 +163,12 @@ func (vi *Vis) Filter() error { //types:add
 	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
 	vi.OutTsr.CopyFrom(out)
 
+	vi.StdImage.SetImageGrey(&vi.DoGGrey.V1, vi.Image, int(vi.DoGGrey.Geom.Border.X))
+	vi.DoGGrey.Run()
+
+	if vi.tabView != nil {
+		vi.tabView.Update()
+	}
 	return nil
 }
 
@@ -162,7 +184,17 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	})
 
 	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
-	core.NewForm(b).SetStruct(vi)
+	sp := core.NewSplits(b)
+	core.NewForm(sp).SetStruct(vi)
+	tb := core.NewTabs(sp)
+	vi.tabView = tb
+	tf, _ := tb.NewTab("Image")
+	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
+	tf, _ = tb.NewTab("DoG")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.OutTsr)
+
+	sp.SetSplits(.3, .7)
+
 	b.AddTopBar(func(bar *core.Frame) {
 		core.NewToolbar(bar).Maker(func(p *tree.Plan) {
 			tree.Add(p, func(w *core.FuncButton) { w.SetFunc(vi.Filter) })

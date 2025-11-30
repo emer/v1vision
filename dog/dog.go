@@ -25,16 +25,22 @@ type Filter struct {
 	// how much relative weight does this filter have when combined with other filters
 	Wt float32
 
-	// overall gain multiplier applied after dog filtering -- only relevant if not using renormalization (otherwize it just gets renormed away)
+	// Gain is the overall gain multiplier applied after dog filtering.
+	// Only relevant if not using renormalization (otherwize it just gets renormed away)
 	Gain float32 `default:"8"`
 
-	// gain for the on component of filter, only relevant for color-opponent DoG's
+	// gain for the on component of filter, only relevant for color-opponent DoG's.
 	OnGain float32 `default:"1"`
 
-	// size of the overall filter -- number of pixels wide and tall for a square matrix used to encode the filter -- filter is centered within this square -- typically an even number, min effective size ~6
+	// size of the overall filter, which is the number of pixels wide
+	// and tall for a square matrix used to encode the filter.
+	// The filter is centered within this square.
+	// Typically an even number, min effective size ~6.
 	Size int
 
-	// how far apart to space the centers of the dog filters -- 1 = every pixel, 2 = every other pixel, etc -- high-res should be 1 or 2, lower res can be increments therefrom
+	// how far apart to space the centers of the dog filters -- 1 = every pixel,
+	// 2 = every other pixel, etc.
+	// high-res should be 1 or 2, lower res can be increments therefrom.
 	Spacing int
 
 	// gaussian sigma for the narrower On gaussian, in normalized units relative to Size
@@ -43,7 +49,8 @@ type Filter struct {
 	// gaussian sigma for the wider Off gaussian, in normalized units relative to Size
 	OffSig float32 `default:"0.25"`
 
-	// cut off the filter (to zero) outside a circle of diameter = Size -- makes the filter more radially symmetric
+	// cut off the filter (to zero) outside a circle of diameter = Size.
+	// Makes the filter more radially symmetric.
 	CircleEdge bool `default:"true"`
 }
 

@@ -258,7 +258,7 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
 	img := vi.ImageTsr.SubSpace(0).(*tensor.Float32)
-	v1vision.RGBToGrey(vi.Image, img, int(vi.V1sGeom.FilterRt.X), false) // pad for filt, bot zero
+	v1vision.RGBToGrey(vi.Image, img, int(vi.V1sGeom.FilterRt.X), v1vision.BottomZero)
 	return nil
 }
 
