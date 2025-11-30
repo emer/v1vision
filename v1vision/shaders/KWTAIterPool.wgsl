@@ -135,10 +135,11 @@ fn KWTAIterPool(i: u32) { //gosl:kernel
 	if (i >= op.RunN) {
 		return;
 	}
-	var yo = i32(i) / op.Geom.Out.x;
-	var xo = i32(i) % op.Geom.Out.x;
-	var lyi = i32(op.Geom.Out.y);
-	var layGi = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(lyi), u32(0), u32(Gi))];
+	var szY = op.Geom.Out.y;
+	var szX = op.Geom.Out.x;
+	var yo = i32(i) / szX;
+	var xo = i32(i) % szX;
+	var layGi = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(szY), u32(0), u32(Gi))];
 	let kp = KWTAs[u32(op.KWTA)];
 	var pn = 2 * op.FilterN;
 	var geAvg = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GeAvg))];
@@ -289,3 +290,6 @@ struct Op {
 	pad1: i32,
 	Geom: Geom,
 }
+
+//////// import: "scalar.go"
+const ScalarSteps = 2;

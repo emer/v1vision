@@ -1,0 +1,128 @@
+// Copyright (c) 2025, The Emergent Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package v1vision
+
+// NewAggScalar adds a [SumScalar], [MeanScalar], or [MaxScalar] operation,
+// which computes a [Scalars] output efficiently. Adds a Scalar output
+// and returns index.
+// in = input Values. Allocates output Values and scalars as needed.
+// fn = number of filters, Geom Out sizes are used for indexing.
+func (vv *V1Vision) NewAggScalar(aggOp Operations, in, fn int, geom *Geom) int {
+	op := vv.NewOp()
+	op.Op = aggOp
+	op.RunN = uint32(geom.Out.Y) // aggregate over Y
+	op.InValue = int32(in)
+	yout := vv.NewValues(int(geom.Out.Y), 1, 1) // intermediate y output
+	op.OutValue = int32(yout)
+	out := vv.NewScalar(1)
+	op.OutScalar = int32(out)
+	op.FilterN = int32(fn)
+	op.Geom = *geom
+	return out
+}
+
+//gosl:start
+
+const ScalarSteps = 2
+
+func ScalarStart(i, n int32) int32 {
+	ssz := n / ScalarSteps
+	return i * ssz
+}
+
+func ScalarEnd(i, n int32) int32 {
+	ssz := n / ScalarSteps
+	if i == n-1 {
+		return n
+	}
+	return (i+1) * ssz
+}
+
+// MaxScalarP1 is the first kernel for MaxScalar,
+// operating over X rows.
+func MaxScalarP1(i uint32) { //gosl:kernel
+	op := GetCurOp(0)
+	if i >= op.RunN {
+		return
+	}
+	mx := float32(0)
+	for x := range op.Geom.Out.X {
+		for pi := range 2 {
+			for fi := range op.FilterN {
+				v := Values[op.InValue, i, x, pi, fi]
+				mx = max(mx, v)
+			}
+		}
+	}
+	Values[op.OutValue, i, 0, 0, 0] = mx
+}
+
+// MaxScalarP2 is the second kernel for MaxScalar.
+// operating over Y intermediate sum.
+func MaxScalarP2(i uint32) { //gosl:kernel
+	op := GetCurOp(0)
+	if i != 0 {
+		return
+	}
+	mx := float32(0)
+	for y := range op.Geom.Out.Y {
+		v := Values[op.OutValue, y, 0, 0, 0]
+		mx = max(mx, v)
+	}
+	Scalars.Set1D(mx, int(op.OutScalar))
+}
+
+// SumScalarP1 is the first kernel for SumScalar,
+// operating over X rows.
+func SumScalarP1(i uint32) { //gosl:kernel
+	op := GetCurOp(0)
+	if i >= op.RunN {
+		return
+	}
+	sum := float32(0)
+	for x := range op.Geom.Out.X {
+		for pi := range 2 {
+			for fi := range op.FilterN {
+				v := Values[op.InValue, i, x, pi, fi]
+				sum += v
+			}
+		}
+	}
+	Values[op.OutValue, i, 0, 0, 0] = sum
+}
+
+// SumScalarP2 is the second kernel for SumScalar.
+// operating over Y intermediate sum.
+func SumScalarP2(i uint32) { //gosl:kernel
+	if i != 0 {
+		return
+	}
+	op := GetCurOp(0)
+	sum := float32(0)
+	for y := range op.Geom.Out.Y {
+		v := Values[op.OutValue, y, 0, 0, 0]
+		sum += v
+	}
+	Scalars.Set1D(sum, int(op.OutScalar))
+}
+
+// MeanScalarP2 is the second kernel for MeanScalar.
+// operating over Y intermediate sum.
+func MeanScalarP2(i uint32) { //gosl:kernel
+	if i != 0 {
+		return
+	}
+	op := GetCurOp(0)
+	sum := float32(0)
+	for y := range op.Geom.Out.Y {
+		v := Values[op.OutValue, y, 0, 0, 0]
+		sum += v
+	}
+	sum /= float32(op.Geom.Out.Y * op.Geom.Out.X * op.FilterN * 2)
+	Scalars.Set1D(sum, int(op.OutScalar))
+}
+
+//gosl:end
+

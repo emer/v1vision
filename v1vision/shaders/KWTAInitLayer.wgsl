@@ -107,8 +107,7 @@ fn KWTAInitLayer(i: u32) { //gosl:kernel
 	let op = CurOp[0];
 	var lyi = op.Geom.Out.y;
 	for (var i=0; i<InhibVarsN; i++) {
-		Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53],
-		u32(op.Inhibs), u32(lyi), u32(0), u32(i32(i)))] = 0.0;
+		Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(lyi), u32(0), u32(i32(i)))] = 0.0;
 	}
 }
 
@@ -194,3 +193,6 @@ struct Op {
 	pad1: i32,
 	Geom: Geom,
 }
+
+//////// import: "scalar.go"
+const ScalarSteps = 2;

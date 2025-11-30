@@ -207,3 +207,6 @@ struct Op {
 	pad1: i32,
 	Geom: Geom,
 }
+
+//////// import: "scalar.go"
+const ScalarSteps = 2;

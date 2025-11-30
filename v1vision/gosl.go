@@ -104,15 +104,27 @@ func GPUInit() {
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(2, "Values")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayer1.wgsl", sy)
-		pl.AddVarUsed(0, "TensorStrides")
-		pl.AddVarUsed(0, "CurOp")
-		pl.AddVarUsed(2, "Inhibs")
-		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayer2.wgsl", sy)
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerFinal.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
 		pl.AddVarUsed(2, "Inhibs")
 		pl.AddVarUsed(0, "KWTAs")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerX0.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerX1.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerY0.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterLayerY1.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Inhibs")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAIterPool.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
@@ -295,88 +307,214 @@ func RunOneKWTAInitPool(n int, syncVars ...GPUVars) {
 		RunKWTAInitPoolCPU(n)
 	}
 }
-// RunKWTAIterLayer1 runs the KWTAIterLayer1 kernel with given number of elements,
+// RunKWTAIterLayerFinal runs the KWTAIterLayerFinal kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayer1 call does Run and Done for a
+// Alternatively, a single-shot RunOneKWTAIterLayerFinal call does Run and Done for a
 // single run-and-sync case.
-func RunKWTAIterLayer1(n int) {
+func RunKWTAIterLayerFinal(n int) {
 	if UseGPU {
-		RunKWTAIterLayer1GPU(n)
+		RunKWTAIterLayerFinalGPU(n)
 	} else {
-		RunKWTAIterLayer1CPU(n)
+		RunKWTAIterLayerFinalCPU(n)
 	}
 }
 
-// RunKWTAIterLayer1GPU runs the KWTAIterLayer1 kernel on the GPU. See [RunKWTAIterLayer1] for more info.
-func RunKWTAIterLayer1GPU(n int) {
+// RunKWTAIterLayerFinalGPU runs the KWTAIterLayerFinal kernel on the GPU. See [RunKWTAIterLayerFinal] for more info.
+func RunKWTAIterLayerFinalGPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayer1"]
+	pl := sy.ComputePipelines["KWTAIterLayerFinal"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunKWTAIterLayer1CPU runs the KWTAIterLayer1 kernel on the CPU.
-func RunKWTAIterLayer1CPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayer1)
+// RunKWTAIterLayerFinalCPU runs the KWTAIterLayerFinal kernel on the CPU.
+func RunKWTAIterLayerFinalCPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerFinal)
 }
 
-// RunOneKWTAIterLayer1 runs the KWTAIterLayer1 kernel with given number of elements,
+// RunOneKWTAIterLayerFinal runs the KWTAIterLayerFinal kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneKWTAIterLayer1(n int, syncVars ...GPUVars) {
+func RunOneKWTAIterLayerFinal(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunKWTAIterLayer1GPU(n)
+		RunKWTAIterLayerFinalGPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunKWTAIterLayer1CPU(n)
+		RunKWTAIterLayerFinalCPU(n)
 	}
 }
-// RunKWTAIterLayer2 runs the KWTAIterLayer2 kernel with given number of elements,
+// RunKWTAIterLayerX0 runs the KWTAIterLayerX0 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // Can call multiple Run* kernels in a row, which are then all launched
 // in the same command submission on the GPU, which is by far the most efficient.
 // MUST call RunDone (with optional vars to sync) after all Run calls.
-// Alternatively, a single-shot RunOneKWTAIterLayer2 call does Run and Done for a
+// Alternatively, a single-shot RunOneKWTAIterLayerX0 call does Run and Done for a
 // single run-and-sync case.
-func RunKWTAIterLayer2(n int) {
+func RunKWTAIterLayerX0(n int) {
 	if UseGPU {
-		RunKWTAIterLayer2GPU(n)
+		RunKWTAIterLayerX0GPU(n)
 	} else {
-		RunKWTAIterLayer2CPU(n)
+		RunKWTAIterLayerX0CPU(n)
 	}
 }
 
-// RunKWTAIterLayer2GPU runs the KWTAIterLayer2 kernel on the GPU. See [RunKWTAIterLayer2] for more info.
-func RunKWTAIterLayer2GPU(n int) {
+// RunKWTAIterLayerX0GPU runs the KWTAIterLayerX0 kernel on the GPU. See [RunKWTAIterLayerX0] for more info.
+func RunKWTAIterLayerX0GPU(n int) {
 	sy := GPUSystem
-	pl := sy.ComputePipelines["KWTAIterLayer2"]
+	pl := sy.ComputePipelines["KWTAIterLayerX0"]
 	ce, _ := sy.BeginComputePass()
 	pl.Dispatch1D(ce, n, 64)
 }
 
-// RunKWTAIterLayer2CPU runs the KWTAIterLayer2 kernel on the CPU.
-func RunKWTAIterLayer2CPU(n int) {
-	gpu.VectorizeFunc(0, n, KWTAIterLayer2)
+// RunKWTAIterLayerX0CPU runs the KWTAIterLayerX0 kernel on the CPU.
+func RunKWTAIterLayerX0CPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerX0)
 }
 
-// RunOneKWTAIterLayer2 runs the KWTAIterLayer2 kernel with given number of elements,
+// RunOneKWTAIterLayerX0 runs the KWTAIterLayerX0 kernel with given number of elements,
 // on either the CPU or GPU depending on the UseGPU variable.
 // This version then calls RunDone with the given variables to sync
 // after the Run, for a single-shot Run-and-Done call. If multiple kernels
 // can be run in sequence, it is much more efficient to do multiple Run*
 // calls followed by a RunDone call.
-func RunOneKWTAIterLayer2(n int, syncVars ...GPUVars) {
+func RunOneKWTAIterLayerX0(n int, syncVars ...GPUVars) {
 	if UseGPU {
-		RunKWTAIterLayer2GPU(n)
+		RunKWTAIterLayerX0GPU(n)
 		RunDone(syncVars...)
 	} else {
-		RunKWTAIterLayer2CPU(n)
+		RunKWTAIterLayerX0CPU(n)
+	}
+}
+// RunKWTAIterLayerX1 runs the KWTAIterLayerX1 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneKWTAIterLayerX1 call does Run and Done for a
+// single run-and-sync case.
+func RunKWTAIterLayerX1(n int) {
+	if UseGPU {
+		RunKWTAIterLayerX1GPU(n)
+	} else {
+		RunKWTAIterLayerX1CPU(n)
+	}
+}
+
+// RunKWTAIterLayerX1GPU runs the KWTAIterLayerX1 kernel on the GPU. See [RunKWTAIterLayerX1] for more info.
+func RunKWTAIterLayerX1GPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["KWTAIterLayerX1"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunKWTAIterLayerX1CPU runs the KWTAIterLayerX1 kernel on the CPU.
+func RunKWTAIterLayerX1CPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerX1)
+}
+
+// RunOneKWTAIterLayerX1 runs the KWTAIterLayerX1 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneKWTAIterLayerX1(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunKWTAIterLayerX1GPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunKWTAIterLayerX1CPU(n)
+	}
+}
+// RunKWTAIterLayerY0 runs the KWTAIterLayerY0 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneKWTAIterLayerY0 call does Run and Done for a
+// single run-and-sync case.
+func RunKWTAIterLayerY0(n int) {
+	if UseGPU {
+		RunKWTAIterLayerY0GPU(n)
+	} else {
+		RunKWTAIterLayerY0CPU(n)
+	}
+}
+
+// RunKWTAIterLayerY0GPU runs the KWTAIterLayerY0 kernel on the GPU. See [RunKWTAIterLayerY0] for more info.
+func RunKWTAIterLayerY0GPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["KWTAIterLayerY0"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunKWTAIterLayerY0CPU runs the KWTAIterLayerY0 kernel on the CPU.
+func RunKWTAIterLayerY0CPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerY0)
+}
+
+// RunOneKWTAIterLayerY0 runs the KWTAIterLayerY0 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneKWTAIterLayerY0(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunKWTAIterLayerY0GPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunKWTAIterLayerY0CPU(n)
+	}
+}
+// RunKWTAIterLayerY1 runs the KWTAIterLayerY1 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneKWTAIterLayerY1 call does Run and Done for a
+// single run-and-sync case.
+func RunKWTAIterLayerY1(n int) {
+	if UseGPU {
+		RunKWTAIterLayerY1GPU(n)
+	} else {
+		RunKWTAIterLayerY1CPU(n)
+	}
+}
+
+// RunKWTAIterLayerY1GPU runs the KWTAIterLayerY1 kernel on the GPU. See [RunKWTAIterLayerY1] for more info.
+func RunKWTAIterLayerY1GPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["KWTAIterLayerY1"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunKWTAIterLayerY1CPU runs the KWTAIterLayerY1 kernel on the CPU.
+func RunKWTAIterLayerY1CPU(n int) {
+	gpu.VectorizeFunc(0, n, KWTAIterLayerY1)
+}
+
+// RunOneKWTAIterLayerY1 runs the KWTAIterLayerY1 kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneKWTAIterLayerY1(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunKWTAIterLayerY1GPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunKWTAIterLayerY1CPU(n)
 	}
 }
 // RunKWTAIterPool runs the KWTAIterPool kernel with given number of elements,

@@ -123,8 +123,9 @@ func (vi *Vis) Defaults() {
 	sz := 12 // V1mF16 typically = 12, no border
 	spc := 4
 	vi.V1sGabor.SetSize(sz, spc)
-	vi.ImageSize = image.Point{128, 128}
+	// vi.ImageSize = image.Point{128, 128}
 	// vi.ImageSize = image.Point{256, 256}
+	vi.ImageSize = image.Point{512, 512}
 
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
@@ -205,13 +206,15 @@ func (vi *Vis) Filter() error { //types:add
 	tmr := timer.Time{}
 	tmr.Start()
 	for range 1000 {
-		// vi.V1.Run()
-		vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
+		vi.V1.Run()
+		// vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
+		// for timing test, run without sync and assume it gets sig better.
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
 	// With 10 Iters on KWTA, on MacBookPro M3Pro, Orig: 2.03, CPU: 1.97, GPU: 2.16
-	// 256 image: CPU: 4.9, GPU: 3.96
+	// 256 image: CPU: 4.9, GPU: 935ms
+	// 512 image: CPU: , GPU: 1.07s (1.3s with 2 step kwta)
 	// note: not sending image at start is the same!
 
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)

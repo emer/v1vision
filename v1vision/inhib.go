@@ -46,30 +46,4 @@ const (
 	ActMax
 )
 
-// func(fi *Inhib)Init() {
-// fi.Zero()
-// fi.Ge.Init()
-// fi.Act.Init()
-// }
-//
-// // Zero clears inhibition but does not affect Ge, Act averages
-// func(fi *Inhib)Zero() {
-// fi.FFi = 0
-// fi.FBi = 0
-// fi.Gi = 0
-// fi.GiOrig = 0
-// fi.LayGi = 0
-// }
-//
-// // Decay reduces inhibition values by given decay proportion
-// func(fi *Inhib)Decay(decay float32) {
-// fi.Ge.Max -= decay *fi.Ge.Max
-// fi.Ge.Avg -= decay *fi.Ge.Avg
-// fi.Act.Max -= decay *fi.Act.Max
-// fi.Act.Avg -= decay *fi.Act.Avg
-// fi.FFi -= decay *fi.FFi
-// fi.FBi -= decay *fi.FBi
-// fi.Gi -= decay *fi.Gi
-// }
-
 //gosl:end

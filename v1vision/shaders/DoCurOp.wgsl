@@ -589,3 +589,6 @@ fn DoCurOp(i: u32) { //gosl:kernel
 	}
 	Op_Run(op, i);
 }
+
+//////// import: "scalar.go"
+const ScalarSteps = 2;

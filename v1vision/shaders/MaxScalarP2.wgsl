@@ -108,18 +108,6 @@ struct KWTA {
 //////// import: "kwta.go"
 
 //////// import: "logrenorm.go"
-fn MaxScalarP2(i: u32) { //gosl:kernel
-	let op = CurOp[0];
-	if (i != 0) {
-		return;
-	}
-	var mx = f32(0);
-	for (var y=0; y<op.Geom.Out.y; y++) {
-		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(0))];
-		mx = max(mx, v);
-	}
-	Scalars[Index1D(TensorStrides[40], u32(op.OutScalar))] = mx;
-}
 
 //////// import: "math32-fastexp.go"
 
@@ -200,4 +188,19 @@ struct Op {
 	pad: i32,
 	pad1: i32,
 	Geom: Geom,
+}
+
+//////// import: "scalar.go"
+const ScalarSteps = 2;
+fn MaxScalarP2(i: u32) { //gosl:kernel
+	let op = CurOp[0];
+	if (i != 0) {
+		return;
+	}
+	var mx = f32(0);
+	for (var y=0; y<op.Geom.Out.y; y++) {
+		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(0))];
+		mx = max(mx, v);
+	}
+	Scalars[Index1D(TensorStrides[40], u32(op.OutScalar))] = mx;
 }

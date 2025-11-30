@@ -108,18 +108,6 @@ struct KWTA {
 //////// import: "kwta.go"
 
 //////// import: "logrenorm.go"
-fn SumScalarP2(i: u32) { //gosl:kernel
-	if (i != 0) {
-		return;
-	}
-	let op = CurOp[0];
-	var sum = f32(0);
-	for (var y=0; y<op.Geom.Out.y; y++) {
-		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(0))];
-		sum += v;
-	}
-	Scalars[Index1D(TensorStrides[40], u32(op.OutScalar))] = sum;
-}
 
 //////// import: "math32-fastexp.go"
 
@@ -200,4 +188,19 @@ struct Op {
 	pad: i32,
 	pad1: i32,
 	Geom: Geom,
+}
+
+//////// import: "scalar.go"
+const ScalarSteps = 2;
+fn SumScalarP2(i: u32) { //gosl:kernel
+	if (i != 0) {
+		return;
+	}
+	let op = CurOp[0];
+	var sum = f32(0);
+	for (var y=0; y<op.Geom.Out.y; y++) {
+		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(0))];
+		sum += v;
+	}
+	Scalars[Index1D(TensorStrides[40], u32(op.OutScalar))] = sum;
 }
