@@ -102,7 +102,7 @@ type Vis struct { //types:add
 
 	// Combined V1 output tensor with V1cPool as first two rows
 	// then length sum, end stop = 5 rows total
-	V1AllTsr tensor.Float32 `display:"no-inline"`
+	V1AllTsr *tensor.Float32 `display:"no-inline"`
 
 	// V1 complex gabor filter output, un-max-pooled 2x2 of V1cPool tensor
 	V1cUnPoolTsr tensor.Float32 `display:"no-inline"`
@@ -146,6 +146,8 @@ func (vi *Vis) Config() {
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.V1sGeom.FilterRt.X), &vi.V1sGeom)
 
+	nang := vi.V1sGabor.NAngles
+
 	// V1s simple
 	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
 	v1out := out
@@ -153,38 +155,41 @@ func (vi *Vis) Config() {
 	if vi.V1sKWTA.On.IsTrue() {
 		ninh := 0
 		if vi.V1sNeighInhib.On {
-			ninh = vi.V1.NewNeighInhib4(out, vi.V1sGabor.NAngles, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
+			ninh = vi.V1.NewNeighInhib4(out, nang, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 		}
-		v1out = vi.V1.NewKWTA(out, ninh, vi.V1sGabor.NAngles, &vi.V1sGeom)
+		v1out = vi.V1.NewKWTA(out, ninh, nang, &vi.V1sGeom)
 		vi.v1sKwtaIdx = v1out
 	}
 
 	// V1c complex
 	vi.V1cGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
-	pout := vi.V1.NewMaxPool(v1out, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	pout := vi.V1.NewMaxPool(v1out, nang, &vi.V1cGeom)
 	vi.v1cPoolIdx = pout
-
-	mpout := vi.V1.NewMaxPolarity(v1out, vi.V1sGabor.NAngles, &vi.V1sGeom)
+	mpout := vi.V1.NewMaxPolarity(v1out, nang, &vi.V1sGeom)
 	vi.v1cMaxPolIdx = mpout
-
-	pmpout := vi.V1.NewMaxPool(mpout, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	pmpout := vi.V1.NewMaxPool(mpout, nang, &vi.V1cGeom)
 	vi.v1cPolPoolIdx = pmpout
-
-	lsout := vi.V1.NewLenSum4(pmpout, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	lsout := vi.V1.NewLenSum4(pmpout, nang, &vi.V1cGeom)
 	vi.v1cLenSumIdx = lsout
-
-	esout := vi.V1.NewEndStop4(pmpout, lsout, vi.V1sGabor.NAngles, &vi.V1cGeom)
+	esout := vi.V1.NewEndStop4(pmpout, lsout, nang, &vi.V1cGeom)
 	vi.v1cEndStopIdx = esout
+
+	// To4D
+	out4 := vi.V1.NewValues4D(int(vi.V1cGeom.Out.Y), int(vi.V1cGeom.Out.X), 5, nang)
+	vi.V1.NewTo4D(lsout, out4, 1, nang, 0, &vi.V1cGeom)
+	vi.V1.NewTo4D(esout, out4, 2, nang, 1, &vi.V1cGeom)
+	vi.V1.NewTo4D(pout, out4, 2, nang, 3, &vi.V1cGeom)
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
+
 }
 
 func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x, pol int32) {
 	out := vi.V1.Values.SubSpace(idx).(*tensor.Float32)
-	tsr.SetShapeSizes(int(y), int(x), int(pol), int(vi.V1sGabor.NAngles))
+	tsr.SetShapeSizes(int(y), int(x), int(pol), vi.V1sGabor.NAngles)
 	tensor.CopyFromLargerShape(tsr, out)
 }
 
@@ -207,18 +212,18 @@ func (vi *Vis) Filter() error { //types:add
 	tmr.Start()
 	for range 1000 {
 		vi.V1.Run()
-		// vi.V1.Run(v1vision.ValuesVar) // this is slower due to sync issues.
+		// vi.V1.Run(v1vision.Values4DVar) // this is sig slower due to sync issues.
 		// for timing test, run without sync and assume it gets sig better.
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
 	// With 10 Iters on KWTA, on MacBookPro M3Pro:
-	// 128 image: Orig: 2.03, CPU: 1.97, GPU: 625ms
-	// 256 image: CPU: 4.5, GPU: 717ms (935ms with 2 step kwtalayer)
-	// 512 image: CPU: 13.8s, GPU: 1.04s (1.3s with 2 step kwtalayer)
+	// 128 image: Orig: 2.03, CPU: 2s, GPU: 870ms
+	// 256 image: CPU: 4.7s, GPU: 913ms
+	// 512 image: CPU: 14.1s, GPU: 1.23s (7.6s with Values4D sync)
 	// note: not sending image at start is the same!
 
-	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
+	vi.V1.Run(v1vision.Values4DVar, v1vision.ValuesVar, v1vision.ImagesVar)
 
 	vi.getTsr(vi.v1sOutIdx, &vi.V1sTsr, vi.V1sGeom.Out.Y, vi.V1sGeom.Out.X, 2)
 
@@ -229,8 +234,8 @@ func (vi *Vis) Filter() error { //types:add
 	vi.getTsrOpt(vi.v1cLenSumIdx, &vi.V1cLenSumTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 1)
 	vi.getTsrOpt(vi.v1cEndStopIdx, &vi.V1cEndStopTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 2)
 
-	// vi.V1Complex()
-	// vi.V1All()
+	vi.V1AllTsr = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
+
 	// vi.ImageFromV1Simple()
 	return nil
 }
@@ -302,6 +307,9 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	vi.tabView = tb
 	tf, _ := tb.NewTab("Image")
 	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
+	tf, _ = tb.NewTab("V1All")
+	tensorcore.NewTensorGrid(tf).SetTensor(vi.V1AllTsr)
+
 	tf, _ = tb.NewTab("V1s")
 	tensorcore.NewTensorGrid(tf).SetTensor(&vi.V1sTsr)
 	tf, _ = tb.NewTab("V1sKWTA")

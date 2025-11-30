@@ -43,19 +43,22 @@ func (vv *V1Vision) NewMaxPolarity(in, fn int, geom *Geom) int {
 
 // MaxPool is kernel.
 func (op *Op) MaxPool(i uint32) {
+	szX := op.Geom.Out.X
+	fY := op.Geom.FilterSz.Y
+	fX := op.Geom.FilterSz.X
 	fi := int32(i) % op.FilterN // inner
 	pii := int32(i) / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
-	yo := ii / op.Geom.Out.X
-	xo := ii % op.Geom.Out.X
+	yo := ii / szX
+	xo := ii % szX
 
 	iy := yo * op.Geom.Spacing.Y
 	ix := xo * op.Geom.Spacing.X
 
 	mx := float32(0)
-	for py := range op.Geom.FilterSz.Y {
-		for px := range op.Geom.FilterSz.X {
+	for py := range fY {
+		for px := range fX {
 			iv := Values.Value(int(op.InValue), int(iy+py), int(ix+px), int(pi), int(fi))
 			if iv > mx {
 				mx = iv
@@ -67,10 +70,11 @@ func (op *Op) MaxPool(i uint32) {
 
 // MaxPolarity is kernel.
 func (op *Op) MaxPolarity(i uint32) {
+	szX := op.Geom.Out.X
 	fi := int32(i) % op.FilterN // inner
 	ii := int32(i) / op.FilterN
-	yo := ii / op.Geom.Out.X
-	xo := ii % op.Geom.Out.X
+	yo := ii / szX
+	xo := ii % szX
 
 	mx := float32(0)
 	for pi := range 2 {

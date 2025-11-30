@@ -14,6 +14,8 @@ var<storage, read> Filters: array<f32>;
 var<storage, read_write> Images: array<f32>;
 @group(2) @binding(1)
 var<storage, read_write> Values: array<f32>;
+@group(2) @binding(2)
+var<storage, read_write> Values4D: array<f32>;
 @group(2) @binding(3)
 var<storage, read_write> Scalars: array<f32>;
 
@@ -190,7 +192,7 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 17;
+const OperationsN: Operations = 18;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -379,17 +381,20 @@ struct Vector2i {
 
 //////// import: "maxpool.go"
 fn Op_MaxPool(op: Op, i: u32) {
+	var szX = op.Geom.Out.x;
+	var fY = op.Geom.FilterSz.y;
+	var fX = op.Geom.FilterSz.x;
 	var fi = i32(i) % op.FilterN; // inner
 	var pii = i32(i) / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
-	var yo = ii / op.Geom.Out.x;
-	var xo = ii % op.Geom.Out.x;
+	var yo = ii / szX;
+	var xo = ii % szX;
 	var iy = yo * op.Geom.Spacing.y;
 	var ix = xo * op.Geom.Spacing.x;
 	var mx = f32(0);
-	for (var py=0; py<op.Geom.FilterSz.y; py++) {
-		for (var px=0; px<op.Geom.FilterSz.x; px++) {
+	for (var py=0; py<fY; py++) {
+		for (var px=0; px<fX; px++) {
 			var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(iy + py), u32(ix + px), u32(pi), u32(fi))];
 			if (iv > mx) {
 				mx = iv;
@@ -400,10 +405,11 @@ fn Op_MaxPool(op: Op, i: u32) {
 	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = mx;
 }
 fn Op_MaxPolarity(op: Op, i: u32) {
+	var szX = op.Geom.Out.x;
 	var fi = i32(i) % op.FilterN; // inner
 	var ii = i32(i) / op.FilterN;
-	var yo = ii / op.Geom.Out.x;
-	var xo = ii % op.Geom.Out.x;
+	var yo = ii / szX;
+	var xo = ii % szX;
 	var mx = f32(0);
 	for (var pi=0; pi<2; pi++) {
 		var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
@@ -517,9 +523,10 @@ const  MaxPool: Operations = 10;
 const  MaxPolarity: Operations = 11;
 const  LenSum4: Operations = 12;
 const  EndStop4: Operations = 13;
-const  MotionIntegrate: Operations = 14;
-const  MotionStar: Operations = 15;
-const  MotionFullField: Operations = 16;
+const  To4D: Operations = 14;
+const  MotionIntegrate: Operations = 15;
+const  MotionStar: Operations = 16;
+const  MotionFullField: Operations = 17;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -572,6 +579,9 @@ fn Op_Run(op: Op, i: u32) {
 	case EndStop4: {
 		Op_EndStop4(op, i);
 	}
+	case To4D: {
+		Op_To4D(op, i);
+	}
 	case MotionIntegrate: {
 		Op_MotionIntegrate(op, i);
 	}
@@ -591,3 +601,19 @@ fn DoCurOp(i: u32) { //gosl:kernel
 }
 
 //////// import: "scalar.go"
+
+//////// import: "to4d.go"
+fn Op_To4D(op: Op, i: u32) {
+	var fY = op.Geom.FilterSz.y;
+	var fX = op.Geom.FilterSz.x;
+	var szX = op.Geom.Out.x;
+	var fi = i32(i) % fX;
+	var pii = i32(i) / fX;
+	var pi = pii % fY; // polarity
+	var ii = pii / fY;
+	var yo = ii / szX;
+	var xo = ii % szX;
+	var toY = op.IntArg1;
+	var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
+	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(toY + pi), u32(fi))] = iv;
+}

@@ -70,6 +70,10 @@ const (
 	// angle at the end of a length-sum line. Only for the 4 angles case.
 	EndStop4
 
+	// To4D copies from Values to Values4D for aggregating final results
+	// across multiple feature dimensions (e.g., for assembling full V1 complex).
+	To4D
+
 	// MotionIntegrate does fast and slow motion integration from
 	// values to values: InValue -> OutValue (should be different)
 	MotionIntegrate
@@ -177,6 +181,8 @@ func (op *Op) Run(i uint32) {
 		op.LenSum4(i)
 	case EndStop4:
 		op.EndStop4(i)
+	case To4D:
+		op.To4D(i)
 	case MotionIntegrate:
 		op.MotionIntegrate(i)
 	case MotionStar:

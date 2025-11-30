@@ -33,7 +33,7 @@ fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u3
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 17;
+const OperationsN: Operations = 18;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -157,9 +157,10 @@ const  MaxPool: Operations = 10;
 const  MaxPolarity: Operations = 11;
 const  LenSum4: Operations = 12;
 const  EndStop4: Operations = 13;
-const  MotionIntegrate: Operations = 14;
-const  MotionStar: Operations = 15;
-const  MotionFullField: Operations = 16;
+const  To4D: Operations = 14;
+const  MotionIntegrate: Operations = 15;
+const  MotionStar: Operations = 16;
+const  MotionFullField: Operations = 17;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -202,3 +203,5 @@ fn MaxScalarX(i: u32) { //gosl:kernel
 	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22],
 	TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(i), u32(0), u32(0), u32(0))] = mx;
 }
+
+//////// import: "to4d.go"

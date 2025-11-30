@@ -39,7 +39,7 @@ fn Index1D(s0: u32, i0: u32) -> u32 {
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 17;
+const OperationsN: Operations = 18;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -181,9 +181,10 @@ const  MaxPool: Operations = 10;
 const  MaxPolarity: Operations = 11;
 const  LenSum4: Operations = 12;
 const  EndStop4: Operations = 13;
-const  MotionIntegrate: Operations = 14;
-const  MotionStar: Operations = 15;
-const  MotionFullField: Operations = 16;
+const  To4D: Operations = 14;
+const  MotionIntegrate: Operations = 15;
+const  MotionStar: Operations = 16;
+const  MotionFullField: Operations = 17;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -209,3 +210,5 @@ struct Op {
 }
 
 //////// import: "scalar.go"
+
+//////// import: "to4d.go"

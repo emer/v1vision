@@ -95,6 +95,7 @@ func GPUInit() {
 		pl.AddVarUsed(2, "Images")
 		pl.AddVarUsed(2, "Scalars")
 		pl.AddVarUsed(2, "Values")
+		pl.AddVarUsed(2, "Values4D")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAInitLayer.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")

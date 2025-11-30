@@ -1,0 +1,72 @@
+// Copyright (c) 2025, The Emergent Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package v1vision
+
+import (
+	"cogentcore.org/lab/tensor"
+)
+
+// NewTo4D adds a [To4D] operation, from in value -> out values4D.
+// pn is number of polarities (1 or 2),
+// fn is number of filters (innermost values dimension),
+// toY is starting inner Y dimension offset in Values4D to copy to.
+// Values4D must be allocated in advance.
+// geom.Out is outer pool sizes to copy from.
+// sets geom.FilterSz to X = fn, Y = pn.
+func (vv *V1Vision) NewTo4D(in, out, pn, fn, toY int, geom *Geom) int {
+	op := vv.NewOp()
+	op.Op = To4D
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * int32(pn))
+	op.InValue = int32(in)
+	op.OutValue4D = int32(out)
+	op.IntArg1 = int32(toY)
+	op.Geom = *geom
+	op.Geom.FilterSz.X = int32(fn)
+	op.Geom.FilterSz.Y = int32(pn)
+	return out
+}
+
+//gosl:start
+
+// To4D is kernel.
+func (op *Op) To4D(i uint32) {
+	fY := op.Geom.FilterSz.Y
+	fX := op.Geom.FilterSz.X
+	szX := op.Geom.Out.X
+	
+	fi := int32(i) % fX
+	pii := int32(i) / fX
+	pi := pii % fY // polarity
+	ii := pii / fY
+	yo := ii / szX
+	xo := ii % szX
+
+	toY := op.IntArg1
+
+	iv := Values[op.InValue, yo, xo, pi, fi]
+	Values4D[op.OutValue4D, yo, xo, toY+pi, fi] = iv
+}
+
+//gosl:end
+
+// OuterAgg does simple aggregation of outer-most dimension from tensor
+// into another 4D tensor, with Y, X as outer-most two dimensions,
+// starting at given inner-most feature offset, and inner row-wise offset.
+// inner row-wise dimension maps the outer-most dimension of source tensor.
+// no bounds checking is done on output so it will just fail if
+// there isn't enough room -- allocate the output size before calling!
+func OuterAgg(innerPos, rowOff int, src, out *tensor.Float32) {
+	nout := src.DimSize(0)
+	ny := src.DimSize(1)
+	nx := src.DimSize(2)
+	for y := 0; y < ny; y++ {
+		for x := 0; x < nx; x++ {
+			for f := 0; f < nout; f++ {
+				sv := src.Value(f, y, x)
+				out.Set(sv, y, x, rowOff+f, innerPos)
+			}
+		}
+	}
+}
