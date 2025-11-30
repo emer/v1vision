@@ -125,13 +125,14 @@ fn MotionFullFieldX(i: u32) { //gosl:kernel
 	if (i >= op.RunN) {
 		return;
 	}
+	var szX = op.Geom.Out.x - 1;
 	var fno = op.FilterN; // original features
 	var dir = i32(i) % 2;
 	var yo = i32(i) / 2;
 	var doff = dir * 2;
 	var csum = f32(0);
 	var nsum = f32(0);
-	for (var xo=0; xo<op.Geom.Out.x - 1; xo++) {
+	for (var xo=0; xo<szX; xo++) {
 		for (var pi=0; pi<2; pi++) { // pos / neg
 			for (var fi=0; fi<fno; fi++) { // original features
 				var dfo = fi*4 + doff;

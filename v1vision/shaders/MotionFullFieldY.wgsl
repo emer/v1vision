@@ -131,11 +131,12 @@ fn MotionFullFieldY(i: u32) { //gosl:kernel
 		return;
 	}
 	let op = CurOp[0];
+	var szY = op.Geom.Out.y - 1;
 	var dir = i32(i);
 	var doff = dir * 2;
 	var csum = f32(0);
 	var nsum = f32(0);
-	for (var y=0; y<op.Geom.Out.y - 1; y++) {
+	for (var y=0; y<szY; y++) {
 		var c = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(doff))];
 		var n = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(doff + 1))];
 		csum += c;

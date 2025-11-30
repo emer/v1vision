@@ -80,6 +80,8 @@ func (vi *Vis) Defaults() {
 	// any further border sizes on same image need to add Geom.FilterRt!
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 	vi.ImageSize = image.Point{128, 128}
+	// vi.ImageSize = image.Point{256, 256}
+	// vi.ImageSize = image.Point{512, 512}
 	vi.Geom.SetImageSize(vi.ImageSize)
 }
 
@@ -128,18 +130,23 @@ func (vi *Vis) Filter() error { //types:add
 	tmr := timer.Time{}
 	tmr.Start()
 	for range 1000 {
+		vi.V1.Run()
+		// vi.V1.Run(v1vision.ValuesVar)
 		// note: the read sync operation is currently very slow!
 		// this needs to be sped up significantly! hopefully with the
 		// fix that they are doing for the firefox issue.
 		// https://bugzilla.mozilla.org/show_bug.cgi?id=1870699
-		vi.V1.Run(v1vision.ValuesVar)
-		out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
-		vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
-		vi.OutTsr.CopyFrom(out)
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
+	// image = 128: CPU = 333ms, GPU = 198ms
+	// image = 256: CPU = 873ms, GPU = 313ms
+	// image = 512: CPU = 2.6s,  GPU = 878ms
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
+	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
+	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
+	vi.OutTsr.CopyFrom(out)
+
 	return nil
 }
 

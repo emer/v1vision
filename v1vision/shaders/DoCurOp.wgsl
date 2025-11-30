@@ -49,7 +49,7 @@ fn Op_LenSum4(op: Op, i: u32) {
 	var ang = i32(i) % op.FilterN; // inner
 	var ii = i32(i) / op.FilterN;
 	var yo = ii / szX;
-	var xo = ii % szY;
+	var xo = ii % szX;
 	var ox: i32;
 	var oy: i32;
 	LenSumOffsets(ang, &ox, &oy);
@@ -446,12 +446,13 @@ fn Op_MotionIntegrate(op: Op, i: u32) {
 	TensorStrides[24], u32(op.OutValue + 1), u32(yo), u32(xo), u32(pi), u32(fi))] = s;
 }
 fn Op_MotionStar(op: Op, i: u32) {
+	var szX = op.Geom.Out.x - 1;
 	var fi = i32(i) % op.FilterN; // FilterN = orig fn * 2
 	var pii = i32(i) / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
-	var yo = ii / (op.Geom.Out.x - 1);
-	var xo = ii % (op.Geom.Out.x - 1);
+	var yo = ii / szX;
+	var xo = ii % szX;
 	var fio = fi / 2; // original feature
 	var dir = fi % 2; // direction: left-right, down-up
 	var doff = fio*4 + dir*2;

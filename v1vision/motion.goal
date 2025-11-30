@@ -96,12 +96,13 @@ func (op *Op) MotionIntegrate(i uint32) {
 
 // MotionStar is the kernel.
 func (op *Op) MotionStar(i uint32) {
+	szX := op.Geom.Out.X - 1
 	fi := int32(i) % op.FilterN // FilterN = orig fn * 2
 	pii := int32(i) / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
-	yo := ii / (op.Geom.Out.X - 1)
-	xo := ii % (op.Geom.Out.X - 1)
+	yo := ii / szX
+	xo := ii % szX
 
 	fio := fi / 2 // original feature
 	dir := fi % 2 // direction: left-right, down-up
@@ -137,6 +138,7 @@ func MotionFullFieldX(i uint32) { //gosl:kernel
 	if i >= op.RunN {
 		return
 	}
+	szX := op.Geom.Out.X - 1
 	fno := op.FilterN // original features
 	dir := int32(i) % 2 
 	yo := int32(i) / 2
@@ -144,7 +146,7 @@ func MotionFullFieldX(i uint32) { //gosl:kernel
 	
 	csum := float32(0)
 	nsum := float32(0)
-	for xo := range op.Geom.Out.X-1 {
+	for xo := range szX {
 		for pi := range 2 { // pos / neg
 			for fi := range fno { // original features
 				dfo := fi * 4 + doff
@@ -169,11 +171,12 @@ func MotionFullFieldY(i uint32) { //gosl:kernel
 		return
 	}
 	op := GetCurOp(0)
+	szY := op.Geom.Out.Y-1
 	dir := int32(i)
 	doff := dir * 2
 	csum := float32(0)
 	nsum := float32(0)
-	for y := range op.Geom.Out.Y-1 {
+	for y := range szY {
 		c := Values[op.OutValue, y, 0, 0, doff]
 		n := Values[op.OutValue, y, 0, 0, doff+1]
 		csum += c

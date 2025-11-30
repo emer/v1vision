@@ -52,7 +52,7 @@ func (op *Op) LenSum4(i uint32) {
 	ang := int32(i) % op.FilterN // inner
 	ii := int32(i) / op.FilterN
 	yo := ii / szX
-	xo := ii % szY
+	xo := ii % szX
 
 	var ox, oy int32
 	LenSumOffsets(ang, &ox, &oy)
