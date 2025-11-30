@@ -60,7 +60,7 @@ func (gf *Filter) Defaults() {
 	gf.Gain = 8
 	gf.OnGain = 1
 	gf.Size = 12
-	gf.Spacing = 2
+	gf.Spacing = 4
 	gf.OnSig = 0.125
 	gf.OffSig = 0.25
 	gf.CircleEdge = true

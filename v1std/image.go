@@ -14,6 +14,8 @@ import (
 	"github.com/emer/v1vision/v1vision"
 )
 
+//go:generate core generate -add-types
+
 // Image manages conversion of a bitmap image into tensor formats for
 // subsequent processing by filters.
 type Image struct {

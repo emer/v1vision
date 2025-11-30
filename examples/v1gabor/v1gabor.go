@@ -24,6 +24,7 @@ import (
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/gabor"
 	"github.com/emer/v1vision/kwta"
+	"github.com/emer/v1vision/v1std"
 	"github.com/emer/v1vision/v1vision"
 )
 
@@ -68,7 +69,7 @@ type Vis struct { //types:add
 	V1sGaborTsr tensor.Float32 `display:"no-inline"`
 
 	// V1 simple gabor filter table (view only)
-	V1sGaborTab table.Table `display:"no-inline"`
+	V1sGaborTable table.Table `display:"no-inline"`
 
 	// current input image
 	Image image.Image `display:"-"`
@@ -104,9 +105,15 @@ type Vis struct { //types:add
 	// then length sum, end stop = 5 rows total
 	V1AllTsr *tensor.Float32 `display:"no-inline"`
 
+	// V1cGrey is an encapsulated version of this functionality,
+	// which we test here for comparison.
+	V1cGrey v1std.V1cGrey
+
+	// StdImage manages images for V1cGrey
+	StdImage v1std.Image
+
 	// V1 complex gabor filter output, un-max-pooled 2x2 of V1cPool tensor
 	V1cUnPoolTsr tensor.Float32 `display:"no-inline"`
-
 	// input image reconstructed from V1s tensor
 	ImageFromV1sTsr tensor.Float32 `display:"no-inline"`
 
@@ -134,13 +141,15 @@ func (vi *Vis) Defaults() {
 	vi.V1sKWTA.Defaults()
 	// vi.V1sKWTA.Layer.On.SetBool(true)
 	// vi.V1sKWTA.Pool.On.SetBool(false)
+
+	vi.V1cGrey.Defaults()
+	vi.StdImage.Defaults()
 }
 
 // Config sets up the V1 processing pipeline.
 func (vi *Vis) Config() {
 	vi.V1.Init()
-	kw := vi.V1.NewKWTAParams()
-	*kw = vi.V1sKWTA
+	*vi.V1.NewKWTAParams() = vi.V1sKWTA
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
@@ -185,6 +194,7 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
+	vi.V1cGrey.Config(vi.StdImage.Size)
 }
 
 func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x, pol int32) {
@@ -203,6 +213,7 @@ func (vi *Vis) getTsrOpt(idx int, tsr *tensor.Float32, y, x, pol int32) {
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters
 func (vi *Vis) Filter() error { //types:add
+	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
 	err := vi.OpenImage(string(vi.ImageFile))
 	if err != nil {
@@ -238,6 +249,9 @@ func (vi *Vis) Filter() error { //types:add
 
 	// vi.ImageFromV1Simple()
 
+	vi.StdImage.SetImageGrey(&vi.V1cGrey.V1, vi.Image, int(vi.V1cGrey.V1sGeom.Border.X))
+	vi.V1cGrey.Run()
+
 	if vi.tabView != nil {
 		vi.tabView.Update()
 	}
@@ -257,8 +271,7 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImageSize {
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
-	img := vi.ImageTsr.SubSpace(0).(*tensor.Float32)
-	v1vision.RGBToGrey(vi.Image, img, int(vi.V1sGeom.FilterRt.X), v1vision.BottomZero)
+	v1vision.RGBToGrey(vi.Image, vi.ImageTsr, int(vi.V1sGeom.FilterRt.X), v1vision.BottomZero)
 	return nil
 }
 
@@ -274,8 +287,8 @@ func (vi *Vis) ImageFromV1Simple() {
 }
 
 func (vi *Vis) ConfigGUI() *core.Body {
-	vi.V1sGaborTab.Init()
-	// vi.V1sGabor.ToTable(&vi.V1sGaborTab) // note: view only, testing
+	vi.V1sGaborTable.Init()
+	vi.V1sGabor.ToTable(&vi.V1sGaborTable) // note: view only, testing
 	tensorcore.AddGridStylerTo(vi.ImageTsr, func(s *tensorcore.GridStyle) {
 		s.Image = true
 		s.Range.SetMin(0)
@@ -284,7 +297,7 @@ func (vi *Vis) ConfigGUI() *core.Body {
 		s.Image = true
 		s.Range.SetMin(0)
 	})
-	tensorcore.AddGridStylerTo(&vi.V1sGaborTab, func(s *tensorcore.GridStyle) {
+	tensorcore.AddGridStylerTo(&vi.V1sGaborTable, func(s *tensorcore.GridStyle) {
 		s.Size.Min = 16
 		s.Range.Set(-0.05, 0.05)
 	})

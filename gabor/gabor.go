@@ -158,9 +158,10 @@ func (gf *Filter) ToTensor(tsr *tensor.Float32) {
 // This is useful for display and validation purposes.
 func (gf *Filter) ToTable(tab *table.Table) {
 	tab.AddFloat32Column("Angle")
-	tab.AddFloat32Column("Filter", gf.NAngles, gf.Size, gf.Size)
+	tab.AddFloat32Column("Filter", gf.Size, gf.Size)
 	tab.SetNumRows(gf.NAngles)
-	gf.ToTensor(tab.Columns.Values[1].(*tensor.Float32))
+	cl := tab.Columns.Values[1].(*tensor.Float32)
+	gf.ToTensor(cl)
 	angInc := math.Pi / float32(gf.NAngles)
 	for ang := 0; ang < gf.NAngles; ang++ {
 		angf := math32.RadToDeg(-float32(ang) * angInc)
