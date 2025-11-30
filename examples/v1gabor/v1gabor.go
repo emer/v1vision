@@ -237,6 +237,11 @@ func (vi *Vis) Filter() error { //types:add
 	vi.V1AllTsr = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 
 	// vi.ImageFromV1Simple()
+
+	if vi.tabView != nil {
+		vi.tabView.Update()
+	}
+
 	return nil
 }
 
@@ -266,22 +271,6 @@ func (vi *Vis) ImageFromV1Simple() {
 	// v1vision.UnPool(math32.Vec2(2, 2), math32.Vec2(2, 2), &vi.V1sUnPoolTsr, &vi.V1sPoolTsr, true)
 	// v1vision.Deconv(&vi.V1sGeom, &vi.V1sGaborTsr, &vi.ImageFromV1sTsr, &vi.V1sUnPoolTsr, vi.V1sGabor.Gain)
 	// stats.UnitNormOut(&vi.ImageFromV1sTsr, &vi.ImageFromV1sTsr)
-}
-
-// V1All aggregates all the relevant simple and complex features
-// into the V1AllTsr which is used for input to a network
-func (vi *Vis) V1All() {
-	// ny := vi.V1sPoolTsr.DimSize(0)
-	// nx := vi.V1sPoolTsr.DimSize(1)
-	// nang := vi.V1sPoolTsr.DimSize(3)
-	// nrows := 5
-	// vi.V1AllTsr.SetShapeSizes(ny, nx, nrows, nang)
-	// // 1 length-sum
-	// v1vision.FeatAgg([]int{0}, 0, &vi.V1cLenSumTsr, &vi.V1AllTsr)
-	// // 2 end-stop
-	// v1vision.FeatAgg([]int{0, 1}, 1, &vi.V1cEndStopTsr, &vi.V1AllTsr)
-	// // 2 pooled simple cell
-	// v1vision.FeatAgg([]int{0, 1}, 3, &vi.V1sPoolTsr, &vi.V1AllTsr)
 }
 
 func (vi *Vis) ConfigGUI() *core.Body {
