@@ -6,6 +6,8 @@ package fffb
 
 import "cogentcore.org/lab/gosl/slbool"
 
+//go:generate core generate -add-types -gosl
+
 //gosl:start
 
 // FFFB parameterizes feedforward (FF) and feedback (FB) inhibition (FFFB)
@@ -85,8 +87,8 @@ func (fb *FFFB) ShouldDisplay(field string) bool {
 	}
 }
 
-// FFInhib returns the feedforward inhibition value based on average and max excitatory conductance within
-// relevant scope
+// FFInhib returns the feedforward inhibition value based on
+// average and max excitatory conductance within relevant scope.
 func (fb *FFFB) FFInhib(avgGe, maxGe float32) float32 {
 	ffNetin := avgGe + fb.MaxVsAvg*(maxGe-avgGe)
 	var ffi float32
@@ -109,22 +111,3 @@ func (fb *FFFB) FBUpdt(fbi float32, newFbi float32) float32 {
 }
 
 //gosl:end
-
-// Inhib is full inhibition computation for given inhib state, which must have
-// the Ge and Act values updated to reflect the current Avg and Max of those
-// values in relevant inhibitory pool.
-// func (fb *FFFB) Inhib(inhib *Inhib, y, x int) {
-// 	if !fb.On {
-// 		InhibZero(inhib, y, x)
-// 		return
-// 	}
-//
-// 	ffi := fb.FFInhib(inh.Ge.Avg, inh.Ge.Max)
-// 	fbi := fb.FBInhib(inh.Act.Avg)
-//
-// 	inh.FFi = ffi
-// 	fb.FBUpdt(&inh.FBi, fbi)
-//
-// 	inh.Gi = fb.Gi * (ffi + inh.FBi)
-// 	inh.GiOrig = inh.Gi
-// }
