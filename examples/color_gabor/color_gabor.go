@@ -116,10 +116,11 @@ type Vis struct { //types:add
 	// V1 complex end stop filter output tensor
 	V1cEndStopTsr tensor.Float32 `display:"no-inline"`
 
-	// Combined V1 output 4D tensor with 5 inner rows:
-	// 1 length-sum, 2 directions of end-stop, and 2 polarities
-	// of V1simple from V1cPoolTsr or from each LMS opponent channel
-	// for SplitColor.
+	// Output has the resulting V1c filter outputs, pointing to Values4D in V1.
+	// Inner Y, X dimensions are 5 x 4, where the 4 are the gabor angles
+	// (0, 45, 90, 135) and the 5 are: 1 length-sum, 2 directions of end-stop,
+	// and 2 polarities of V1simple, or 6 with 3 from each LMS opponent channel
+	// for SplitColor (9 x 4)
 	V1AllTsr *tensor.Float32 `display:"no-inline"`
 
 	// V1cGrey is an encapsulated version of this functionality,
@@ -144,8 +145,9 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = false
+	vi.GPU = true
 	vi.ColorGain = 8
+	vi.SplitColor = true
 	vi.ImageFile = core.Filename("car_004_00001.png")
 	vi.V1sGabor.Defaults()
 	sz := 12 // V1mF16 typically = 12, no border
@@ -169,6 +171,8 @@ func (vi *Vis) Defaults() {
 func (vi *Vis) Config() {
 	vi.V1.Init()
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
+	kwtaIdx := 0
+	_ = kwtaIdx
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	lms := vi.V1.NewImage(vi.V1sGeom.In.V())
@@ -183,6 +187,7 @@ func (vi *Vis) Config() {
 	// V1s simple
 	ftyp := vi.V1.NewFilter(nang, vi.V1sGabor.Size, vi.V1sGabor.Size)
 	vi.V1.GaborToFilter(ftyp, &vi.V1sGabor)
+	inh := vi.V1.NewInhibs(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X))
 	for irgb := range 3 {
 		out := vi.V1.NewConvolveImage(lms, irgb, ftyp, nang, vi.V1sGabor.Gain, &vi.V1sGeom)
 		v1out := out
@@ -191,21 +196,21 @@ func (vi *Vis) Config() {
 			if vi.V1sNeighInhib.On {
 				ninh = vi.V1.NewNeighInhib4(out, nang, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 			}
-			v1out = vi.V1.NewKWTA(out, ninh, nang, 0, &vi.V1sGeom)
+			v1out = vi.V1.NewKWTA(out, ninh, nang, kwtaIdx, inh, &vi.V1sGeom)
 		}
 		vi.v1sIdxs[irgb] = v1out
 	}
 	mcout := vi.V1.NewValues(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X), nang)
 	vi.v1sMaxIdx = mcout
 	vi.V1.NewMaxCopy(vi.v1sIdxs[0], vi.v1sIdxs[1], mcout, nang, &vi.V1sGeom)
-	// vi.V1.NewMaxCopy(vi.v1sIdxs[2], mcout, mcout, nang, &vi.V1sGeom)
+	vi.V1.NewMaxCopy(vi.v1sIdxs[2], mcout, mcout, nang, &vi.V1sGeom)
 
 	// V1c complex
 	vi.V1cGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
 
 	mpout := vi.V1.NewMaxPolarity(mcout, nang, &vi.V1sGeom)
 	vi.v1cMaxPolIdx = mpout
-	pmpout := vi.V1.NewMaxPool(mpout, nang, &vi.V1cGeom)
+	pmpout := vi.V1.NewMaxPool(mpout, 1, nang, &vi.V1cGeom)
 	vi.v1cPolPoolIdx = pmpout
 	lsout := vi.V1.NewLenSum4(pmpout, nang, &vi.V1cGeom)
 	vi.v1cLenSumIdx = lsout
@@ -213,9 +218,9 @@ func (vi *Vis) Config() {
 	vi.v1cEndStopIdx = esout
 
 	if vi.SplitColor {
-		poutg := vi.V1.NewMaxPool(vi.v1sIdxs[0], nang, &vi.V1cGeom)
-		poutrg := vi.V1.NewMaxPool(vi.v1sIdxs[1], nang, &vi.V1cGeom)
-		poutby := vi.V1.NewMaxPool(vi.v1sIdxs[2], nang, &vi.V1cGeom)
+		poutg := vi.V1.NewMaxPool(vi.v1sIdxs[0], 2, nang, &vi.V1cGeom)
+		poutrg := vi.V1.NewMaxPool(vi.v1sIdxs[1], 2, nang, &vi.V1cGeom)
+		poutby := vi.V1.NewMaxPool(vi.v1sIdxs[2], 2, nang, &vi.V1cGeom)
 
 		// To4D
 		out4 := vi.V1.NewValues4D(int(vi.V1cGeom.Out.Y), int(vi.V1cGeom.Out.X), 9, nang)
@@ -225,7 +230,7 @@ func (vi *Vis) Config() {
 		vi.V1.NewTo4D(poutrg, out4, 2, nang, 5, &vi.V1cGeom)
 		vi.V1.NewTo4D(poutby, out4, 2, nang, 7, &vi.V1cGeom)
 	} else {
-		pout := vi.V1.NewMaxPool(vi.v1sMaxIdx, nang, &vi.V1cGeom)
+		pout := vi.V1.NewMaxPool(vi.v1sMaxIdx, 2, nang, &vi.V1cGeom)
 		out4 := vi.V1.NewValues4D(int(vi.V1cGeom.Out.Y), int(vi.V1cGeom.Out.X), 5, nang)
 		vi.V1.NewTo4D(lsout, out4, 1, nang, 0, &vi.V1cGeom)
 		vi.V1.NewTo4D(esout, out4, 2, nang, 1, &vi.V1cGeom)
@@ -256,6 +261,10 @@ func (vi *Vis) getTsrOpt(idx int, tsr *tensor.Float32, y, x, pol int32) {
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters
 func (vi *Vis) Filter() error { //types:add
+	// key point here: it is not re-sending the background guys
+	// so the other ones from v1c are interfering.
+	// need a set as current that also uploads backgrounds
+
 	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
 	err := vi.OpenImage(string(vi.ImageFile))
@@ -267,7 +276,7 @@ func (vi *Vis) Filter() error { //types:add
 
 	tmr := timer.Time{}
 	tmr.Start()
-	for range 1 {
+	for range 1000 {
 		vi.V1.Run()
 		// vi.V1.Run(v1vision.Values4DVar) // this is sig slower due to sync issues.
 		// for timing test, run without sync and assume it gets sig better.
@@ -275,9 +284,9 @@ func (vi *Vis) Filter() error { //types:add
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
 	// With 10 Iters on KWTA, on MacBookPro M3Pro:
-	// 128 image: Orig: 2.03, CPU: 2s, GPU: 870ms
-	// 256 image: CPU: 4.7s, GPU: 913ms
-	// 512 image: CPU: 14.1s, GPU: 1.23s (7.6s with Values4D sync)
+	// 128 image: CPU: 6.3s, GPU: 1.67s
+	// 256 image: CPU: 15.5s, GPU: 913ms
+	// 512 image: CPU: 49.2s, GPU: 3.5s (7.9s with Values4D sync)
 	// note: not sending image at start is the same!
 
 	vi.V1.Run(v1vision.Values4DVar, v1vision.ValuesVar, v1vision.ImagesVar)

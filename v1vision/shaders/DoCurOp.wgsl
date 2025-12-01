@@ -520,8 +520,8 @@ fn Op_MaxPool(op: Op, i: u32) {
 	var fX = op.Geom.FilterSz.x;
 	var fi = i32(i) % op.FilterN; // inner
 	var pii = i32(i) / op.FilterN;
-	var pi = pii % 2; // plus-minus
-	var ii = pii / 2;
+	var pi = pii % op.IntArg1; // plus-minus
+	var ii = pii / op.IntArg1;
 	var yo = ii / szX;
 	var xo = ii % szX;
 	var iy = yo * op.Geom.Spacing.y;

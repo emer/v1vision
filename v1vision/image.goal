@@ -315,7 +315,7 @@ func GreyTensorToImage(img *image.Gray, tsr *tensor.Float32, padWidth int, topZe
 // EdgeAvg returns the average value around the effective edge of RGB image
 // at padWidth in from each side
 func EdgeAvg(tsr *tensor.Float32, padWidth int) (r, g, b float32) {
-	sz := image.Point{tsr.DimSize(1), tsr.DimSize(2)}
+	sz := image.Point{tsr.DimSize(2), tsr.DimSize(1)}
 	esz := sz
 	esz.X -= 2 * padWidth
 	esz.Y -= 2 * padWidth

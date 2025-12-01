@@ -7,18 +7,20 @@
 package v1vision
 
 // NewMaxPool adds a [MaxPool] operation, from in value -> out values.
-// fn is number of filters (innermost values dimension).
+// fn is number of filters (innermost values dimension),
+// pn is number of polarities (1 or 2),
 // geom.In is the size of the input values, and geom.Out is the output,
 // where geom is: Out = (In / Spacing), and FilterSz <= Spacing.
 // (e.g., use geom.SetFilter). returns index of new output.
-func (vv *V1Vision) NewMaxPool(in, fn int, geom *Geom) int {
+func (vv *V1Vision) NewMaxPool(in, pn, fn int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = MaxPool
 	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
-	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * int32(pn))
 	op.InValue = int32(in)
 	op.OutValue = int32(out)
 	op.FilterN = int32(fn)
+	op.IntArg1 = int32(pn)
 	op.Geom = *geom
 	return out
 }
@@ -61,10 +63,11 @@ func (op *Op) MaxPool(i uint32) {
 	szX := op.Geom.Out.X
 	fY := op.Geom.FilterSz.Y
 	fX := op.Geom.FilterSz.X
+
 	fi := int32(i) % op.FilterN // inner
 	pii := int32(i) / op.FilterN
-	pi := pii % 2 // plus-minus
-	ii := pii / 2
+	pi := pii % op.IntArg1 // plus-minus
+	ii := pii / op.IntArg1
 	yo := ii / szX
 	xo := ii % szX
 

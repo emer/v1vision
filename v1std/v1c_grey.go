@@ -90,14 +90,15 @@ func (vi *V1cGrey) Config(imageSize image.Point) {
 		if vi.V1sNeighInhib.On {
 			ninh = vi.V1.NewNeighInhib4(out, nang, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 		}
-		v1out = vi.V1.NewKWTA(out, ninh, nang, 0, &vi.V1sGeom)
+		inh := vi.V1.NewInhibs(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X))
+		v1out = vi.V1.NewKWTA(out, ninh, nang, inh, 0, &vi.V1sGeom)
 	}
 
 	// V1c complex
 	vi.V1cGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
-	pout := vi.V1.NewMaxPool(v1out, nang, &vi.V1cGeom)
+	pout := vi.V1.NewMaxPool(v1out, 2, nang, &vi.V1cGeom)
 	mpout := vi.V1.NewMaxPolarity(v1out, nang, &vi.V1sGeom)
-	pmpout := vi.V1.NewMaxPool(mpout, nang, &vi.V1cGeom)
+	pmpout := vi.V1.NewMaxPool(mpout, 1, nang, &vi.V1cGeom)
 	lsout := vi.V1.NewLenSum4(pmpout, nang, &vi.V1cGeom)
 	esout := vi.V1.NewEndStop4(pmpout, lsout, nang, &vi.V1cGeom)
 

@@ -125,16 +125,21 @@ func (vv *V1Vision) NewFilter(filtN, y, x int) int {
 }
 
 // NewInhibs adds a new Inhibs of given pool sizes. returns index.
+// Allocates 1 larger than pool size, as is actually needed.
 func (vv *V1Vision) NewInhibs(py, px int) int {
 	sizes := vv.Inhibs.ShapeSizes()
 	n := sizes[0]
-	vv.Inhibs.SetShapeSizes(n+1, max(py, sizes[1]), max(px, sizes[2]), int(InhibVarsN))
+	vv.Inhibs.SetShapeSizes(n+1, max(py+1, sizes[1]), max(px+1, sizes[2]), int(InhibVarsN))
 	return n
 }
 
 // SetAsCurrent sets these as the current global values that are
-// processed in the code (on the GPU).
+// processed in the code (on the GPU). If this was not the setter of
+// the current variables, then the infrastructure variables are copied up
+// to the GPU. It is thus best to have everything in one configuration to
+// avoid switching costs.
 func (vv *V1Vision) SetAsCurrent() {
+	isCur := (Values == vv.Values)
 	CurOp = vv.CurOp
 	KWTAs = vv.KWTAs
 	Filters = vv.Filters
@@ -143,6 +148,10 @@ func (vv *V1Vision) SetAsCurrent() {
 	Values4D = vv.Values4D
 	Scalars = vv.Scalars
 	Inhibs = vv.Inhibs
+
+	if GPUInitialized && !isCur {
+		vv.ToGPUInfra()
+	}
 }
 
 // GPUInit initializes the GPU and transfers Ops and Filters.
@@ -150,6 +159,12 @@ func (vv *V1Vision) SetAsCurrent() {
 func (vv *V1Vision) GPUInit() {
 	GPUInit()
 	UseGPU = true
+	vv.ToGPUInfra()
+}
+
+// ToGPUInfra copies all the infrastructure for these filters up to
+// the GPU. This is done in GPUInit, and
+func (vv *V1Vision) ToGPUInfra() {
 	ToGPUTensorStrides()
 	ToGPU(CurOpVar, FiltersVar)
 	if len(vv.KWTAs) > 0 {
