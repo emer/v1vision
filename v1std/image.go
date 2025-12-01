@@ -10,7 +10,6 @@ import (
 	"cogentcore.org/lab/tensor"
 	"cogentcore.org/lab/tensorcore"
 	"github.com/anthonynsimon/bild/transform"
-	"github.com/emer/v1vision/colorspace"
 	"github.com/emer/v1vision/v1vision"
 )
 
@@ -65,10 +64,7 @@ func (vi *Image) GetTensor(v1 *v1vision.V1Vision, idx int) {
 func (vi *Image) SetImageRGB(v1 *v1vision.V1Vision, img image.Image, border int) {
 	vi.SetImageResize(img)
 	vi.GetTensor(v1, 0)
-	v1vision.RGBToTensor(vi.Image, vi.Tsr, border, false)
-	colorspace.RGBTensorToLMSComps(&vi.LMS, vi.Tsr) // todo: do on GPU
-	// LVis:
-	// v1vision.FadePadRGB(&vi.Tsr, filtsz)
+	v1vision.RGBToTensor(vi.Image, vi.Tsr, border, v1vision.BottomZero)
 }
 
 // SetImageGrey sets current image for processing

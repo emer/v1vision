@@ -9,20 +9,21 @@ import (
 	"github.com/emer/v1vision/dog"
 )
 
-// AddDoG adds given [dog.Filter] to Filters, returning the
+// NewDoG adds given [dog.Filter] to Filters, returning the
 // filter type index in Filters and the output values configured
 // for storing the output of running these filters, per the
 // given [Geom] output size. Adds a [ConvolveImage] operation
-// for this DoG filtering step, from given input image index.
-func (vv *V1Vision) AddDoG(in int, df *dog.Filter, geom *Geom) (ftyp, out int) {
+// for this DoG filtering step, from given input image index,
+// and irgb color channel (0-2).
+func (vv *V1Vision) NewDoG(in, irgb int, df *dog.Filter, geom *Geom) (ftyp, out int) {
 	ftyp = vv.NewFilter(1, df.Size, df.Size)
 	vv.DoGToFilter(ftyp, df)
-	out = vv.NewConvolveImage(in, 0, ftyp, 1, df.Gain, geom)
+	out = vv.NewConvolveImage(in, irgb, ftyp, 1, df.Gain, geom)
 	return
 }
 
 // DoGToFilter sets the given [dog.Filter] filter to given
-// filter type index. If more filters are added after AddDoG called
+// filter type index. If more filters are added after NewDoG called
 // then need to go back at the end and call all the ToFilter methods,
 // in case the filters tensor has been resized.
 func (vv *V1Vision) DoGToFilter(ftyp int, df *dog.Filter) {

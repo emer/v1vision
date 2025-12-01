@@ -39,6 +39,21 @@ func (vv *V1Vision) NewMaxPolarity(in, fn int, geom *Geom) int {
 	return out
 }
 
+// NewMaxCopy adds a [MaxCopy] operation, as max(in1, in2) values -> out values.
+// fn is number of filters (innermost values dimension).
+// geom.Out is the size of the input and output values.
+// Must create output in advance to support multi-max (max on prior max).
+func (vv *V1Vision) NewMaxCopy(in1, in2, out, fn int, geom *Geom) {
+	op := vv.NewOp()
+	op.Op = MaxCopy
+	op.RunN = uint32(geom.Out.Y * geom.Out.X * int32(fn) * 2)
+	op.InValue = int32(in1)
+	op.InValue2 = int32(in2)
+	op.OutValue = int32(out)
+	op.FilterN = int32(fn)
+	op.Geom = *geom
+}
+
 //gosl:start
 
 // MaxPool is kernel.
@@ -84,6 +99,21 @@ func (op *Op) MaxPolarity(i uint32) {
 		}
 	}
 	Values.Set(mx, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
+}
+
+// MaxCopy is kernel.
+func (op *Op) MaxCopy(i uint32) {
+	szX := op.Geom.Out.X
+	fi := int32(i) % op.FilterN // inner
+	pii := int32(i) / op.FilterN
+	pi := pii % 2 // plus-minus
+	ii := pii / 2
+	yo := ii / szX
+	xo := ii % szX
+
+	i1 := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
+	i2 := Values.Value(int(op.InValue2), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(max(i1, i2), int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
 }
 
 //gosl:end

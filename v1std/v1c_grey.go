@@ -47,7 +47,7 @@ type V1cGrey struct {
 
 	// Output has the resulting V1c filter outputs, pointing to Values4D in V1.
 	// Inner Y, X dimensions are 5 x 4, where the 4 are the gabor angles
-	// (0, 45, 90, 135) and the 5 are 1 length-sum, 2 directions of end-stop,
+	// (0, 45, 90, 135) and the 5 are: 1 length-sum, 2 directions of end-stop,
 	// and 2 polarities of V1simple.
 	Output *tensor.Float32 `display:"no-inline"`
 }
@@ -83,14 +83,14 @@ func (vi *V1cGrey) Config(imageSize image.Point) {
 	nang := vi.V1sGabor.NAngles
 
 	// V1s simple
-	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
+	_, out := vi.V1.NewGabor(wrap, 0, &vi.V1sGabor, &vi.V1sGeom)
 	v1out := out
 	if vi.V1sKWTA.On.IsTrue() {
 		ninh := 0
 		if vi.V1sNeighInhib.On {
 			ninh = vi.V1.NewNeighInhib4(out, nang, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 		}
-		v1out = vi.V1.NewKWTA(out, ninh, nang, &vi.V1sGeom)
+		v1out = vi.V1.NewKWTA(out, ninh, nang, 0, &vi.V1sGeom)
 	}
 
 	// V1c complex

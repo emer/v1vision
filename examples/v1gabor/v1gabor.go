@@ -101,8 +101,9 @@ type Vis struct { //types:add
 	// V1 complex end stop filter output tensor
 	V1cEndStopTsr tensor.Float32 `display:"no-inline"`
 
-	// Combined V1 output tensor with V1cPool as first two rows
-	// then length sum, end stop = 5 rows total
+	// Combined V1 output 4D tensor with 5 inner rows:
+	// 1 length-sum, 2 directions of end-stop, and 2 polarities of
+	// V1simple from V1cPoolTsr.
 	V1AllTsr *tensor.Float32 `display:"no-inline"`
 
 	// V1cGrey is an encapsulated version of this functionality,
@@ -158,7 +159,7 @@ func (vi *Vis) Config() {
 	nang := vi.V1sGabor.NAngles
 
 	// V1s simple
-	_, out := vi.V1.AddGabor(wrap, &vi.V1sGabor, &vi.V1sGeom)
+	_, out := vi.V1.NewGabor(wrap, 0, &vi.V1sGabor, &vi.V1sGeom)
 	v1out := out
 	vi.v1sOutIdx = out
 	if vi.V1sKWTA.On.IsTrue() {
@@ -166,7 +167,7 @@ func (vi *Vis) Config() {
 		if vi.V1sNeighInhib.On {
 			ninh = vi.V1.NewNeighInhib4(out, nang, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 		}
-		v1out = vi.V1.NewKWTA(out, ninh, nang, &vi.V1sGeom)
+		v1out = vi.V1.NewKWTA(out, ninh, nang, 0, &vi.V1sGeom)
 		vi.v1sKwtaIdx = v1out
 	}
 

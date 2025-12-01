@@ -61,7 +61,7 @@ func (vi *DoGGrey) Config(imageSize image.Point) {
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
-	_, out := vi.V1.AddDoG(wrap, &vi.DoG, &vi.Geom)
+	_, out := vi.V1.NewDoG(wrap, 0, &vi.DoG, &vi.Geom)
 	// _ = out
 	vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
 	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)
@@ -70,11 +70,6 @@ func (vi *DoGGrey) Config(imageSize image.Point) {
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
-}
-
-// SetImage sets current image for processing, using [Image].
-func (vi *DoGGrey) SetImage(im *Image, img image.Image) {
-
 }
 
 // RunImage runs the configured filtering pipeline.

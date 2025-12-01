@@ -9,20 +9,21 @@ import (
 	"github.com/emer/v1vision/gabor"
 )
 
-// AddGabor adds given [gabor.Filter] to Filters, returning the
+// NewGabor adds given [gabor.Filter] to Filters, returning the
 // filter type index in Filters and the output values configured
 // for storing the output of running these filters, per the
 // given [Geom] output size. Adds a [ConvolveImage] operation
-// for this Gabor filtering step, from given input image index.
-func (vv *V1Vision) AddGabor(in int, gf *gabor.Filter, geom *Geom) (ftyp, out int) {
+// for this Gabor filtering step, from given input image index,
+// and irgb color channel (0-2).
+func (vv *V1Vision) NewGabor(in, irgb int, gf *gabor.Filter, geom *Geom) (ftyp, out int) {
 	ftyp = vv.NewFilter(gf.NAngles, gf.Size, gf.Size)
 	vv.GaborToFilter(ftyp, gf)
-	out = vv.NewConvolveImage(in, 0, ftyp, gf.NAngles, gf.Gain, geom)
+	out = vv.NewConvolveImage(in, irgb, ftyp, gf.NAngles, gf.Gain, geom)
 	return
 }
 
 // GaborToFilter sets the given [gabor.Filter] filter to given
-// filter type index. If more filters are added after AddGabor called
+// filter type index. If more filters are added after NewGabor called
 // then need to go back at the end and call all the ToFilter methods,
 // in case the filters tensor has been resized.
 func (vv *V1Vision) GaborToFilter(ftyp int, gf *gabor.Filter) {

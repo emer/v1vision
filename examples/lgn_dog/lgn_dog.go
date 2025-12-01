@@ -105,7 +105,7 @@ func (vi *Vis) Config() {
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
-	_, out := vi.V1.AddDoG(wrap, &vi.DoG, &vi.Geom)
+	_, out := vi.V1.NewDoG(wrap, 0, &vi.DoG, &vi.Geom)
 	// _ = out
 	vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
 	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)

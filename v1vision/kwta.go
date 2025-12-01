@@ -48,7 +48,7 @@ func (vv *V1Vision) NewNeighInhibOutput(fn int, geom *Geom) int {
 // FilterSz is the inner Y,X dimensions.
 // Allocates a Inhibsto hold the inhibition compute values,
 // including an additional Y row for the layer-level values at the end.
-func (vv *V1Vision) NewKWTA(in, inExtGi, fn int, geom *Geom) int {
+func (vv *V1Vision) NewKWTA(in, inExtGi, fn, kwtaIdx int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = KWTAInhib
 	out := vv.NewValues(int(geom.Out.Y), int(geom.Out.X), fn)
@@ -59,6 +59,7 @@ func (vv *V1Vision) NewKWTA(in, inExtGi, fn int, geom *Geom) int {
 	op.OutValue = int32(out)
 	op.Inhibs = int32(inh)
 	op.FilterN = int32(fn)
+	op.KWTA = int32(kwtaIdx)
 	op.Geom = *geom
 	return out
 }

@@ -273,7 +273,7 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 20;
+const OperationsN: Operations = 21;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -366,10 +366,10 @@ fn Op_FadePad(op: Op, i: u32) {
 	}
 	var sx = x;
 	if (x < padWidth) {
-		p = f32(x) / f32(padWidth);
+		p = min(p, f32(x)/f32(padWidth));
 		sx = uX - (padWidth - x);
 	} else if (x >= uX) {
-		p = 1.0 - f32(x-uX)/f32(padWidth);
+		p = min(p, 1.0-f32(x-uX)/f32(padWidth));
 		sx = padWidth + (x - uX);
 	}
 	var pavg = (1.0 - p) * avg;
@@ -389,8 +389,8 @@ fn Op_LMSImage(op: Op, i: u32) {
 	var grey: f32;
 	SRGBToLMSOppos(r, g, b, &lvm, &svlm, &grey);
 	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(0), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = lvm;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = svlm;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = op.FloatArg1 * lvm;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = op.FloatArg1 * svlm;
 }
 
 //////// import: "inhib.go"
@@ -551,7 +551,20 @@ fn Op_MaxPolarity(op: Op, i: u32) {
 			mx = iv;
 		}
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = mx;
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = mx;
+}
+fn Op_MaxCopy(op: Op, i: u32) {
+	var szX = op.Geom.Out.x;
+	var fi = i32(i) % op.FilterN; // inner
+	var pii = i32(i) / op.FilterN;
+	var pi = pii % 2; // plus-minus
+	var ii = pii / 2;
+	var yo = ii / szX;
+	var xo = ii % szX;
+	var i1 = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
+	var i2 = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue2), u32(yo), u32(xo), u32(pi), u32(fi))];
+	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = max(i1, i2);
 }
 
 //////// import: "motion.go"
@@ -658,12 +671,13 @@ const  NeighInhib4: Operations = 10;
 const  KWTAInhib: Operations = 11;
 const  MaxPool: Operations = 12;
 const  MaxPolarity: Operations = 13;
-const  LenSum4: Operations = 14;
-const  EndStop4: Operations = 15;
-const  To4D: Operations = 16;
-const  MotionIntegrate: Operations = 17;
-const  MotionStar: Operations = 18;
-const  MotionFullField: Operations = 19;
+const  MaxCopy: Operations = 14;
+const  LenSum4: Operations = 15;
+const  EndStop4: Operations = 16;
+const  To4D: Operations = 17;
+const  MotionIntegrate: Operations = 18;
+const  MotionStar: Operations = 19;
+const  MotionFullField: Operations = 20;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -715,6 +729,9 @@ fn Op_Run(op: Op, i: u32) {
 	}
 	case MaxPolarity: {
 		Op_MaxPolarity(op, i);
+	}
+	case MaxCopy: {
+		Op_MaxCopy(op, i);
 	}
 	case LenSum4: {
 		Op_LenSum4(op, i);

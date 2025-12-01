@@ -63,13 +63,19 @@ const (
 	// based on overall levels of activity, over multiple iterations.
 	KWTAInhib
 
-	// MaxPool performs max-pooling over given pool size and spacing.
-	// Size must = spacing or 2 * spacing.
+	// MaxPool performs max-pooling over given pool size and spacing,
+	// effectively reducing the dimensionality of the output by the
+	// spacing factor. Size must = spacing or 2 * spacing.
 	MaxPool
 
 	// MaxPolarity performs max-pooling over the polarity (on vs. off)
 	// dimension.
 	MaxPolarity
+
+	// MaxCopy performs simple max over 2 different values, for
+	// aggregating different channels (e.g., colors) into a summary,
+	// without changing the dimensionality.
+	MaxCopy
 
 	// LenSum4 performs V1 complex-cell length-summing, extending the
 	// receptive field along the orientation angle one step.
@@ -195,6 +201,8 @@ func (op *Op) Run(i uint32) {
 		op.MaxPool(i)
 	case MaxPolarity:
 		op.MaxPolarity(i)
+	case MaxCopy:
+		op.MaxCopy(i)
 	case LenSum4:
 		op.LenSum4(i)
 	case EndStop4:
