@@ -25,13 +25,30 @@ const (
 	// InImage -> OutImage, over InImageRGB (if 3, does all).
 	FadePad
 
-	// LMSImage computes
-	// InImage -> OutImage
-	LMSImage
+	// LMSOpponents computes Long-Medium-Short (RGB) perceptually-based
+	// color opponent values from InImage -> OutImage.
+	// 0 = RedGreen (L-M), 1 = White-Black (grey), 2 = BlueYellow (S-(LM)),
+	LMSOpponents
+
+	// LMSComponents computes Long-Medium-Short (RGB) perceptually-based
+	// color component values from InImage -> OutImage1, OutImage2.
+	// For each image, the organization of components is designed to
+	// align with the RGB components, using grey to fill in the extra bit.
+	// Image1: 0 = Red (L), 1 = Green (M), 2 = Grey
+	// Image2: 0 = Yellow (LM), 1 = Grey, 2 = Blue (S),
+	LMSComponents
 
 	// ConvolveImage applies a filter to Image, writing to Values.
 	// InImage -> OutValue, using FilterType, FilterN
 	ConvolveImage
+
+	// ConvolveDiff applies two different filters to two different
+	// [Image, component] inputs, computing their difference,
+	// with positive values in 0 and negative values in 1 polarity,
+	// at given feature dimension (innermost Values dimension).
+	// This is used to compute e.g., on-center DoG to one color component
+	// minus off-center to another component.
+	ConvolveDiff
 
 	// LogValues sets values to 1 + log of values * Gain.
 	// InValue -> OutValue (can be the same).
@@ -142,6 +159,9 @@ type Op struct {
 	// OutImage is the index of an image to send output for image ops.
 	OutImage int32
 
+	// OutImage2 is the index of a second image to send output for image ops.
+	OutImage2 int32
+
 	// FilterType is the type index of Filters to use.
 	FilterType int32
 
@@ -174,8 +194,6 @@ type Op struct {
 	// KWTA is the index of the KWTA parameters to use.
 	KWTA int32
 
-	pad int32
-
 	// Geom is the geometry to use for this operation.
 	Geom Geom
 }
@@ -189,8 +207,10 @@ func (op *Op) Run(i uint32) {
 		op.WrapPad(i)
 	case FadePad:
 		op.FadePad(i)
-	case LMSImage:
-		op.LMSImage(i)
+	case LMSOpponents:
+		op.LMSOpponents(i)
+	case LMSComponents:
+		op.LMSComponents(i)
 	case LogValues:
 		op.LogValues(i)
 	case NormDiv:

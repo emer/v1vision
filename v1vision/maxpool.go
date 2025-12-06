@@ -10,7 +10,7 @@ package v1vision
 // fn is number of filters (innermost values dimension),
 // pn is number of polarities (1 or 2),
 // geom.In is the size of the input values, and geom.Out is the output,
-// where geom is: Out = (In / Spacing), and FilterSz <= Spacing.
+// where geom is: Out = (In / Spacing), and FilterSize <= Spacing.
 // (e.g., use geom.SetFilter). returns index of new output.
 func (vv *V1Vision) NewMaxPool(in, pn, fn int, geom *Geom) int {
 	op := vv.NewOp()
@@ -61,8 +61,8 @@ func (vv *V1Vision) NewMaxCopy(in1, in2, out, fn int, geom *Geom) {
 // MaxPool is kernel.
 func (op *Op) MaxPool(i uint32) {
 	szX := op.Geom.Out.X
-	fY := op.Geom.FilterSz.Y
-	fX := op.Geom.FilterSz.X
+	fY := op.Geom.FilterSize.Y
+	fX := op.Geom.FilterSize.X
 
 	fi := int32(i) % op.FilterN // inner
 	pii := int32(i) / op.FilterN

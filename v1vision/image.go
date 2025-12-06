@@ -74,18 +74,60 @@ func (vv *V1Vision) SetFadeRGB(fadeIdx int, r, g, b float32) {
 	op.FloatArg3 = b
 }
 
-// NewLMSImage configures a new LMSImage operation for given input image,
-// setting output index 0 = grey, 1 = RedGreen, 2 = BlueYellow.
+const (
+	// Red is stored in R=0 component of first LMS image
+	Red = 0
+
+	// Green is stored in G=1 component of first LMS image
+	Green = 1
+
+	// Blue is stored in B=2 component of second LMS image
+	Blue = 2
+
+	// Yellow is stored in R=0 component of second LMS image
+	Yellow = 0
+
+	// Red-Green stored in R=0
+	RedGreen = 0
+
+	// Blue-Yellow stored in B=2
+	BlueYellow = 2
+)
+
+// NewLMSOpponents configures a new LMSOpponents operation for given input image,
+// setting output index:
+// 0 = RedGreen (L-M), 1 = White-Black (grey), 2 = BlueYellow (S-(LM)),
+// so that resulting image is visually sensible when displayed as a standard RGB
+// image (which it is not!).
 // gain is a multiplier factor for the color contrasts relative to grey
 // because they tend to be weaker.
-func (vv *V1Vision) NewLMSImage(in, out int, gain float32, geom *Geom) {
+func (vv *V1Vision) NewLMSOpponents(in, out int, gain float32, geom *Geom) {
 	op := vv.NewOp()
-	op.Op = LMSImage
+	op.Op = LMSOpponents
 	nin := geom.In.Y * geom.In.X
 	op.RunN = uint32(nin)
 	op.InImage = int32(in)
 	op.OutImage = int32(out)
 	op.FloatArg1 = gain
+	op.Geom = *geom
+}
+
+// NewLMSComponents configures a new LMSComponents operation
+// for given input image, storing results into two output images, with
+// the 4 different color components distributed across the R,G,B components
+// along with Grey = White-Black, so that resulting image is visually
+// sensible when displayed as a standard RGB image (which it is not!)
+// Image1: 0 = Red (L), 1 = Green (M), 2 = Grey
+// Image2: 0 = Yellow (LM), 1 = Grey, 2 = Blue (S),
+func (vv *V1Vision) NewLMSComponents(in, out1, out2 int, gainS float32, geom *Geom) {
+	op := vv.NewOp()
+	op.Op = LMSComponents
+	nin := geom.In.Y * geom.In.X
+	op.RunN = uint32(nin)
+	op.InImage = int32(in)
+	op.OutImage = int32(out1)
+	op.OutImage2 = int32(out2)
+	op.FloatArg1 = gainS
 	op.Geom = *geom
 }
 
@@ -174,8 +216,8 @@ func (op *Op) FadePad(i uint32) {
 	Images.Set(p*iv+pavg, int(op.OutImage), int(ri), int(y), int(x))
 }
 
-// LMSImage is the kernel for LMSImage.
-func (op *Op) LMSImage(i uint32) {
+// LMSOpponents is the kernel for LMSOpponents.
+func (op *Op) LMSOpponents(i uint32) {
 	ii := int32(i)
 	y := ii / op.Geom.In.X
 	x := ii % op.Geom.In.X
@@ -184,12 +226,34 @@ func (op *Op) LMSImage(i uint32) {
 	g := Images.Value(int(op.InImage), int(1), int(y), int(x))
 	b := Images.Value(int(op.InImage), int(2), int(y), int(x))
 
-	var lvm, svlm, grey float32
-	colorspace.SRGBToLMSOppos(r, g, b, &lvm, &svlm, &grey)
+	var lc, mc, sc, lmc, lvm, svlm, grey float32
+	colorspace.SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey)
 
-	Images.Set(grey, int(op.OutImage), int(0), int(y), int(x))
-	Images.Set(op.FloatArg1*lvm, int(op.OutImage), int(1), int(y), int(x))
-	Images.Set(op.FloatArg1*svlm, int(op.OutImage), int(2), int(y), int(x))
+	Images.Set(op.FloatArg1*lvm, int(op.OutImage), int(0), int(y), int(x)) // RedGreen
+	Images.Set(grey, int(op.OutImage), int(1), int(y), int(x))
+	Images.Set(op.FloatArg1*svlm, int(op.OutImage), int(2), int(y), int(x)) // BlueYellow
+}
+
+// LMSComponents is the kernel for LMSComponents.
+func (op *Op) LMSComponents(i uint32) {
+	ii := int32(i)
+	y := ii / op.Geom.In.X
+	x := ii % op.Geom.In.X
+
+	r := Images.Value(int(op.InImage), int(0), int(y), int(x))
+	g := Images.Value(int(op.InImage), int(1), int(y), int(x))
+	b := Images.Value(int(op.InImage), int(2), int(y), int(x))
+
+	var lc, mc, sc, lmc, lvm, svlm, grey float32
+	colorspace.SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey)
+
+	Images.Set(lc, int(op.OutImage), int(0), int(y), int(x)) // Red
+	Images.Set(mc, int(op.OutImage), int(1), int(y), int(x)) // Green
+	Images.Set(grey, int(op.OutImage), int(2), int(y), int(x))
+
+	Images.Set(op.FloatArg1*lmc, int(op.OutImage2), int(0), int(y), int(x)) // Yellow
+	Images.Set(grey, int(op.OutImage2), int(1), int(y), int(x))
+	Images.Set(op.FloatArg1*sc, int(op.OutImage2), int(2), int(y), int(x)) // Blue
 }
 
 //gosl:end

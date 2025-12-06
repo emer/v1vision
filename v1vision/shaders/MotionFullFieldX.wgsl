@@ -27,18 +27,6 @@ fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u3
 //////// import: "vars.go"
 
 //////// import: "colorspace-lms.go"
-alias LMSComponents = i32; //enums:enum
-const  LC: LMSComponents = 0;
-const  MC: LMSComponents = 1;
-const  SC: LMSComponents = 2;
-const  LMC: LMSComponents = 3;
-const  LvMC: LMSComponents = 4;
-const  SvLMC: LMSComponents = 5;
-const  GREY: LMSComponents = 6;
-alias Opponents = i32; //enums:enum
-const  WhiteBlack: Opponents = 0;
-const  RedGreen: Opponents = 1;
-const  BlueYellow: Opponents = 2;
 /*
 func LMSToXYZ_CAT02(l, m, s f32) (x, y, z f32) {
     x = 1.096124 * l + 0.4296f * Y + -0.1624f * Z;
@@ -64,7 +52,7 @@ func LMSToXYZ_CAT02(l, m, s f32) (x, y, z f32) {
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 21;
+const OperationsN: Operations = 23;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -84,7 +72,7 @@ struct Geom {
 	Out: vec4<i32>,
 	Border: vec4<i32>,
 	Spacing: vec4<i32>,
-	FilterSz: vec4<i32>,
+	FilterSize: vec4<i32>,
 	FilterLt: vec4<i32>,
 	FilterRt: vec4<i32>,
 }
@@ -198,24 +186,26 @@ alias Operations = i32; //enums:enum
 const  NoOp: Operations = 0;
 const  WrapPad: Operations = 1;
 const  FadePad: Operations = 2;
-const  LMSImage: Operations = 3;
-const  ConvolveImage: Operations = 4;
-const  LogValues: Operations = 5;
-const  MaxScalar: Operations = 6;
-const  SumScalar: Operations = 7;
-const  MeanScalar: Operations = 8;
-const  NormDiv: Operations = 9;
-const  NeighInhib4: Operations = 10;
-const  KWTAInhib: Operations = 11;
-const  MaxPool: Operations = 12;
-const  MaxPolarity: Operations = 13;
-const  MaxCopy: Operations = 14;
-const  LenSum4: Operations = 15;
-const  EndStop4: Operations = 16;
-const  To4D: Operations = 17;
-const  MotionIntegrate: Operations = 18;
-const  MotionStar: Operations = 19;
-const  MotionFullField: Operations = 20;
+const  LMSOpponents: Operations = 3;
+const  LMSComponents: Operations = 4;
+const  ConvolveImage: Operations = 5;
+const  ConvolveDiff: Operations = 6;
+const  LogValues: Operations = 7;
+const  MaxScalar: Operations = 8;
+const  SumScalar: Operations = 9;
+const  MeanScalar: Operations = 10;
+const  NormDiv: Operations = 11;
+const  NeighInhib4: Operations = 12;
+const  KWTAInhib: Operations = 13;
+const  MaxPool: Operations = 14;
+const  MaxPolarity: Operations = 15;
+const  MaxCopy: Operations = 16;
+const  LenSum4: Operations = 17;
+const  EndStop4: Operations = 18;
+const  To4D: Operations = 19;
+const  MotionIntegrate: Operations = 20;
+const  MotionStar: Operations = 21;
+const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -226,6 +216,7 @@ struct Op {
 	OutValue: i32,
 	OutValue4D: i32,
 	OutImage: i32,
+	OutImage2: i32,
 	FilterType: i32,
 	FilterN: i32,
 	FloatArg1: f32,
@@ -236,7 +227,6 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
-	pad: i32,
 	Geom: Geom,
 }
 

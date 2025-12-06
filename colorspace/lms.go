@@ -12,49 +12,6 @@ import (
 
 //gosl:start
 
-// LMSComponents are different components of the LMS space
-// including opponent contrasts and grey
-type LMSComponents int32 //enums:enum
-
-const (
-	// Long wavelength = Red component
-	LC LMSComponents = iota
-
-	// Medium wavelength = Green component
-	MC
-
-	// Short wavelength = Blue component
-	SC
-
-	// Long + Medium wavelength = Yellow component
-	LMC
-
-	// L - M opponent contrast: Red vs. Green
-	LvMC
-
-	// S - L+M opponent contrast: Blue vs. Yellow
-	SvLMC
-
-	// achromatic response (grey scale lightness)
-	GREY
-)
-
-// Opponents enumerates the three primary opponency channels:
-// WhiteBlack, RedGreen, BlueYellow
-// using colloquial "everyday" terms.
-type Opponents int32 //enums:enum
-
-const (
-	// White vs. Black greyscale
-	WhiteBlack Opponents = iota
-
-	// Red vs. Green
-	RedGreen
-
-	// Blue vs. Yellow
-	BlueYellow
-)
-
 //////// CAT02 versions
 
 // XYZToLMS_CAT02 converts XYZ to Long, Medium, Short cone-based responses,

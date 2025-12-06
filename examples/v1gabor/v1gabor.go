@@ -151,6 +151,7 @@ func (vi *Vis) Defaults() {
 func (vi *Vis) Config() {
 	vi.V1.Init()
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
+	kwtaIdx := 0
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
@@ -167,17 +168,18 @@ func (vi *Vis) Config() {
 		if vi.V1sNeighInhib.On {
 			ninh = vi.V1.NewNeighInhib4(out, nang, vi.V1sNeighInhib.Gi, &vi.V1sGeom)
 		}
-		v1out = vi.V1.NewKWTA(out, ninh, nang, 0, &vi.V1sGeom)
+		inh := vi.V1.NewInhibs(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X))
+		v1out = vi.V1.NewKWTA(out, ninh, nang, kwtaIdx, inh, &vi.V1sGeom)
 		vi.v1sKwtaIdx = v1out
 	}
 
 	// V1c complex
 	vi.V1cGeom.SetFilter(math32.Vec2i(0, 0), math32.Vec2i(2, 2), math32.Vec2i(2, 2), vi.V1sGeom.Out.V())
-	pout := vi.V1.NewMaxPool(v1out, nang, &vi.V1cGeom)
+	pout := vi.V1.NewMaxPool(v1out, 2, nang, &vi.V1cGeom)
 	vi.v1cPoolIdx = pout
 	mpout := vi.V1.NewMaxPolarity(v1out, nang, &vi.V1sGeom)
 	vi.v1cMaxPolIdx = mpout
-	pmpout := vi.V1.NewMaxPool(mpout, nang, &vi.V1cGeom)
+	pmpout := vi.V1.NewMaxPool(mpout, 1, nang, &vi.V1cGeom)
 	vi.v1cPolPoolIdx = pmpout
 	lsout := vi.V1.NewLenSum4(pmpout, nang, &vi.V1cGeom)
 	vi.v1cLenSumIdx = lsout

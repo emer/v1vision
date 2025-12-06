@@ -123,11 +123,11 @@ type Vis struct { //types:add
 	// for SplitColor (9 x 4)
 	V1AllTsr *tensor.Float32 `display:"no-inline"`
 
-	// V1cGrey is an encapsulated version of this functionality,
+	// V1cColor is an encapsulated version of this functionality,
 	// which we test here for comparison.
-	V1cGrey v1std.V1cGrey
+	V1cColor v1std.V1cColor
 
-	// StdImage manages images for V1cGrey
+	// StdImage manages images for V1cColor
 	StdImage v1std.Image
 
 	// V1 complex gabor filter output, un-max-pooled 2x2 of V1cPool tensor
@@ -163,7 +163,7 @@ func (vi *Vis) Defaults() {
 	vi.V1sNeighInhib.Defaults()
 	vi.V1sKWTA.Defaults()
 
-	vi.V1cGrey.Defaults()
+	vi.V1cColor.Defaults()
 	vi.StdImage.Defaults()
 }
 
@@ -180,7 +180,7 @@ func (vi *Vis) Config() {
 	vi.ImageLMSTsr = vi.V1.Images.SubSpace(lms).(*tensor.Float32)
 
 	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.FilterRt.X), .5, .5, .5, &vi.V1sGeom)
-	vi.V1.NewLMSImage(wrap, lms, vi.ColorGain, &vi.V1sGeom)
+	vi.V1.NewLMSOpponents(wrap, lms, vi.ColorGain, &vi.V1sGeom)
 
 	nang := vi.V1sGabor.NAngles
 
@@ -188,8 +188,9 @@ func (vi *Vis) Config() {
 	ftyp := vi.V1.NewFilter(nang, vi.V1sGabor.Size, vi.V1sGabor.Size)
 	vi.V1.GaborToFilter(ftyp, &vi.V1sGabor)
 	inh := vi.V1.NewInhibs(int(vi.V1sGeom.Out.Y), int(vi.V1sGeom.Out.X))
+	lmsMap := [3]int{1, int(v1vision.RedGreen), int(v1vision.BlueYellow)}
 	for irgb := range 3 {
-		out := vi.V1.NewConvolveImage(lms, irgb, ftyp, nang, vi.V1sGabor.Gain, &vi.V1sGeom)
+		out := vi.V1.NewConvolveImage(lms, lmsMap[irgb], ftyp, nang, vi.V1sGabor.Gain, &vi.V1sGeom)
 		v1out := out
 		if vi.V1sKWTA.On.IsTrue() {
 			ninh := 0
@@ -217,23 +218,23 @@ func (vi *Vis) Config() {
 	esout := vi.V1.NewEndStop4(pmpout, lsout, nang, &vi.V1cGeom)
 	vi.v1cEndStopIdx = esout
 
+	// To4D
+	out4Rows := 5
+	if vi.SplitColor {
+		out4Rows = 9
+	}
+	out4 := vi.V1.NewValues4D(int(vi.V1cGeom.Out.Y), int(vi.V1cGeom.Out.X), out4Rows, nang)
+	vi.V1.NewTo4D(lsout, out4, 1, nang, 0, &vi.V1cGeom)
+	vi.V1.NewTo4D(esout, out4, 2, nang, 1, &vi.V1cGeom)
 	if vi.SplitColor {
 		poutg := vi.V1.NewMaxPool(vi.v1sIdxs[0], 2, nang, &vi.V1cGeom)
 		poutrg := vi.V1.NewMaxPool(vi.v1sIdxs[1], 2, nang, &vi.V1cGeom)
 		poutby := vi.V1.NewMaxPool(vi.v1sIdxs[2], 2, nang, &vi.V1cGeom)
-
-		// To4D
-		out4 := vi.V1.NewValues4D(int(vi.V1cGeom.Out.Y), int(vi.V1cGeom.Out.X), 9, nang)
-		vi.V1.NewTo4D(lsout, out4, 1, nang, 0, &vi.V1cGeom)
-		vi.V1.NewTo4D(esout, out4, 2, nang, 1, &vi.V1cGeom)
 		vi.V1.NewTo4D(poutg, out4, 2, nang, 3, &vi.V1cGeom)
 		vi.V1.NewTo4D(poutrg, out4, 2, nang, 5, &vi.V1cGeom)
 		vi.V1.NewTo4D(poutby, out4, 2, nang, 7, &vi.V1cGeom)
 	} else {
-		pout := vi.V1.NewMaxPool(vi.v1sMaxIdx, 2, nang, &vi.V1cGeom)
-		out4 := vi.V1.NewValues4D(int(vi.V1cGeom.Out.Y), int(vi.V1cGeom.Out.X), 5, nang)
-		vi.V1.NewTo4D(lsout, out4, 1, nang, 0, &vi.V1cGeom)
-		vi.V1.NewTo4D(esout, out4, 2, nang, 1, &vi.V1cGeom)
+		pout := vi.V1.NewMaxPool(mcout, 2, nang, &vi.V1cGeom)
 		vi.V1.NewTo4D(pout, out4, 2, nang, 3, &vi.V1cGeom)
 	}
 
@@ -242,7 +243,7 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
-	vi.V1cGrey.Config(vi.StdImage.Size)
+	vi.V1cColor.Config(vi.StdImage.Size)
 }
 
 func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x, pol int32) {
@@ -257,6 +258,8 @@ func (vi *Vis) getTsrOpt(idx int, tsr *tensor.Float32, y, x, pol int32) {
 	}
 	vi.getTsr(idx, tsr, y, x, pol)
 }
+
+// todo: v1color is broken.
 
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters
@@ -305,7 +308,7 @@ func (vi *Vis) Filter() error { //types:add
 
 	// vi.ImageFromV1Simple()
 
-	vi.V1cGrey.RunImage(&vi.StdImage, vi.Image)
+	vi.V1cColor.RunImage(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()

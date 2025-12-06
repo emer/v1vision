@@ -16,7 +16,7 @@ import (
 // toY is starting inner Y dimension offset in Values4D to copy to.
 // Values4D must be allocated in advance.
 // geom.Out is outer pool sizes to copy from.
-// sets geom.FilterSz to X = fn, Y = pn.
+// sets geom.FilterSize to X = fn, Y = pn.
 func (vv *V1Vision) NewTo4D(in, out, pn, fn, toY int, geom *Geom) int {
 	op := vv.NewOp()
 	op.Op = To4D
@@ -25,8 +25,8 @@ func (vv *V1Vision) NewTo4D(in, out, pn, fn, toY int, geom *Geom) int {
 	op.OutValue4D = int32(out)
 	op.IntArg1 = int32(toY)
 	op.Geom = *geom
-	op.Geom.FilterSz.X = int32(fn)
-	op.Geom.FilterSz.Y = int32(pn)
+	op.Geom.FilterSize.X = int32(fn)
+	op.Geom.FilterSize.Y = int32(pn)
 	return out
 }
 
@@ -34,8 +34,8 @@ func (vv *V1Vision) NewTo4D(in, out, pn, fn, toY int, geom *Geom) int {
 
 // To4D is kernel.
 func (op *Op) To4D(i uint32) {
-	fY := op.Geom.FilterSz.Y
-	fX := op.Geom.FilterSz.X
+	fY := op.Geom.FilterSize.Y
+	fX := op.Geom.FilterSize.X
 	szX := op.Geom.Out.X
 
 	fi := int32(i) % fX

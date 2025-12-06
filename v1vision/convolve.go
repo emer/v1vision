@@ -28,6 +28,34 @@ func (vv *V1Vision) NewConvolveImage(in, irgb, ftyp, fn int, gain float32, geom 
 	return out
 }
 
+// NewConvolveDiff adds a [ConvolveDiff] operation,
+// operating on given image, rgb pane inputs (1 = on, 2 = off),
+// and given filter type and filter index within that type,
+// outputs to given values, into outfi filter index (both polarities).
+// gain applies to everything and gainOn applies to positive values.
+// Filters must have geom.FilterSize size.
+// The input Image *must* have border (padding) so that filters are
+// applied without any bounds checking: wrapping etc is all
+// done in the padding process, which is much more efficient.
+func (vv *V1Vision) NewConvolveDiff(in1, rgb1, in2, rgb2, ftyp, fidx1, fidx2, out, outfi int, gain, gainOn float32, geom *Geom) int {
+	op := vv.NewOp()
+	op.Op = ConvolveDiff
+	op.RunN = uint32(geom.Out.Y * geom.Out.X)
+	op.InImage = int32(in1)
+	op.InImageRGB = int32(rgb1)
+	op.InValue2 = int32(in2)
+	op.OutImage2 = int32(rgb2)
+	op.FilterType = int32(ftyp)
+	op.FilterN = int32(fidx1)
+	op.IntArg1 = int32(fidx2)
+	op.FloatArg1 = gain
+	op.FloatArg2 = gainOn
+	op.OutValue = int32(out)
+	op.OutScalar = int32(outfi)
+	op.Geom = *geom
+	return out
+}
+
 //gosl:start
 
 // ConvolveImage is the kernel for Convolve on Image data.
@@ -42,8 +70,8 @@ func (op *Op) ConvolveImage(i uint32) {
 	yi := int(istY + yo*op.Geom.Spacing.Y)
 	xi := int(istX + xo*op.Geom.Spacing.X)
 
-	fyn := int(op.Geom.FilterSz.Y)
-	fxn := int(op.Geom.FilterSz.X)
+	fyn := int(op.Geom.FilterSize.Y)
+	fxn := int(op.Geom.FilterSize.X)
 	sum := float32(0)
 	for fy := 0; fy < fyn; fy++ {
 		for fx := 0; fx < fxn; fx++ {
@@ -59,6 +87,41 @@ func (op *Op) ConvolveImage(i uint32) {
 	} else {
 		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 		Values.Set(-sum, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
+	}
+}
+
+// ConvolveDiff is the kernel.
+func (op *Op) ConvolveDiff(i uint32) {
+	yo := int32(i) / op.Geom.Out.X
+	xo := int32(i) % op.Geom.Out.X
+	fi := op.OutScalar
+
+	istX := op.Geom.Border.X - op.Geom.FilterLt.X
+	istY := op.Geom.Border.Y - op.Geom.FilterLt.Y
+	yi := int(istY + yo*op.Geom.Spacing.Y)
+	xi := int(istX + xo*op.Geom.Spacing.X)
+
+	fyn := int(op.Geom.FilterSize.Y)
+	fxn := int(op.Geom.FilterSize.X)
+	sumOn := float32(0)
+	sumOff := float32(0)
+	for fy := 0; fy < fyn; fy++ {
+		for fx := 0; fx < fxn; fx++ {
+			iv1 := Images.Value(int(op.InImage), int(op.InImageRGB), int(yi+fy), int(xi+fx))
+			iv2 := Images.Value(int(op.InValue2), int(op.OutImage2), int(yi+fy), int(xi+fx))
+			fv1 := Filters.Value(int(op.FilterType), int(op.FilterN), int(fy), int(fx))
+			fv2 := Filters.Value(int(op.FilterType), int(op.IntArg1), int(fy), int(fx))
+			sumOn += fv1 * iv1
+			sumOff += fv2 * iv2
+		}
+	}
+	diff := op.FloatArg1 * (op.FloatArg2*sumOn - sumOff)
+	if diff > 0 {
+		Values.Set(diff, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
+		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
+	} else {
+		Values.Set(-diff, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
+		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
 	}
 }
 

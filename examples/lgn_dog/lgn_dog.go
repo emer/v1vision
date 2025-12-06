@@ -103,7 +103,7 @@ func (vi *Vis) Config() {
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
-	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
+	vi.ImageTsr = vi.V1.Images.SubSpace(img).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	_, out := vi.V1.NewDoG(wrap, 0, &vi.DoG, &vi.Geom)
 	// _ = out

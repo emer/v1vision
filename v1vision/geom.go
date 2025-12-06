@@ -29,12 +29,12 @@ type Geom struct {
 	Spacing slvec.Vector2i
 
 	// full size of filter
-	FilterSz slvec.Vector2i
+	FilterSize slvec.Vector2i
 
 	// computed size of left/top size of filter
 	FilterLt slvec.Vector2i
 
-	// computed size of right/bottom size of filter (FilterSz - FilterLeft)
+	// computed size of right/bottom size of filter (FilterSize - FilterLeft)
 	FilterRt slvec.Vector2i
 }
 
@@ -44,7 +44,7 @@ type Geom struct {
 func (ge *Geom) Set(border, spacing, filtSz math32.Vector2i) {
 	ge.Border.SetV(border)
 	ge.Spacing.SetV(spacing)
-	ge.FilterSz.SetV(filtSz)
+	ge.FilterSize.SetV(filtSz)
 	ge.UpdtFilter()
 }
 
@@ -73,9 +73,9 @@ func LeftHalf(x int32) int32 {
 
 // UpdtFilter updates filter sizes, and ensures that Border >= FilterRt
 func (ge *Geom) UpdtFilter() {
-	ge.FilterLt.X = LeftHalf(ge.FilterSz.X)
-	ge.FilterLt.Y = LeftHalf(ge.FilterSz.Y)
-	ge.FilterRt.SetV(ge.FilterSz.V().Sub(ge.FilterLt.V()))
+	ge.FilterLt.X = LeftHalf(ge.FilterSize.X)
+	ge.FilterLt.Y = LeftHalf(ge.FilterSize.Y)
+	ge.FilterRt.SetV(ge.FilterSize.V().Sub(ge.FilterLt.V()))
 }
 
 // BorderMinFilter sets the border size to be at least FilterRt.

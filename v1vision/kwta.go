@@ -45,7 +45,7 @@ func (vv *V1Vision) NewNeighInhibOutput(fn int, geom *Geom) int {
 // typically from [NeighInhib4] -- if 0 then not used.
 // fn is number of filters (innermost values dimension).
 // geom.Out is the size of the outer Y,X dimensions, and
-// FilterSz is the inner Y,X dimensions.
+// FilterSize is the inner Y,X dimensions.
 // Allocates a Inhibs to hold the inhibition compute values,
 // including an additional Y row for the layer-level values at the end.
 func (vv *V1Vision) NewKWTA(in, inExtGi, fn, kwtaIdx, inhIdx int, geom *Geom) int {
@@ -110,7 +110,7 @@ func KWTAInitPool(i uint32) { //gosl:kernel
 
 	geAvg := float32(0)
 	geMax := float32(0)
-	for py := range 2 { // for 4D, FilterSz.Y
+	for py := range 2 { // for 4D, FilterSize.Y
 		for px := range op.FilterN {
 			ge := Values.Value(int(op.InValue), int(yo), int(xo), int(py), int(px))
 			geAvg += ge
@@ -140,7 +140,7 @@ func KWTAInitLayer(i uint32) { //gosl:kernel
 
 // KWTAIterLayerX is the kernel to iterate KWTA process at layer,
 // first pass, operating on X dimension.
-// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
+// i = op.Geom.Out.Y * X. FilterSize is inner 2 dims.
 // Operates on Inhibs updated from pool-level.
 // Call this first then IterPool
 func KWTAIterLayerX(i uint32) { //gosl:kernel
@@ -176,7 +176,7 @@ func KWTAIterLayerX(i uint32) { //gosl:kernel
 }
 
 // KWTAIterLayerY is the kernel to iterate KWTA process at layer.
-// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims.
+// i = op.Geom.Out.Y * X. FilterSize is inner 2 dims.
 // Operates on Inhibs updated from pool-level.
 // Call this first then IterPool
 func KWTAIterLayerY(i uint32) { //gosl:kernel
@@ -228,7 +228,7 @@ func KWTAIterLayerY(i uint32) { //gosl:kernel
 }
 
 // KWTAIterPool is the kernel to iterate KWTA process for Pools.
-// i = op.Geom.Out.Y * X. FilterSz is inner 2 dims. Operates on Inhibs.
+// i = op.Geom.Out.Y * X. FilterSize is inner 2 dims. Operates on Inhibs.
 // InValue = raw initial activations (ge)
 // InValue2 = extra Gi values, if non-0
 // OutValue = acts (output result)
@@ -246,7 +246,7 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 	kp := GetKWTAs(uint32(op.KWTA))
 
 	pn := 2 * op.FilterN
-	// pn := op.Geom.FilterSz.Y * op.Geom.FilterSz.X
+	// pn := op.Geom.FilterSize.Y * op.Geom.FilterSize.X
 
 	geAvg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeAvg))
 	geMax := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeMax))
@@ -271,7 +271,7 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 
 	actAvg = 0.0
 	actMax := float32(0.0)
-	for py := range 2 { // op.Geom.FilterSz.Y {
+	for py := range 2 { // op.Geom.FilterSize.Y {
 		for px := range op.FilterN {
 			pgi := giPool
 			if op.InValue2 > 0 {

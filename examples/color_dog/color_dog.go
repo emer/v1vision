@@ -7,25 +7,29 @@ package main
 //go:generate core generate -add-types
 
 import (
+	"fmt"
 	"image"
 
 	"cogentcore.org/core/base/errors"
 	"cogentcore.org/core/base/iox/imagex"
+	"cogentcore.org/core/base/timer"
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
 	"cogentcore.org/lab/tensorcore"
+	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
-	"github.com/emer/v1vision/colorspace"
 	"github.com/emer/v1vision/dog"
+	"github.com/emer/v1vision/v1std"
 	"github.com/emer/v1vision/v1vision"
 )
 
 func main() {
 	vi := &Vis{}
 	vi.Defaults()
+	vi.Config()
 	vi.Filter()
 	vi.ConfigGUI()
 }
@@ -33,238 +37,204 @@ func main() {
 // Vis encapsulates specific visual processing pipeline in
 // use in a given case -- can add / modify this as needed
 type Vis struct { //types:add
+	// GPU means use gpu.
+	GPU bool
 
-	// name of image file to operate on -- if macbeth or empty use the macbeth standard color test image
+	// name of image file to operate on.
 	ImageFile core.Filename
 
-	// LGN DoG filter parameters
+	// LGN DoG filter parameters.
 	DoG dog.Filter
 
-	// names of the dog gain sets -- for naming output data
-	DoGNames []string
-
-	// overall gain factors, to compensate for diffs in OnGains
-	DoGGains []float32
-
-	// OnGain factors -- 1 = perfect balance, otherwise has relative imbalance for capturing main effects
-	DoGOnGains []float32
-
-	// geometry of input, output
+	// geometry of input, output.
 	Geom v1vision.Geom `edit:"-"`
 
-	// target image size to use -- images will be rescaled to this size
-	ImgSize math32.Vector2i
+	// target image size to use -- images will be rescaled to this size.
+	ImageSize image.Point
 
-	// DoG filter tensor -- has 3 filters (on, off, net)
-	DoGTsr tensor.Float32 `display:"no-inline"`
+	// V1 is the V1Vision filter processing system.
+	V1 v1vision.V1Vision `display:"no-inline"`
 
-	// DoG filter table (view only)
+	// DoG filter table (view only).
 	DoGTab table.Table `display:"no-inline"`
 
-	// current input image
-	Img image.Image `display:"-"`
+	// current input image.
+	Image image.Image `display:"-"`
 
-	// input image as RGB tensor
-	ImgTsr tensor.Float32 `display:"no-inline"`
+	// input image as tensor.
+	ImageTsr *tensor.Float32 `display:"no-inline"`
 
-	// LMS components + opponents tensor version of image
-	ImgLMS tensor.Float32 `display:"no-inline"`
+	// input image as tensor: red, green components (L,M).
+	ImageRGTsr *tensor.Float32 `display:"no-inline"`
 
-	// output from 3 dogs with different tuning
-	OutAll tensor.Float32 `display:"no-inline"`
+	// input image as tensor: blue, yellow components (S, LM).
+	ImageBYTsr *tensor.Float32 `display:"no-inline"`
 
-	// DoG filter output tensors
-	OutTsrs map[string]*tensor.Float32 `display:"no-inline"`
+	// Out has RG, BY value outputs in 0, 1 feature positions.
+	Out tensor.Float32 `display:"no-inline"`
+
+	// DoGGrey is an encapsulated version of this functionality,
+	// which we test here for comparison.
+	DoGGrey v1std.DoGGrey
+
+	// StdImage manages images for DoGGrey
+	StdImage v1std.Image
+
+	tabView *core.Tabs
 }
 
 func (vi *Vis) Defaults() {
-	vi.ImageFile = ""                          // core.Filename("GrangerRainbow.png")
-	vi.DoGNames = []string{"Bal", "On", "Off"} // balanced, gain toward On, gain toward Off
-	vi.DoGGains = []float32{8, 4.1, 4.4}
-	vi.DoGOnGains = []float32{1, 1.2, 0.833}
-	sz := 16
-	spc := 16
+	vi.GPU = false
+	vi.ImageFile = core.Filename("macbeth.png") // GrangerRainbow.png")
+	vi.DoGTab.Init()
 	vi.DoG.Defaults()
+	sz := 12  // V1mF16 typically = 12, no border -- defaults
+	spc := 16 // note: not 4; broader blob tuning
 	vi.DoG.SetSize(sz, spc)
-	vi.DoG.OnSig = .5 // no spatial component, just pure contrast
-	vi.DoG.OffSig = .5
-	vi.DoG.Gain = 8
+	vi.DoG.SetSameSigma(0.5) // no spatial component, just pure contrast
+
+	vi.DoG.Gain = 8 // for stronger On tuning: 4.1,On=1.2, Off: 4.4,On=0.833
 	vi.DoG.OnGain = 1
 
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
-	// any further border sizes on same image need to add Geom.FiltRt!
-	vi.Geom.Set(math32.Vector2i{0, 0}, math32.Vector2i{spc, spc}, math32.Vector2i{sz, sz})
-	vi.ImgSize = math32.Vector2i{512, 512}
-	// vi.ImgSize = math32.Vector2i{256, 256}
-	// vi.ImgSize = math32.Vector2i{128, 128}
-	// vi.ImgSize = math32.Vector2i{64, 64}
-	vi.DoG.ToTensor(&vi.DoGTsr)
-	vi.DoGTab.Init()
-	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
-	tensorcore.AddGridStylerTo(vi.DoGTab.Columns.Values[1], func(s *tensorcore.GridStyle) {
-		s.Size.Min = 16
-		s.Range.Set(-0.01, 0.01)
-	})
-	vi.OutTsrs = make(map[string]*tensor.Float32)
-	tensorcore.AddGridStylerTo(&vi.ImgTsr, func(s *tensorcore.GridStyle) {
-		s.Image = true
-		s.Range.SetMin(0)
-	})
-	tensorcore.AddGridStylerTo(&vi.ImgLMS, func(s *tensorcore.GridStyle) {
-		s.Image = true
-		s.Range.SetMin(0)
-	})
+	// any further border sizes on same image need to add Geom.FilterRt!
+	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
+	vi.ImageSize = image.Point{128, 128}
+	// vi.ImageSize = image.Point{256, 256}
+	// vi.ImageSize = image.Point{512, 512}
+	vi.Geom.SetImageSize(vi.ImageSize)
+
+	vi.DoGGrey.Defaults()
+	vi.StdImage.Defaults()
 }
 
-// OutTsr gets output tensor of given name, creating if not yet made
-func (vi *Vis) OutTsr(name string) *tensor.Float32 {
-	if vi.OutTsrs == nil {
-		vi.OutTsrs = make(map[string]*tensor.Float32)
+// Config sets up the V1 processing pipeline.
+func (vi *Vis) Config() {
+	vi.V1.Init()
+	img := vi.V1.NewImage(vi.Geom.In.V())
+	wrap := vi.V1.NewImage(vi.Geom.In.V())
+	lmsRG := vi.V1.NewImage(vi.Geom.In.V())
+	lmsBY := vi.V1.NewImage(vi.Geom.In.V())
+
+	vi.ImageTsr = vi.V1.Images.SubSpace(img).(*tensor.Float32)
+	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
+	vi.ImageRGTsr = vi.V1.Images.SubSpace(lmsRG).(*tensor.Float32)
+	vi.ImageBYTsr = vi.V1.Images.SubSpace(lmsBY).(*tensor.Float32)
+	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, 5, &vi.Geom)
+
+	out := vi.V1.NewValues(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2)
+	dogFt := vi.V1.NewDoGOnOff(&vi.DoG, &vi.Geom)
+
+	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, vi.DoG.Gain, vi.DoG.OnGain, &vi.Geom)
+	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, vi.DoG.Gain, vi.DoG.OnGain, &vi.Geom)
+
+	// _ = out
+	// vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
+	// vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)
+
+	vi.V1.SetAsCurrent()
+	if vi.GPU {
+		vi.V1.GPUInit()
 	}
-	tsr, ok := vi.OutTsrs[name]
-	if !ok {
-		tsr = &tensor.Float32{}
-		vi.OutTsrs[name] = tsr
-		tensorcore.AddGridStylerTo(tsr, func(s *tensorcore.GridStyle) {
-			s.GridFill = 1
-		})
-	}
-	return tsr
+
+	// vi.DoGGrey.Config(vi.StdImage.Size)
 }
 
-// OpenImage opens given filename as current image Img
+// OpenImage opens given filename as current image Image
+// and converts to a float32 tensor for processing
 func (vi *Vis) OpenImage(filepath string) error { //types:add
 	var err error
-	vi.Img, _, err = imagex.Open(filepath)
+	vi.Image, _, err = imagex.Open(filepath)
 	if err != nil {
 		return errors.Log(err)
 	}
-	isz := vi.Img.Bounds().Size()
-	if isz != vi.ImgSize {
-		vi.Img = transform.Resize(vi.Img, vi.ImgSize.X, vi.ImgSize.Y, transform.Linear)
+	isz := vi.Image.Bounds().Size()
+	if isz != vi.ImageSize {
+		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
-	v1vision.RGBToTensor(vi.Img, &vi.ImgTsr, vi.Geom.FiltRt.X, false) // pad for filt, bot zero
-	v1vision.WrapPadRGB(&vi.ImgTsr, vi.Geom.FiltRt.X)
-	colorspace.RGBTensorToLMSComps(&vi.ImgLMS, &vi.ImgTsr)
+	img := vi.V1.Images.SubSpace(0).(*tensor.Float32)
+	v1vision.RGBToTensor(vi.Image, img, int(vi.Geom.FilterRt.X), v1vision.BottomZero)
 	return nil
 }
 
-// OpenMacbeth opens the macbeth test image
-func (vi *Vis) OpenMacbeth() error {
-	colorspace.MacbethImage(&vi.ImgTsr, vi.ImgSize.X, vi.ImgSize.Y, vi.Geom.FiltRt.X)
-	colorspace.RGBTensorToLMSComps(&vi.ImgLMS, &vi.ImgTsr)
-	img := &image.RGBA{}
-	img = v1vision.RGBTensorToImage(img, &vi.ImgTsr, 0, false)
-	vi.Img = img
-	var err error
-	err = imagex.Save(img, "macbeth.png")
-	if err != nil {
-		return errors.Log(err)
-	}
-	return nil
-}
-
-// ColorDoG runs color contrast DoG filtering on input image
-// must have valid Img in place to start.
-func (vi *Vis) ColorDoG() {
-	rimg := vi.ImgLMS.SubSpace(int(colorspace.LC)).(*tensor.Float32)
-	gimg := vi.ImgLMS.SubSpace(int(colorspace.MC)).(*tensor.Float32)
-	tensorcore.AddGridStylerTo(rimg, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	tensorcore.AddGridStylerTo(gimg, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	vi.OutTsrs["Red"] = rimg
-	vi.OutTsrs["Green"] = gimg
-
-	bimg := vi.ImgLMS.SubSpace(int(colorspace.SC)).(*tensor.Float32)
-	yimg := vi.ImgLMS.SubSpace(int(colorspace.LMC)).(*tensor.Float32)
-	tensorcore.AddGridStylerTo(bimg, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	tensorcore.AddGridStylerTo(yimg, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	vi.OutTsrs["Blue"] = bimg
-	vi.OutTsrs["Yellow"] = yimg
-
-	// for display purposes only:
-	byimg := vi.ImgLMS.SubSpace(int(colorspace.SvLMC)).(*tensor.Float32)
-	rgimg := vi.ImgLMS.SubSpace(int(colorspace.LvMC)).(*tensor.Float32)
-	tensorcore.AddGridStylerTo(byimg, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	tensorcore.AddGridStylerTo(rgimg, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	vi.OutTsrs["Blue-Yellow"] = byimg
-	vi.OutTsrs["Red-Green"] = rgimg
-
-	for i, nm := range vi.DoGNames {
-		vi.DoGFilter(nm, vi.DoGGains[i], vi.DoGOnGains[i])
-	}
-}
-
-// DoGFilter runs filtering for given gain factors
-func (vi *Vis) DoGFilter(name string, gain, onGain float32) {
-	dogOn := vi.DoG.FilterTensor(&vi.DoGTsr, dog.On)
-	dogOff := vi.DoG.FilterTensor(&vi.DoGTsr, dog.Off)
-
-	rgtsr := vi.OutTsr("DoG_" + name + "_Red-Green")
-	rimg := vi.OutTsr("Red")
-	gimg := vi.OutTsr("Green")
-	v1vision.ConvDiff(&vi.Geom, dogOn, dogOff, rimg, gimg, rgtsr, gain, onGain)
-
-	bytsr := vi.OutTsr("DoG_" + name + "_Blue-Yellow")
-	bimg := vi.OutTsr("Blue")
-	yimg := vi.OutTsr("Yellow")
-	v1vision.ConvDiff(&vi.Geom, dogOn, dogOff, bimg, yimg, bytsr, gain, onGain)
-}
-
-// AggAll aggregates the different DoG components into
-func (vi *Vis) AggAll() {
-	otsr := vi.OutTsr("DoG_" + vi.DoGNames[0] + "_Red-Green")
-	ny := otsr.DimSize(1)
-	nx := otsr.DimSize(2)
-	vi.OutAll.SetShapeSizes(ny, nx, 2, 2*len(vi.DoGNames))
-	tensorcore.AddGridStylerTo(&vi.OutAll, func(s *tensorcore.GridStyle) {
-		s.GridFill = 1
-	})
-	for i, nm := range vi.DoGNames {
-		rgtsr := vi.OutTsr("DoG_" + nm + "_Red-Green")
-		bytsr := vi.OutTsr("DoG_" + nm + "_Blue-Yellow")
-		v1vision.OuterAgg(i*2, 0, rgtsr, &vi.OutAll)
-		v1vision.OuterAgg(i*2+1, 0, bytsr, &vi.OutAll)
-	}
+func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x int32) {
+	out := vi.V1.Values.SubSpace(idx).(*tensor.Float32)
+	tsr.SetShapeSizes(int(y), int(x), 2, 1)
+	tensor.CopyFromLargerShape(tsr, out)
 }
 
 // Filter is overall method to run filters on current image file name
-// loads the image from ImageFile and then runs filters
+// loads the image from ImageFile and then runs filters.
 func (vi *Vis) Filter() error { //types:add
-	if vi.ImageFile == "" || vi.ImageFile == "macbeth" {
-		err := vi.OpenMacbeth()
-		if err != nil {
-			return errors.Log(err)
-		}
-	} else {
-		err := vi.OpenImage(string(vi.ImageFile))
-		if err != nil {
-			return errors.Log(err)
-		}
+	vi.V1.SetAsCurrent()
+	v1vision.UseGPU = vi.GPU
+	err := vi.OpenImage(string(vi.ImageFile))
+	if err != nil {
+		return errors.Log(err)
 	}
-	vi.ColorDoG()
-	vi.AggAll()
+	tmr := timer.Time{}
+	tmr.Start()
+	for range 1 {
+		vi.V1.Run()
+		// vi.V1.Run(v1vision.ValuesVar)
+		// note: the read sync operation is currently very slow!
+		// this needs to be sped up significantly! hopefully with the
+		// fix that they are doing for the firefox issue.
+		// https://bugzilla.mozilla.org/show_bug.cgi?id=1870699
+	}
+	tmr.Stop()
+	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
+	// image = 128: CPU = 333ms, GPU = 198ms
+	// image = 256: CPU = 873ms, GPU = 313ms
+	// image = 512: CPU = 2.6s,  GPU = 878ms
+	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
+
+	vi.getTsr(0, &vi.Out, vi.Geom.Out.Y, vi.Geom.Out.X)
+
+	// vi.DoGGrey.RunImage(&vi.StdImage, vi.Image)
+
+	if vi.tabView != nil {
+		vi.tabView.Update()
+	}
 	return nil
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// 		Gui
-
 func (vi *Vis) ConfigGUI() *core.Body {
-	b := core.NewBody("colordog").SetTitle("Color DoGFiltering")
-	core.NewForm(b).SetStruct(vi)
+	vi.DoG.ToTable(&vi.DoGTab) // note: view only, testing
+	tensorcore.AddGridStylerTo(vi.ImageTsr, func(s *tensorcore.GridStyle) {
+		s.Image = true
+		s.Range.SetMin(0)
+	})
+	tensorcore.AddGridStylerTo(vi.ImageRGTsr, func(s *tensorcore.GridStyle) {
+		s.Image = true
+		s.Range.SetMin(0)
+	})
+	tensorcore.AddGridStylerTo(vi.ImageBYTsr, func(s *tensorcore.GridStyle) {
+		s.Image = true
+		s.Range.SetMin(0)
+	})
+	tensorcore.AddGridStylerTo(&vi.DoGTab, func(s *tensorcore.GridStyle) {
+		s.Size.Min = 16
+		s.Range.Set(-0.1, 0.1)
+	})
+
+	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
+	sp := core.NewSplits(b)
+	core.NewForm(sp).SetStruct(vi)
+	tb := core.NewTabs(sp)
+	vi.tabView = tb
+	tf, _ := tb.NewTab("Image")
+	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageTsr)
+	tf, _ = tb.NewTab("Image RG")
+	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageRGTsr)
+	tf, _ = tb.NewTab("Image BY")
+	tensorcore.NewTensorGrid(tf).SetTensor(vi.ImageBYTsr)
+	tf, _ = tb.NewTab("DoG")
+	tensorcore.NewTensorGrid(tf).SetTensor(&vi.Out)
+
+	sp.SetSplits(.3, .7)
+
 	b.AddTopBar(func(bar *core.Frame) {
 		core.NewToolbar(bar).Maker(func(p *tree.Plan) {
 			tree.Add(p, func(w *core.FuncButton) { w.SetFunc(vi.Filter) })

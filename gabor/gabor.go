@@ -23,49 +23,63 @@ import (
 // By default it produces 2 phase asymmetric edge detector filters.
 type Filter struct {
 
-	// is this filter active?
+	// On is whether this filter active.
 	On bool
 
-	// how much relative weight does this filter have when combined with other filters
-	Wt float32
-
-	// overall gain multiplier applied after filtering -- only relevant if not using renormalization (otherwize it just gets renormed away)
+	// Gain is the overall gain multiplier applied after filtering.
+	// Only relevant if not using renormalization
+	// (otherwize it just gets renormed away).
 	Gain float32 `default:"2"`
 
-	// size of the overall filter -- number of pixels wide and tall for a square matrix used to encode the filter -- filter is centered within this square -- typically an even number, min effective size ~6
+	// Size of the overall filter, which is the  number of pixels
+	// wide and tall for a square matrix used to encode the filter.
+	// Filter is centered within this square, typically an even number,
+	//  min effective size ~6.
 	Size int
 
-	// wavelength of the sine waves -- number of pixels over which a full period of the wave takes place -- typically same as Size (computation adds a 2 PI factor to translate into pixels instead of radians)
-	WvLen float32
+	// Wavelength is the wavelength of the sine waves: number of pixels
+	// over which a full period of the wave takes place.
+	// Typically same as Size (computation adds a 2 PI factor to
+	// translate into pixels instead of radians).
+	Wavelength float32
 
-	// how far apart to space the centers of the gabor filters -- 1 = every pixel, 2 = every other pixel, etc -- high-res should be 1 or 2, lower res can be increments therefrom
+	// Spacing is how far apart to space the centers of the
+	// gabor filters. 1 = every pixel, 2 = every other pixel,
+	// etc. High-res should be 1 or 2; lower res can be increments
+	// therefrom.
 	Spacing int
 
-	// gaussian sigma for the length dimension (elongated axis perpendicular to the sine waves) -- as a normalized proportion of filter Size
-	SigLen float32 `default:"0.3"`
+	// SigmaLen is the Gaussian sigma for the length dimension
+	// (elongated axis perpendicular to the sine waves).
+	// as a normalized proportion of filter Size.
+	SigmaLen float32 `default:"0.3"`
 
-	// gaussian sigma for the width dimension (in the direction of the sine waves) -- as a normalized proportion of filter size
-	SigWd float32 `default:"0.15,0.2"`
+	// SigmaWd is the gaussian sigma for the width dimension
+	// (in the direction of the sine waves), as a normalized proportion
+	// of filter size.
+	SigmaWd float32 `default:"0.15,0.2"`
 
-	// phase offset for the sine wave, in degrees -- 0 = asymmetric sine wave, 90 = symmetric cosine wave
+	// Phase offset for the sine wave, in degrees.
+	// 0 = asymmetric sine wave, 90 = symmetric cosine wave.
 	Phase float32 `default:"0,90"`
 
-	// cut off the filter (to zero) outside a circle of diameter = Size -- makes the filter more radially symmetric
+	// CircleEdge cuts off the filter (to zero) outside a circle
+	// of diameter = Size. Makes the filter more radially symmetric.
 	CircleEdge bool `default:"true"`
 
-	// number of different angles of overall gabor filter orientation to use -- first angle is always horizontal
+	// NAngles is the number of different angles of overall gabor
+	// filter orientation to use. First angle is always horizontal.
 	NAngles int `default:"4"`
 }
 
 func (gf *Filter) Defaults() {
 	gf.On = true
-	gf.Wt = 1
 	gf.Gain = 2
 	gf.Size = 6
 	gf.Spacing = 2
-	gf.WvLen = 6
-	gf.SigLen = 0.3
-	gf.SigWd = 0.2
+	gf.Wavelength = 6
+	gf.SigmaLen = 0.3
+	gf.SigmaWd = 0.2
 	gf.Phase = 0
 	gf.CircleEdge = true
 	gf.NAngles = 4
@@ -83,11 +97,11 @@ func (gf *Filter) ShouldDisplay(field string) bool {
 	}
 }
 
-// SetSize sets the size and WvLen to same value, and also sets spacing
+// SetSize sets the size and Wavelength to same value, and also sets spacing
 // these are the main params that need to be varied for standard V1 gabors
 func (gf *Filter) SetSize(sz, spc int) {
 	gf.Size = sz
-	gf.WvLen = float32(sz)
+	gf.Wavelength = float32(sz)
 	gf.Spacing = spc
 }
 
@@ -99,13 +113,13 @@ func (gf *Filter) ToTensor(tsr *tensor.Float32) {
 
 	radius := float32(gf.Size) * 0.5
 
-	gsLen := gf.SigLen * float32(gf.Size)
-	gsWd := gf.SigWd * float32(gf.Size)
+	gsLen := gf.SigmaLen * float32(gf.Size)
+	gsWd := gf.SigmaWd * float32(gf.Size)
 
 	lenNorm := 1.0 / (2.0 * gsLen * gsLen)
 	wdNorm := 1.0 / (2.0 * gsWd * gsWd)
 
-	twoPiNorm := (2.0 * math.Pi) / gf.WvLen
+	twoPiNorm := (2.0 * math.Pi) / gf.Wavelength
 	phsRad := math32.DegToRad(gf.Phase)
 
 	for ang := 0; ang < gf.NAngles; ang++ {

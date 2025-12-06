@@ -9,10 +9,11 @@ import (
 	"github.com/emer/v1vision/dog"
 )
 
-// NewDoG adds given [dog.Filter] to Filters, returning the
-// filter type index in Filters and the output values configured
-// for storing the output of running these filters, per the
-// given [Geom] output size. Adds a [ConvolveImage] operation
+// NewDoG adds given [dog.Filter] Net filter to Filters, for
+// spatial contrast filtering.
+// Returns the filter type index in Filters and the output values
+// configured for storing the output of running these filters,
+// per the given [Geom] output size. Adds a [ConvolveImage] operation
 // for this DoG filtering step, from given input image index,
 // and irgb color channel (0-2).
 func (vv *V1Vision) NewDoG(in, irgb int, df *dog.Filter, geom *Geom) (ftyp, out int) {
@@ -22,11 +23,29 @@ func (vv *V1Vision) NewDoG(in, irgb int, df *dog.Filter, geom *Geom) (ftyp, out 
 	return
 }
 
-// DoGToFilter sets the given [dog.Filter] filter to given
-// filter type index. If more filters are added after NewDoG called
+// DoGToFilter sets the given [dog.Filter] Net filter to given
+// filter type index. If more filters are added after NewDoG is called
 // then need to go back at the end and call all the ToFilter methods,
 // in case the filters tensor has been resized.
 func (vv *V1Vision) DoGToFilter(ftyp int, df *dog.Filter) {
 	flt := vv.Filters.SubSpace(ftyp).(*tensor.Float32)
-	df.ToTensor(flt, true) // only net
+	df.ToTensor(flt, dog.Net)
+}
+
+// NewDoGOnOff adds given [dog.Filter] On and Off filters to Filters,
+// for color contrast filtering, applying On and Off to different color
+// channels. Returns the filter type index.
+func (vv *V1Vision) NewDoGOnOff(df *dog.Filter, geom *Geom) int {
+	ftyp := vv.NewFilter(2, df.Size, df.Size)
+	vv.DoGOnOffToFilter(ftyp, df)
+	return ftyp
+}
+
+// DoGOnOffToFilter sets the given [dog.Filter] On and Off filters to given
+// filter type index. If more filters are added after NewDoGOnOff is called
+// then need to go back at the end and call all the ToFilter methods,
+// in case the filters tensor has been resized.
+func (vv *V1Vision) DoGOnOffToFilter(ftyp int, df *dog.Filter) {
+	flt := vv.Filters.SubSpace(ftyp).(*tensor.Float32)
+	df.ToTensor(flt, dog.On, dog.Off)
 }

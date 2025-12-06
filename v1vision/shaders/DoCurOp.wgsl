@@ -43,18 +43,6 @@ fn Index1D(s0: u32, i0: u32) -> u32 {
 //////// import: "vars.go"
 
 //////// import: "colorspace-lms.go"
-alias LMSComponents = i32; //enums:enum
-const  LC: LMSComponents = 0;
-const  MC: LMSComponents = 1;
-const  SC: LMSComponents = 2;
-const  LMC: LMSComponents = 3;
-const  LvMC: LMSComponents = 4;
-const  SvLMC: LMSComponents = 5;
-const  GREY: LMSComponents = 6;
-alias Opponents = i32; //enums:enum
-const  WhiteBlack: Opponents = 0;
-const  RedGreen: Opponents = 1;
-const  BlueYellow: Opponents = 2;
 /*
 func LMSToXYZ_CAT02(l, m, s f32) (x, y, z f32) {
     x = 1.096124 * l + 0.4296f * Y + -0.1624f * Z;
@@ -111,16 +99,12 @@ fn SRGBToLinear(r: f32,g: f32,b: f32, rl: ptr<function,f32>,gl: ptr<function,f32
 	*gl = SRGBToLinearComp(g);
 	*bl = SRGBToLinearComp(b);
 }
-fn SRGBToLMSOppos(r: f32,g: f32,b: f32, lvm: ptr<function,f32>,svlm: ptr<function,f32>,grey: ptr<function,f32>) {
+fn SRGBToLMSAll(r: f32,g: f32,b: f32, lc: ptr<function,f32>,mc: ptr<function,f32>,sc: ptr<function,f32>,lmc: ptr<function,f32>,lvm: ptr<function,f32>,svlm: ptr<function,f32>,grey: ptr<function,f32>) {
 	var l: f32;
 	var m: f32;
 	var s: f32;
-	var lc: f32;
-	var mc: f32;
-	var sc: f32;
-	var lmc: f32;
 	SRGBToLMS_HPE(r, g, b, &l, &m, &s); // note: HPE
-	LMSToComps(l, m, s, &lc, &mc, &sc, &lmc, lvm, svlm, grey);
+	LMSToComps(l, m, s, lc, mc, sc, lmc, lvm, svlm, grey);
 }
 
 //////// import: "complex.go"
@@ -250,8 +234,8 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 	var istY = op.Geom.Border.y - op.Geom.FilterLt.y;
 	var yi = i32(istY + yo*op.Geom.Spacing.y);
 	var xi = i32(istX + xo*op.Geom.Spacing.x);
-	var fyn = i32(op.Geom.FilterSz.y);
-	var fxn = i32(op.Geom.FilterSz.x);
+	var fyn = i32(op.Geom.FilterSize.y);
+	var fxn = i32(op.Geom.FilterSize.x);
 	var sum = f32(0);
 	for (var fy = 0; fy < fyn; fy++) {
 		for (var fx = 0; fx < fxn; fx++) {
@@ -266,14 +250,15 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
 	} else {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
+		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+		TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
 	}
 }
 
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 21;
+const OperationsN: Operations = 23;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -293,7 +278,7 @@ struct Geom {
 	Out: vec4<i32>,
 	Border: vec4<i32>,
 	Spacing: vec4<i32>,
-	FilterSz: vec4<i32>,
+	FilterSize: vec4<i32>,
 	FilterLt: vec4<i32>,
 	FilterRt: vec4<i32>,
 }
@@ -377,20 +362,52 @@ fn Op_FadePad(op: Op, i: u32) {
 	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12],
 	TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = p*iv + pavg;
 }
-fn Op_LMSImage(op: Op, i: u32) {
+fn Op_LMSOpponents(op: Op, i: u32) {
 	var ii = i32(i);
 	var y = ii / op.Geom.In.x;
 	var x = ii % op.Geom.In.x;
 	var r = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(0), u32(y), u32(x))];
 	var g = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(1), u32(y), u32(x))];
 	var b = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(2), u32(y), u32(x))];
+	var lc: f32;
+	var mc: f32;
+	var sc: f32;
+	var lmc: f32;
 	var lvm: f32;
 	var svlm: f32;
 	var grey: f32;
-	SRGBToLMSOppos(r, g, b, &lvm, &svlm, &grey);
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(0), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = op.FloatArg1 * lvm;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = op.FloatArg1 * svlm;
+	SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey);
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // RedGreen
+	u32(op.OutImage), u32(0), u32(y), u32(x))] = op.FloatArg1 * lvm;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = grey;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // BlueYellow
+	u32(op.OutImage), u32(2), u32(y), u32(x))] = op.FloatArg1 * svlm;
+}
+fn Op_LMSComponents(op: Op, i: u32) {
+	var ii = i32(i);
+	var y = ii / op.Geom.In.x;
+	var x = ii % op.Geom.In.x;
+	var r = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(0), u32(y), u32(x))];
+	var g = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(1), u32(y), u32(x))];
+	var b = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(2), u32(y), u32(x))];
+	var lc: f32;
+	var mc: f32;
+	var sc: f32;
+	var lmc: f32;
+	var lvm: f32;
+	var svlm: f32;
+	var grey: f32;
+	SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey);
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Red
+	TensorStrides[13], u32(op.OutImage), u32(0), u32(y), u32(x))] = lc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Green
+	TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = mc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = grey;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Yellow
+	TensorStrides[13], u32(op.OutImage2), u32(0), u32(y), u32(x))] = lmc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage2), u32(1), u32(y), u32(x))] = grey;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Blue
+	TensorStrides[13], u32(op.OutImage2), u32(2), u32(y), u32(x))] = sc;
 }
 
 //////// import: "inhib.go"
@@ -516,8 +533,8 @@ fn Op_NormDiv(op: Op, i: u32) {
 //////// import: "maxpool.go"
 fn Op_MaxPool(op: Op, i: u32) {
 	var szX = op.Geom.Out.x;
-	var fY = op.Geom.FilterSz.y;
-	var fX = op.Geom.FilterSz.x;
+	var fY = op.Geom.FilterSize.y;
+	var fX = op.Geom.FilterSize.x;
 	var fi = i32(i) % op.FilterN; // inner
 	var pii = i32(i) / op.FilterN;
 	var pi = pii % op.IntArg1; // plus-minus
@@ -660,24 +677,26 @@ alias Operations = i32; //enums:enum
 const  NoOp: Operations = 0;
 const  WrapPad: Operations = 1;
 const  FadePad: Operations = 2;
-const  LMSImage: Operations = 3;
-const  ConvolveImage: Operations = 4;
-const  LogValues: Operations = 5;
-const  MaxScalar: Operations = 6;
-const  SumScalar: Operations = 7;
-const  MeanScalar: Operations = 8;
-const  NormDiv: Operations = 9;
-const  NeighInhib4: Operations = 10;
-const  KWTAInhib: Operations = 11;
-const  MaxPool: Operations = 12;
-const  MaxPolarity: Operations = 13;
-const  MaxCopy: Operations = 14;
-const  LenSum4: Operations = 15;
-const  EndStop4: Operations = 16;
-const  To4D: Operations = 17;
-const  MotionIntegrate: Operations = 18;
-const  MotionStar: Operations = 19;
-const  MotionFullField: Operations = 20;
+const  LMSOpponents: Operations = 3;
+const  LMSComponents: Operations = 4;
+const  ConvolveImage: Operations = 5;
+const  ConvolveDiff: Operations = 6;
+const  LogValues: Operations = 7;
+const  MaxScalar: Operations = 8;
+const  SumScalar: Operations = 9;
+const  MeanScalar: Operations = 10;
+const  NormDiv: Operations = 11;
+const  NeighInhib4: Operations = 12;
+const  KWTAInhib: Operations = 13;
+const  MaxPool: Operations = 14;
+const  MaxPolarity: Operations = 15;
+const  MaxCopy: Operations = 16;
+const  LenSum4: Operations = 17;
+const  EndStop4: Operations = 18;
+const  To4D: Operations = 19;
+const  MotionIntegrate: Operations = 20;
+const  MotionStar: Operations = 21;
+const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
 	RunN: u32,
@@ -688,6 +707,7 @@ struct Op {
 	OutValue: i32,
 	OutValue4D: i32,
 	OutImage: i32,
+	OutImage2: i32,
 	FilterType: i32,
 	FilterN: i32,
 	FloatArg1: f32,
@@ -698,7 +718,6 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
-	pad: i32,
 	Geom: Geom,
 }
 fn Op_Run(op: Op, i: u32) {
@@ -712,8 +731,11 @@ fn Op_Run(op: Op, i: u32) {
 	case FadePad: {
 		Op_FadePad(op, i);
 	}
-	case LMSImage: {
-		Op_LMSImage(op, i);
+	case LMSOpponents: {
+		Op_LMSOpponents(op, i);
+	}
+	case LMSComponents: {
+		Op_LMSComponents(op, i);
 	}
 	case LogValues: {
 		Op_LogValues(op, i);
@@ -764,8 +786,8 @@ fn DoCurOp(i: u32) { //gosl:kernel
 
 //////// import: "to4d.go"
 fn Op_To4D(op: Op, i: u32) {
-	var fY = op.Geom.FilterSz.y;
-	var fX = op.Geom.FilterSz.x;
+	var fY = op.Geom.FilterSize.y;
+	var fX = op.Geom.FilterSize.x;
 	var szX = op.Geom.Out.x;
 	var fi = i32(i) % fX;
 	var pii = i32(i) / fX;

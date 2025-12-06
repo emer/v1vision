@@ -44,28 +44,16 @@ func SRGBFromLinear(rl, gl, bl float32, r, g, b *float32) {
 	return
 }
 
-// SRGBToLMSComps converts sRGB to LMS components including opponents
+// SRGBToLMSAll converts sRGB to LMS components including opponents
 // using the HPE cone values: Red - Green (LvM) and Blue - Yellow (SvLM).
 // Includes the separate components in these subtractions as well.
 // Uses the CIECAM02 color appearance model (MoroneyFairchildHuntEtAl02)
 // https://en.wikipedia.org/wiki/CIECAM02
 // using the Hunt-Pointer-Estevez transform.
-func SRGBToLMSComps(r, g, b float32, lc, mc, sc, lmc, lvm, svlm, grey *float32) {
+func SRGBToLMSAll(r, g, b float32, lc, mc, sc, lmc, lvm, svlm, grey *float32) {
 	var l, m, s float32
 	SRGBToLMS_HPE(r, g, b, &l, &m, &s) // note: HPE
 	LMSToComps(l, m, s, lc, mc, sc, lmc, lvm, svlm, grey)
-}
-
-// SRGBToLMSOppos converts sRGB to LMS opponent components and grey,
-// using the HPE cone values: Red - Green (LvM) and Blue - Yellow (SvLM).
-// Uses the CIECAM02 color appearance model (MoroneyFairchildHuntEtAl02)
-// https://en.wikipedia.org/wiki/CIECAM02
-// using the Hunt-Pointer-Estevez transform.
-func SRGBToLMSOppos(r, g, b float32, lvm, svlm, grey *float32) {
-	var l, m, s float32
-	var lc, mc, sc, lmc float32
-	SRGBToLMS_HPE(r, g, b, &l, &m, &s) // note: HPE
-	LMSToComps(l, m, s, &lc, &mc, &sc, &lmc, lvm, svlm, grey)
 }
 
 //gosl:end
