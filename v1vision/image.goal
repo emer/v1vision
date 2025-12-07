@@ -245,8 +245,8 @@ func (op *Op) LMSComponents(i uint32) {
 	var lc, mc, sc, lmc, lvm, svlm, grey float32
 	colorspace.SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey)
 	
-	Images[op.OutImage, 0, y, x] = lc // Red
-	Images[op.OutImage, 1, y, x] = mc // Green
+	Images[op.OutImage, 0, y, x] = op.FloatArg1 * lc // Red
+	Images[op.OutImage, 1, y, x] = op.FloatArg1 * mc // Green
 	Images[op.OutImage, 2, y, x] = grey
 
 	Images[op.OutImage2, 0, y, x] = op.FloatArg1 * lmc // Yellow

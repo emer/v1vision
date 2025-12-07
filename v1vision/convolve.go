@@ -73,8 +73,8 @@ func (op *Op) ConvolveImage(i uint32) {
 	fyn := int(op.Geom.FilterSize.Y)
 	fxn := int(op.Geom.FilterSize.X)
 	sum := float32(0)
-	for fy := 0; fy < fyn; fy++ {
-		for fx := 0; fx < fxn; fx++ {
+	for fy := range fyn {
+		for fx := range fxn {
 			iv := Images.Value(int(op.InImage), int(op.InImageRGB), int(yi+fy), int(xi+fx))
 			fv := Filters.Value(int(op.FilterType), int(fi), int(fy), int(fx))
 			sum += fv * iv
@@ -105,8 +105,8 @@ func (op *Op) ConvolveDiff(i uint32) {
 	fxn := int(op.Geom.FilterSize.X)
 	sumOn := float32(0)
 	sumOff := float32(0)
-	for fy := 0; fy < fyn; fy++ {
-		for fx := 0; fx < fxn; fx++ {
+	for fy := range fyn {
+		for fx := range fxn {
 			iv1 := Images.Value(int(op.InImage), int(op.InImageRGB), int(yi+fy), int(xi+fx))
 			iv2 := Images.Value(int(op.InValue2), int(op.OutImage2), int(yi+fy), int(xi+fx))
 			fv1 := Filters.Value(int(op.FilterType), int(op.FilterN), int(fy), int(fx))

@@ -237,8 +237,8 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 	var fyn = i32(op.Geom.FilterSize.y);
 	var fxn = i32(op.Geom.FilterSize.x);
 	var sum = f32(0);
-	for (var fy = 0; fy < fyn; fy++) {
-		for (var fx = 0; fx < fxn; fx++) {
+	for (var fy=0; fy<fyn; fy++) {
+		for (var fx=0; fx<fxn; fx++) {
 			var iv = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(op.InImageRGB), u32(yi + fy), u32(xi + fx))];
 			var fv = Filters[Index4D(TensorStrides[0], TensorStrides[1], TensorStrides[2], TensorStrides[3], u32(op.FilterType), u32(fi), u32(fy), u32(fx))];
 			sum += fv * iv;
@@ -252,6 +252,37 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
 		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
 		TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
+	}
+}
+fn Op_ConvolveDiff(op: Op, i: u32) {
+	var yo = i32(i) / op.Geom.Out.x;
+	var xo = i32(i) % op.Geom.Out.x;
+	var fi = op.OutScalar;
+	var istX = op.Geom.Border.x - op.Geom.FilterLt.x;
+	var istY = op.Geom.Border.y - op.Geom.FilterLt.y;
+	var yi = i32(istY + yo*op.Geom.Spacing.y);
+	var xi = i32(istX + xo*op.Geom.Spacing.x);
+	var fyn = i32(op.Geom.FilterSize.y);
+	var fxn = i32(op.Geom.FilterSize.x);
+	var sumOn = f32(0);
+	var sumOff = f32(0);
+	for (var fy=0; fy<fyn; fy++) {
+		for (var fx=0; fx<fxn; fx++) {
+			var iv1 = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(op.InImageRGB), u32(yi + fy), u32(xi + fx))];
+			var iv2 = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InValue2), u32(op.OutImage2), u32(yi + fy), u32(xi + fx))];
+			var fv1 = Filters[Index4D(TensorStrides[0], TensorStrides[1], TensorStrides[2], TensorStrides[3], u32(op.FilterType), u32(op.FilterN), u32(fy), u32(fx))];
+			var fv2 = Filters[Index4D(TensorStrides[0], TensorStrides[1], TensorStrides[2], TensorStrides[3], u32(op.FilterType), u32(op.IntArg1), u32(fy), u32(fx))];
+			sumOn += fv1 * iv1;
+			sumOff += fv2 * iv2;
+		}
+	}
+	var diff = op.FloatArg1 * (op.FloatArg2*sumOn - sumOff);
+	if (diff > 0) {
+		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = diff;
+		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
+	} else {
+		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -diff;
+		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
 	}
 }
 
@@ -398,16 +429,16 @@ fn Op_LMSComponents(op: Op, i: u32) {
 	var svlm: f32;
 	var grey: f32;
 	SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey);
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Red
-	TensorStrides[13], u32(op.OutImage), u32(0), u32(y), u32(x))] = lc;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Green
-	TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = mc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Red
+	u32(op.OutImage), u32(0), u32(y), u32(x))] = op.FloatArg1 * lc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Green
+	u32(op.OutImage), u32(1), u32(y), u32(x))] = op.FloatArg1 * mc;
 	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Yellow
-	TensorStrides[13], u32(op.OutImage2), u32(0), u32(y), u32(x))] = lmc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Yellow
+	u32(op.OutImage2), u32(0), u32(y), u32(x))] = op.FloatArg1 * lmc;
 	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage2), u32(1), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], // Blue
-	TensorStrides[13], u32(op.OutImage2), u32(2), u32(y), u32(x))] = sc;
+	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Blue
+	u32(op.OutImage2), u32(2), u32(y), u32(x))] = op.FloatArg1 * sc;
 }
 
 //////// import: "inhib.go"
@@ -724,6 +755,9 @@ fn Op_Run(op: Op, i: u32) {
 	switch (op.Op) {
 	case ConvolveImage: {
 		Op_ConvolveImage(op, i);
+	}
+	case ConvolveDiff: {
+		Op_ConvolveDiff(op, i);
 	}
 	case WrapPad: {
 		Op_WrapPad(op, i);

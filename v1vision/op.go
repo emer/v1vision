@@ -203,6 +203,8 @@ func (op *Op) Run(i uint32) {
 	switch op.Op {
 	case ConvolveImage:
 		op.ConvolveImage(i)
+	case ConvolveDiff:
+		op.ConvolveDiff(i)
 	case WrapPad:
 		op.WrapPad(i)
 	case FadePad:

@@ -84,7 +84,7 @@ type Vis struct { //types:add
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = false
+	vi.GPU = true
 	vi.ImageFile = core.Filename("macbeth.png") // GrangerRainbow.png")
 	vi.DoGTab.Init()
 	vi.DoG.Defaults()
@@ -100,9 +100,9 @@ func (vi *Vis) Defaults() {
 	// to set border to .5 * filter size
 	// any further border sizes on same image need to add Geom.FilterRt!
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
-	vi.ImageSize = image.Point{128, 128}
+	// vi.ImageSize = image.Point{128, 128}
 	// vi.ImageSize = image.Point{256, 256}
-	// vi.ImageSize = image.Point{512, 512}
+	vi.ImageSize = image.Point{512, 512} // default here
 	vi.Geom.SetImageSize(vi.ImageSize)
 
 	vi.DoGGrey.Defaults()
@@ -121,13 +121,13 @@ func (vi *Vis) Config() {
 	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	vi.ImageRGTsr = vi.V1.Images.SubSpace(lmsRG).(*tensor.Float32)
 	vi.ImageBYTsr = vi.V1.Images.SubSpace(lmsBY).(*tensor.Float32)
-	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, 5, &vi.Geom)
+	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.DoG.Gain, &vi.Geom)
 
 	out := vi.V1.NewValues(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2)
 	dogFt := vi.V1.NewDoGOnOff(&vi.DoG, &vi.Geom)
 
-	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, vi.DoG.Gain, vi.DoG.OnGain, &vi.Geom)
-	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, vi.DoG.Gain, vi.DoG.OnGain, &vi.Geom)
+	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, 1, vi.DoG.OnGain, &vi.Geom)
+	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, 1, vi.DoG.OnGain, &vi.Geom)
 
 	// _ = out
 	// vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
@@ -138,7 +138,7 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
-	// vi.DoGGrey.Config(vi.StdImage.Size)
+	vi.DoGGrey.Config(vi.StdImage.Size)
 }
 
 // OpenImage opens given filename as current image Image
@@ -160,7 +160,7 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 
 func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x int32) {
 	out := vi.V1.Values.SubSpace(idx).(*tensor.Float32)
-	tsr.SetShapeSizes(int(y), int(x), 2, 1)
+	tsr.SetShapeSizes(int(y), int(x), 2, 2)
 	tensor.CopyFromLargerShape(tsr, out)
 }
 
@@ -175,7 +175,7 @@ func (vi *Vis) Filter() error { //types:add
 	}
 	tmr := timer.Time{}
 	tmr.Start()
-	for range 1 {
+	for range 100 {
 		vi.V1.Run()
 		// vi.V1.Run(v1vision.ValuesVar)
 		// note: the read sync operation is currently very slow!
@@ -185,14 +185,12 @@ func (vi *Vis) Filter() error { //types:add
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
-	// image = 128: CPU = 333ms, GPU = 198ms
-	// image = 256: CPU = 873ms, GPU = 313ms
-	// image = 512: CPU = 2.6s,  GPU = 878ms
+	// image = 512, 1000 itr: CPU = 7s,  GPU = 1.6s
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
 
 	vi.getTsr(0, &vi.Out, vi.Geom.Out.Y, vi.Geom.Out.X)
 
-	// vi.DoGGrey.RunImage(&vi.StdImage, vi.Image)
+	vi.DoGGrey.RunImage(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()
@@ -219,7 +217,7 @@ func (vi *Vis) ConfigGUI() *core.Body {
 		s.Range.Set(-0.1, 0.1)
 	})
 
-	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
+	b := core.NewBody("lgn_dog").SetTitle("Color DoG Filtering")
 	sp := core.NewSplits(b)
 	core.NewForm(sp).SetStruct(vi)
 	tb := core.NewTabs(sp)
