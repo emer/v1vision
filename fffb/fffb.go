@@ -20,7 +20,7 @@ type FFFB struct {
 	// Gi is the overall inhibition gain. This is main parameter to adjust to change
 	// overall activation levels, as it scales both the the FF and FB factors uniformly.
 	// 1.8 for layer, 2.0 for pool by default.
-	Gi float32 `min:"0" default:"1.8,2"`
+	Gi float32 `min:"0" default:"1.5,1.8,2"`
 
 	// FF is the overall inhibitory contribution from feedforward inhibition.
 	// This multiplies average netinput (i.e., synaptic drive into layer), which

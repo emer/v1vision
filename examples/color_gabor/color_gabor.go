@@ -179,7 +179,7 @@ func (vi *Vis) Config() {
 	vi.ImageTsr = vi.V1.Images.SubSpace(img).(*tensor.Float32)
 	vi.ImageLMSTsr = vi.V1.Images.SubSpace(lms).(*tensor.Float32)
 
-	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.FilterRt.X), .5, .5, .5, &vi.V1sGeom)
+	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.Border.X), .5, .5, .5, &vi.V1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lms, vi.ColorGain, &vi.V1sGeom)
 
 	nang := vi.V1sGabor.NAngles
@@ -272,7 +272,7 @@ func (vi *Vis) Filter() error { //types:add
 	if err != nil {
 		return errors.Log(err)
 	}
-	r, g, b := v1vision.EdgeAvg(vi.ImageTsr, int(vi.V1sGeom.FilterRt.X))
+	r, g, b := v1vision.EdgeAvg(vi.ImageTsr, int(vi.V1sGeom.Border.X))
 	vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 
 	tmr := timer.Time{}

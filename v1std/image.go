@@ -7,6 +7,8 @@ package v1std
 import (
 	"image"
 
+	"cogentcore.org/core/base/errors"
+	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/lab/tensor"
 	"cogentcore.org/lab/tensorcore"
 	"github.com/anthonynsimon/bild/transform"
@@ -47,6 +49,16 @@ func (vi *Image) SetImageResize(img image.Image) {
 	if isz != vi.Size {
 		vi.Image = transform.Resize(vi.Image, vi.Size.X, vi.Size.Y, transform.Linear)
 	}
+}
+
+// OpenImageResize opens image from given filename, and resizes to target size.
+func (vi *Image) OpenImageResize(fn string) error {
+	img, _, err := imagex.Open(fn)
+	if err != nil {
+		return errors.Log(err)
+	}
+	vi.SetImageResize(img)
+	return nil
 }
 
 // GetTensor gets the Images tensor at given index (typically 0).

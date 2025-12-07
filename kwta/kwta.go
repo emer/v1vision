@@ -68,9 +68,12 @@ func (kp *KWTA) Defaults() {
 	kp.Layer.Defaults()
 	kp.Pool.Defaults()
 	kp.Layer.On.SetBool(true)
+	kp.Layer.Gi = 1.5 // from lvis
 	kp.Pool.On.SetBool(true)
 	kp.Pool.Gi = 2.0
 	kp.XX1.Defaults()
+	kp.XX1.Gain = 80   // from lvis
+	kp.XX1.NVar = 0.01 // from lvis
 	kp.ActTau = 3
 	kp.Gbar.SetAll(0.5, 0.1, 1.0, 1.0) // 0.5 is key for 1.0 inputs
 	kp.Erev.SetAll(1.0, 0.3, 0.3, 0.1)

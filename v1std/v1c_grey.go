@@ -69,9 +69,7 @@ func (vi *V1cGrey) Defaults() {
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
 // The resulting Geom.Border field can be passed to [Image] methods.
 func (vi *V1cGrey) Config(imageSize image.Point) {
-	spc := vi.V1sGabor.Spacing
-	sz := vi.V1sGabor.Size
-	vi.V1sGeom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), imageSize)
+	vi.V1sGeom.SetImageSize(imageSize)
 
 	vi.V1.Init()
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA

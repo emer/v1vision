@@ -53,9 +53,7 @@ func (vi *DoGGrey) Defaults() {
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
 // The resulting Geom.Border field can be passed to [Image] methods.
 func (vi *DoGGrey) Config(imageSize image.Point) {
-	spc := vi.DoG.Spacing
-	sz := vi.DoG.Size
-	vi.Geom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), imageSize)
+	vi.Geom.SetImageSize(imageSize)
 
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())

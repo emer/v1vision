@@ -61,9 +61,7 @@ func (vi *DoGColor) Defaults() {
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
 // The resulting Geom.Border field can be passed to [Image] methods.
 func (vi *DoGColor) Config(imageSize image.Point) {
-	spc := vi.DoG.Spacing
-	sz := vi.DoG.Size
-	vi.Geom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), imageSize)
+	vi.Geom.SetImageSize(imageSize)
 
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())
@@ -72,8 +70,6 @@ func (vi *DoGColor) Config(imageSize image.Point) {
 	lmsBY := vi.V1.NewImage(vi.Geom.In.V())
 
 	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
-	vi.V1.Images.SubSpace(lmsRG)
-	vi.V1.Images.SubSpace(lmsBY)
 	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.DoG.Gain, &vi.Geom)
 
 	out := vi.V1.NewValues(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2)
