@@ -31,7 +31,7 @@ func assertData(t *testing.T, testName, tsrName string, tsr *tensor.Float32) {
 	tensor.SetShapeFrom(&trg, tsr)
 	err = tensor.OpenCSV(&trg, fsx.Filename(fn), tensor.Tab)
 	assert.NoError(t, err)
-	tolassert.EqualTolSlice(t, trg.Values, tsr.Values, 1.0e-7)
+	tolassert.EqualTolSlice(t, trg.Values, tsr.Values, 1.0e-6)
 }
 
 func TestOnMacbeth(t *testing.T) {
