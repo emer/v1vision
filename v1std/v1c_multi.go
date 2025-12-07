@@ -262,7 +262,7 @@ func (vi *V1cMulti) AddDoGParams() *DoGColorParams {
 	return gm
 }
 
-// StdLowMed16Zoom1 configures a standard 16 degree parafovial
+// StdLowMed16DegZoom1 configures a standard 16 degree parafovial
 // field of view (FOV), with Low and Medium resolution V1c filters
 // and 1 level of spatial zoom (8 degrees),
 // Along with corresponding low and medium resolution color DoGs.
@@ -285,6 +285,16 @@ func (vi *V1cMulti) StdLowMed16DegZoom1() {
 	vi.AddDoGParams().Config("M8", 2, 44, 4)
 }
 
+// StdLowMed16DegNoDoG configures a standard 16 degree parafovial
+// field of view (FOV), with Low and Medium resolution V1c filters.
+// This operates on 128x128 image content.
+func (vi *V1cMulti) StdLowMed16DegNoDoG() {
+	vi.Image.Size = image.Point{128, 128}
+	// target full wrap/pad image size = 128 + 12 * 2 = 152
+	vi.AddV1cParams().Config("L16", 1, 12, 24, 8) // 128 / 8 = 16
+	vi.AddV1cParams().Config("M16", 1, 12, 12, 4) // 128 / 4 = 32
+}
+
 func (vi *V1cMulti) Out4Rows() int {
 	out4Rows := 5
 	if vi.SplitColor {
@@ -303,7 +313,6 @@ func (vi *V1cMulti) Config() {
 	}
 	v1sGeom := &vi.V1cParams[0].V1sGeom
 	inSz := v1sGeom.In.V()
-	dogGeom := &vi.DoGParams[0].Geom
 
 	vi.V1.Init()
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
@@ -317,7 +326,10 @@ func (vi *V1cMulti) Config() {
 
 	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(v1sGeom.Border.X), .5, .5, .5, v1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lmsOp, vi.ColorGain, v1sGeom)
-	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.ColorGain, dogGeom)
+	if len(vi.DoGParams) > 0 {
+		dogGeom := &vi.DoGParams[0].Geom
+		vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.ColorGain, dogGeom)
+	}
 
 	for _, vp := range vi.V1cParams {
 		vp.V1Config(vi, lmsOp, kwtaIdx)

@@ -67,11 +67,15 @@ func (vi *V1cColor) Defaults() {
 	vi.ColorGain = 8
 	vi.SplitColor = true
 	vi.V1sGabor.Defaults()
-	spc := 4
-	sz := 12
-	vi.V1sGabor.SetSize(sz, spc)
 	vi.V1sNeighInhib.Defaults()
 	vi.V1sKWTA.Defaults()
+	vi.SetSize(12, 4)
+}
+
+// SetSize sets the V1sGabor filter size and geom spacing to given values.
+// Default is 12, 4, for a medium-sized filter.
+func (vi *V1cColor) SetSize(sz, spc int) {
+	vi.V1sGabor.SetSize(sz, spc)
 	vi.V1sGeom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 }
 
