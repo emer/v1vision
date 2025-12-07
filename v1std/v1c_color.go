@@ -92,7 +92,7 @@ func (vi *V1cColor) Config(imageSize image.Point) {
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	lms := vi.V1.NewImage(vi.V1sGeom.In.V())
 
-	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 0, wrap, int(vi.V1sGeom.FilterRt.X), .5, .5, .5, &vi.V1sGeom)
+	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.FilterRt.X), .5, .5, .5, &vi.V1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lms, vi.ColorGain, &vi.V1sGeom)
 
 	nang := vi.V1sGabor.NAngles
@@ -159,6 +159,8 @@ func (vi *V1cColor) RunImage(im *Image, img image.Image) {
 	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
 	im.SetImageRGB(&vi.V1, img, int(vi.V1sGeom.Border.X))
+	r, g, b := v1vision.EdgeAvg(im.Tsr, int(vi.V1sGeom.FilterRt.X))
+	vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 	vi.V1.Run(v1vision.Values4DVar)
 	vi.Output = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 }

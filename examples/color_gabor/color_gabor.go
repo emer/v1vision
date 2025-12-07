@@ -164,6 +164,7 @@ func (vi *Vis) Defaults() {
 	vi.V1sKWTA.Defaults()
 
 	vi.V1cColor.Defaults()
+	vi.V1cColor.GPU = false
 	vi.StdImage.Defaults()
 }
 
@@ -258,8 +259,6 @@ func (vi *Vis) getTsrOpt(idx int, tsr *tensor.Float32, y, x, pol int32) {
 	}
 	vi.getTsr(idx, tsr, y, x, pol)
 }
-
-// todo: v1color is broken.
 
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters

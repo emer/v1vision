@@ -73,11 +73,11 @@ type Vis struct { //types:add
 	// Out has RG, BY value outputs in 0, 1 feature positions.
 	Out tensor.Float32 `display:"no-inline"`
 
-	// DoGGrey is an encapsulated version of this functionality,
+	// DoGColor is an encapsulated version of this functionality,
 	// which we test here for comparison.
-	DoGGrey v1std.DoGGrey
+	DoGColor v1std.DoGColor
 
-	// StdImage manages images for DoGGrey
+	// StdImage manages images for DoGColor
 	StdImage v1std.Image
 
 	tabView *core.Tabs
@@ -105,8 +105,9 @@ func (vi *Vis) Defaults() {
 	vi.ImageSize = image.Point{512, 512} // default here
 	vi.Geom.SetImageSize(vi.ImageSize)
 
-	vi.DoGGrey.Defaults()
+	vi.DoGColor.Defaults()
 	vi.StdImage.Defaults()
+	vi.StdImage.Size = vi.ImageSize
 }
 
 // Config sets up the V1 processing pipeline.
@@ -138,7 +139,7 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
-	vi.DoGGrey.Config(vi.StdImage.Size)
+	vi.DoGColor.Config(vi.StdImage.Size)
 }
 
 // OpenImage opens given filename as current image Image
@@ -190,7 +191,7 @@ func (vi *Vis) Filter() error { //types:add
 
 	vi.getTsr(0, &vi.Out, vi.Geom.Out.Y, vi.Geom.Out.X)
 
-	vi.DoGGrey.RunImage(&vi.StdImage, vi.Image)
+	vi.DoGColor.RunImage(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()

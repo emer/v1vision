@@ -13,17 +13,21 @@ import (
 	"github.com/emer/v1vision/v1vision"
 )
 
-// DoGGrey does greyscale difference-of-gaussian (DoG) filtering.
-// Output is log-max-normalized.
+// DoGColor does color difference-of-gaussian (DoG) filtering,
+// on Red - Green and Blue - Yellow opponent color contrasts,
+// so that activity reflects presence of a color beyond grey baseline.
+// These capture the activity of the blob chroma sensitive cells.
 // Call Defaults and then set any custom params, then call Config.
 // Results are in Output tensor after Run().
-type DoGGrey struct {
+type DoGColor struct {
 	// GPU means use the GPU by default (does GPU initialization) in Config.
 	// To change what is actually used at the moment of running,
 	// set [v1vision.UseGPU].
 	GPU bool
 
-	// LGN DoG filter parameters.
+	// LGN DoG filter parameters. Generally have larger fields,
+	// and no spatial tuning (i.e., OnSigma == OffSigma), consistent
+	// with blob cells.
 	DoG dog.Filter
 
 	// Geom is geometry of input, output.
@@ -33,17 +37,21 @@ type DoGGrey struct {
 	V1 v1vision.V1Vision `display:"no-inline"`
 
 	// Output has the resulting DoG filter outputs, pointing to Values in V1.
-	// [Y, X, Polarity, 1], where Polarity = On (0) vs Off (1) stronger.
+	// [Y, X, Polarity, Feature], where Polarity = On (0) vs Off (1) stronger.
+	// Feature: 0 = Red vs. Green; 1 = Blue vs. Yellow.
 	Output *tensor.Float32 `display:"no-inline"`
 }
 
-func (vi *DoGGrey) Defaults() {
+func (vi *DoGColor) Defaults() {
 	vi.GPU = true
 	vi.DoG.Defaults()
-	spc := 4
-	sz := 12
+	sz := 12  // V1mF16 typically = 12, no border -- defaults
+	spc := 16 // note: not 4; broader blob tuning
 	vi.DoG.Spacing = spc
 	vi.DoG.Size = sz
+	vi.DoG.Gain = 8 // color channels are weaker than grey
+	vi.DoG.OnGain = 1
+	vi.DoG.SetSameSigma(0.5) // no spatial component, just pure contrast
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 }
 
@@ -52,7 +60,7 @@ func (vi *DoGGrey) Defaults() {
 // as an RGB Tensor (per [V1Vision.Images] standard format),
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
 // The resulting Geom.Border field can be passed to [Image] methods.
-func (vi *DoGGrey) Config(imageSize image.Point) {
+func (vi *DoGColor) Config(imageSize image.Point) {
 	spc := vi.DoG.Spacing
 	sz := vi.DoG.Size
 	vi.Geom.SetImage(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz), imageSize)
@@ -60,11 +68,19 @@ func (vi *DoGGrey) Config(imageSize image.Point) {
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
+	lmsRG := vi.V1.NewImage(vi.Geom.In.V())
+	lmsBY := vi.V1.NewImage(vi.Geom.In.V())
 
-	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
-	_, out := vi.V1.NewDoG(wrap, 0, &vi.DoG, &vi.Geom)
-	vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
-	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)
+	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
+	vi.V1.Images.SubSpace(lmsRG)
+	vi.V1.Images.SubSpace(lmsBY)
+	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.DoG.Gain, &vi.Geom)
+
+	out := vi.V1.NewValues(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2)
+	dogFt := vi.V1.NewDoGOnOff(&vi.DoG, &vi.Geom)
+
+	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, 1, vi.DoG.OnGain, &vi.Geom)
+	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, 1, vi.DoG.OnGain, &vi.Geom)
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
@@ -74,10 +90,10 @@ func (vi *DoGGrey) Config(imageSize image.Point) {
 
 // RunImage runs the configured filtering pipeline.
 // on given Image, using given [Image] handler.
-func (vi *DoGGrey) RunImage(im *Image, img image.Image) {
+func (vi *DoGColor) RunImage(im *Image, img image.Image) {
 	v1vision.UseGPU = vi.GPU
 	vi.V1.SetAsCurrent()
-	im.SetImageGrey(&vi.V1, img, int(vi.Geom.Border.X))
+	im.SetImageRGB(&vi.V1, img, int(vi.Geom.Border.X))
 	vi.V1.Run(v1vision.ValuesVar)
 	vi.Output = vi.V1.Values.SubSpace(0).(*tensor.Float32)
 }
