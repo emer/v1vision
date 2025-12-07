@@ -9,10 +9,9 @@ import (
 	"cogentcore.org/lab/tensor"
 )
 
-// MacbethImage sets the Macbeth standard color test image to given tensor
-// with given size and border width around edges.
-// if img == nil it is created, and size enforced.
-func MacbethImage(img *tensor.Float32, width, height, bord int) {
+// MacbethColors returns standard test colors,
+// as a list of 24 rgb 0..255 values.
+func MacbethColors() []int {
 	sRGBvals := []int{115, 82, 68, // 'Dark Skin';
 		194, 150, 130, // 'Light Skin';
 		98, 122, 157, // 'Blue Sky';
@@ -38,7 +37,26 @@ func MacbethImage(img *tensor.Float32, width, height, bord int) {
 		85, 85, 85, // 'Neutral 35';
 		52, 52, 52,
 	}
+	return sRGBvals
+}
 
+// MacbethFloats returns tensor of float32 values in 2D tensor
+// [24 colors, 3 rgb].
+func MacbethFloats() *tensor.Float32 {
+	clr := MacbethColors()
+	n := len(clr)
+	tsr := tensor.NewFloat32(len(clr)/3, 3)
+	for i := range n {
+		tsr.Set1D(float32(clr[i])/255, i)
+	}
+	return tsr
+}
+
+// MacbethImage sets the Macbeth standard color test image to given tensor
+// with given size and border width around edges.
+// if img == nil it is created, and size enforced.
+func MacbethImage(img *tensor.Float32, width, height, bord int) {
+	clrs := MacbethFloats()
 	nsq := vecint.Vector2i{6, 4}
 	numsq := nsq.X * nsq.Y
 	sz := vecint.Vector2i{width + bord*2 + 8, height + bord*2 + 8}
@@ -64,9 +82,9 @@ func MacbethImage(img *tensor.Float32, width, height, bord int) {
 			if ps.X > marg.X && ps.Y > marg.Y {
 				clri := (nsq.Y-1-sqc.Y)*nsq.X + sqc.X
 				if clri < numsq {
-					r := float32(sRGBvals[clri*3]) / 255
-					g := float32(sRGBvals[clri*3+1]) / 255
-					b := float32(sRGBvals[clri*3+2]) / 255
+					r := clrs.Value(clri, 0)
+					g := clrs.Value(clri, 1)
+					b := clrs.Value(clri, 2)
 
 					img.Set(r, 0, ic.Y, ic.X)
 					img.Set(g, 1, ic.Y, ic.X)
