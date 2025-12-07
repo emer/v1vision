@@ -78,11 +78,11 @@ func (vi *Vis) ConfigGUI() *core.Body {
 	tf, _ := tb.NewTab("Image")
 	tensorcore.NewTensorGrid(tf).SetTensor(vi.Image.Tsr)
 	for _, vp := range vi.V1cParams {
-		tf, _ = tb.NewTab(vp.Name)
+		tf, _ = tb.NewTab("V1c " + vp.Name)
 		tensorcore.NewTensorGrid(tf).SetTensor(&vp.Output)
 	}
 	for _, vp := range vi.DoGParams {
-		tf, _ = tb.NewTab(vp.Name)
+		tf, _ = tb.NewTab("DoG " + vp.Name)
 		tensorcore.NewTensorGrid(tf).SetTensor(&vp.Output)
 	}
 

@@ -1,3 +1,4 @@
-# Color Gabor
+# V1c Multi
 
-Implements V1-like simple and complex orientation-tuned gabor filters, operating on color contrast images (red-green, blue-yellow) and greyscale.  See `v1gabor` example for simpelr greyscale-only filtering.
+Uses `v1std.Multi` to implement multiple sizes and zoom levels of filters, as used in the LVis model. This configuration exactly replicates the LVis parameters, with Low and Medium resolution filters on a 16 degree parafoveal field-of-view (FOV), with one level of zoom (8 degrees in the center). Color difference-of-Gaussian filters provide color blob filtering.
+

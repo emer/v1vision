@@ -33,9 +33,6 @@ type Image struct {
 	// Tsr is the current input image as an RGB tensor.
 	// This points into the V1Vision.Images input image 0.
 	Tsr *tensor.Float32 `display:"no-inline"`
-
-	// LMS components + opponents tensor version of image
-	LMS tensor.Float32 `display:"no-inline"`
 }
 
 func (vi *Image) Defaults() {

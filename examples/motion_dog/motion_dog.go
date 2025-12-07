@@ -126,7 +126,7 @@ func (vi *Vis) Config() {
 	vi.V1.Init()
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
-	_, out := vi.V1.AddDoG(img, &vi.DoG, &vi.Geom)
+	_, out := vi.V1.NewDoG(img, 0, &vi.DoG, &vi.Geom)
 	vi.V1.NewLogValues(out, out, fn, 1.0, &vi.Geom)
 	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, fn, &vi.Geom)
 
