@@ -164,7 +164,6 @@ func (vi *Vis) Defaults() {
 	vi.V1sKWTA.Defaults()
 
 	vi.V1cColor.Defaults()
-	vi.V1cColor.GPU = false
 	vi.StdImage.Defaults()
 }
 
