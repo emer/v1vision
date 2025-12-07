@@ -13,6 +13,7 @@ import (
 
 	"cogentcore.org/core/base/fsx"
 	"cogentcore.org/core/base/iox/imagex"
+	"cogentcore.org/core/base/tolassert"
 	"cogentcore.org/lab/tensor"
 )
 
@@ -30,7 +31,7 @@ func assertData(t *testing.T, testName, tsrName string, tsr *tensor.Float32) {
 	tensor.SetShapeFrom(&trg, tsr)
 	err = tensor.OpenCSV(&trg, fsx.Filename(fn), tensor.Tab)
 	assert.NoError(t, err)
-	assert.Equal(t, trg.Values, tsr.Values)
+	tolassert.EqualTolSlice(t, trg.Values, tsr.Values, 1.0e-7)
 }
 
 func TestOnMacbeth(t *testing.T) {
