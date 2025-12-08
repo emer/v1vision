@@ -14,6 +14,17 @@ import (
 
 //go:generate core generate -add-types -gosl
 
+// Directions are the motion directions, in feature order,
+// as represented in the Star and FullField outputs.
+type Directions int32 //enums:enum
+
+const (
+	Left Directions = iota
+	Right
+	Down
+	Up
+)
+
 // Params has the motion parameters for retinal starburst amacrine
 // cells (SAC) that compute centrifugal motion flow from each point.
 type Params struct {

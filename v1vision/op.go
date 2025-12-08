@@ -112,7 +112,7 @@ const (
 	// values to values: InValue -> OutValue (should be different)
 	MotionIntegrate
 
-	// MotionStar computes starburst-style motion on integrate
+	// MotionStar computes starburst-style motion on integrated
 	// fast and slow input values. Result is 4 * FilterN filter
 	// outputs, for Left, Right, Down, Up motion directions.
 	// InValue -> OutValue (different, X and Y are -1 in output).

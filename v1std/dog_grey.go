@@ -40,8 +40,12 @@ type DoGGrey struct {
 func (vi *DoGGrey) Defaults() {
 	vi.GPU = true
 	vi.DoG.Defaults()
-	spc := 4
-	sz := 12
+	vi.SetSize(12, 4)
+}
+
+// SetSize sets the V1sGabor filter size and geom spacing to given values.
+// Default is 12, 4, for a medium-sized filter.
+func (vi *DoGGrey) SetSize(sz, spc int) {
 	vi.DoG.Spacing = spc
 	vi.DoG.Size = sz
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
@@ -59,7 +63,7 @@ func (vi *DoGGrey) Config(imageSize image.Point) {
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 
-	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
+	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.Border.X), &vi.Geom)
 	_, out := vi.V1.NewDoG(wrap, 0, &vi.DoG, &vi.Geom)
 	vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
 	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)

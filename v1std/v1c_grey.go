@@ -81,7 +81,7 @@ func (vi *V1cGrey) Config(imageSize image.Point) {
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 
-	vi.V1.NewWrapImage(img, 0, wrap, int(vi.V1sGeom.FilterRt.X), &vi.V1sGeom)
+	vi.V1.NewWrapImage(img, 0, wrap, int(vi.V1sGeom.Border.X), &vi.V1sGeom)
 
 	nang := vi.V1sGabor.NAngles
 

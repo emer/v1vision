@@ -23,6 +23,7 @@ import (
 	"github.com/emer/emergent/v2/edge"
 	"github.com/emer/v1vision/dog"
 	"github.com/emer/v1vision/motion"
+	"github.com/emer/v1vision/v1std"
 	"github.com/emer/v1vision/v1vision"
 )
 
@@ -94,6 +95,9 @@ type Vis struct { //types:add
 	// FullField integrated output
 	FullField tensor.Float32 `display:"no-inline"`
 
+	// MotionDoG is a self-contained version of motion dog filtering.
+	MotionDoG v1std.MotionDoG
+
 	fastIdx, starIdx int
 
 	tabView *core.Tabs
@@ -113,11 +117,10 @@ func (vi *Vis) Defaults() {
 	sz := 12 // V1mF16 typically = 12, no border
 	spc := 4
 	vi.DoG.SetSize(sz, spc)
-	// note: first arg is border -- we are relying on Geom
-	// to set border to .5 * filter size
-	// any further border sizes on same image need to add Geom.FiltRt!
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 	vi.Geom.SetImageSize(vi.ImageSize)
+	vi.MotionDoG.Defaults()
+	// vi.MotionDoG.GPU = false
 }
 
 func (vi *Vis) Config() {
@@ -139,6 +142,7 @@ func (vi *Vis) Config() {
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
+	vi.MotionDoG.Config(vi.ImageSize)
 }
 
 // RenderFrames renders the frames
@@ -147,17 +151,12 @@ func (vi *Vis) RenderFrames() { //types:add
 	vi.Motion.NormInteg = 0
 	vi.Pos = vi.Start
 	for i := range vi.NFrames {
-		_ = i
 		vi.RenderFrame()
 		vi.Pos = vi.Pos.Add(vi.Velocity)
 		vi.Filter()
 		if vi.tabView != nil {
-			// fmt.Println(i)
 			vi.tabView.AsyncLock()
 			vi.tabView.Update()
-			// vi.fastView.Update()
-			// vi.slowView.Update()
-			// vi.imgView.Update()
 			vi.tabView.AsyncUnlock()
 			fmt.Printf("%d\tL: %7.4g\tR: %7.4g\tB: %7.4g\tT: %7.4g\tN: %7.4g\n", i, vi.FullField.Value1D(0), vi.FullField.Value1D(1), vi.FullField.Value1D(2), vi.FullField.Value1D(3), vi.Motion.NormInteg)
 			time.Sleep(vi.FrameDelay)
@@ -183,6 +182,9 @@ func (vi *Vis) RenderFrame() {
 // Filter runs the filters on current image.
 func (vi *Vis) Filter() error { //types:add
 	v1vision.UseGPU = vi.GPU
+	vi.V1.SetAsCurrent()
+	// note: if switching between different gpu, then zero values get copied
+	// up to GPU on SetAsCurrent, so need ValuesVar to synchronize.
 	vi.V1.Run(v1vision.ScalarsVar, v1vision.ValuesVar, v1vision.ImagesVar)
 	// vi.V1.Run(v1vision.ScalarsVar) // minimal fastest case
 	vi.Motion.FullFieldInteg(vi.V1.Scalars, &vi.FullField)
@@ -203,6 +205,8 @@ func (vi *Vis) Filter() error { //types:add
 	vi.Star.SetShapeSizes(int(vi.Geom.Out.Y-1), int(vi.Geom.Out.X-1), 2, 4)
 	tensor.CopyFromLargerShape(&vi.Star, star)
 
+	vi.MotionDoG.RunTensor(vi.ImageTsr)
+
 	return nil
 }
 
@@ -221,7 +225,7 @@ func (vi *Vis) ConfigGUI() *core.Body {
 		s.Range.FixMax = false
 	})
 
-	b := core.NewBody("lgn_dog").SetTitle("LGN DoG Filtering")
+	b := core.NewBody("lgn_dog").SetTitle("Motion DoG Filtering")
 	sp := core.NewSplits(b)
 	core.NewForm(sp).SetStruct(vi)
 	tb := core.NewTabs(sp)

@@ -51,17 +51,21 @@ type DoGColor struct {
 func (vi *DoGColor) Defaults() {
 	vi.GPU = true
 	vi.DoG.Defaults()
-	sz := 12  // V1mF16 typically = 12, no border -- defaults
-	spc := 16 // note: not 4; broader blob tuning
-	vi.DoG.Spacing = spc
-	vi.DoG.Size = sz
 	vi.DoG.Gain = 8 // color channels are weaker than grey
 	vi.DoG.OnGain = 1
 	vi.DoG.SetSameSigma(0.5) // no spatial component, just pure contrast
-	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
+	vi.SetSize(12, 16)       // V1mF16 typically = 12, no border
 	vi.KWTA.Defaults()
 	vi.KWTA.Layer.On.SetBool(false) // non-spatial, mainly for differentiation within pools
 	vi.KWTA.Pool.Gi = 1.2
+}
+
+// SetSize sets the V1sGabor filter size and geom spacing to given values.
+// Default is 12, 16, for a medium-sized filter.
+func (vi *DoGColor) SetSize(sz, spc int) {
+	vi.DoG.Spacing = spc
+	vi.DoG.Size = sz
+	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
 }
 
 // Config configures the filtering pipeline with all the current parameters.
@@ -80,7 +84,7 @@ func (vi *DoGColor) Config(imageSize image.Point) {
 	lmsRG := vi.V1.NewImage(vi.Geom.In.V())
 	lmsBY := vi.V1.NewImage(vi.Geom.In.V())
 
-	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
+	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.Border.X), &vi.Geom)
 	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.DoG.Gain, &vi.Geom)
 
 	out := vi.V1.NewValues(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2)

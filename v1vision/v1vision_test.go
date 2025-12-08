@@ -5,6 +5,7 @@
 package v1vision_test
 
 import (
+	"image"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,9 @@ import (
 	"cogentcore.org/core/base/fsx"
 	"cogentcore.org/core/base/iox/imagex"
 	"cogentcore.org/core/base/tolassert"
+	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/tensor"
+	"github.com/emer/emergent/v2/edge"
 	"github.com/emer/v1vision/v1std"
 )
 
@@ -105,4 +108,38 @@ func TestV1cColor(t *testing.T) {
 	// fmt.Println(vi.Output)
 
 	assertData(t, "V1cColor", "Output", vi.Output)
+}
+
+func TestMotionDoG(t *testing.T) {
+	var vi v1std.MotionDoG
+	imSize := image.Point{64, 64}
+	vi.Defaults()
+	vi.GPU = false
+	vi.Config(imSize)
+
+	imageTsr := vi.V1.Images.SubSpace(0).(*tensor.Float32)
+
+	bar := image.Point{8, 16}
+	velocity := math32.Vector2{1, 0}
+	start := math32.Vector2{8, 8}
+
+	vi.Motion.NormInteg = 0
+	pos := start
+	for range 16 {
+		pad := vi.Geom.Border.V()
+		tensor.SetAllFloat64(imageTsr, 0)
+		for y := range bar.Y {
+			py := int(math32.Round(pos.Y))
+			yp, _ := edge.Edge(y+py, imSize.Y, true)
+			for x := range bar.X {
+				px := int(math32.Round(pos.X))
+				xp, _ := edge.Edge(x+px, imSize.X, true)
+				imageTsr.Set(1, 0, int(pad.Y)+yp, int(pad.X)+xp)
+			}
+		}
+		pos = pos.Add(velocity)
+		vi.Run()
+	}
+
+	assertData(t, "MotionDoG", "FullField", &vi.FullField)
 }
