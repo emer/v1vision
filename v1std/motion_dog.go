@@ -67,10 +67,9 @@ func (vi *MotionDoG) SetSize(sz, spc int) {
 }
 
 // Config configures the filtering pipeline with all the current parameters.
-// imageSize is the _content_ size of input image that is passed to Run
-// as an RGB Tensor (per [V1Vision.Images] standard format),
+// imageSize is the _content_ size of input image that is passed
+// to RunImage as an RGB Tensor (per [V1Vision.Images] standard format),
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
-// The resulting Geom.Border field can be passed to [Image] methods.
 func (vi *MotionDoG) Config(imageSize image.Point) {
 	vi.Geom.SetImageSize(imageSize)
 	vi.FullField.SetShapeSizes(2, 2)
