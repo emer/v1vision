@@ -16,12 +16,14 @@ import (
 	"cogentcore.org/core/core"
 	"cogentcore.org/core/math32"
 	"cogentcore.org/core/tree"
+	_ "cogentcore.org/lab/gosl/slbool/slboolcore" // include to get gui views
 	"cogentcore.org/lab/table"
 	"cogentcore.org/lab/tensor"
 	"cogentcore.org/lab/tensorcore"
 	_ "cogentcore.org/lab/tensorcore" // include to get gui views
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/emer/v1vision/dog"
+	"github.com/emer/v1vision/kwta"
 	"github.com/emer/v1vision/v1std"
 	"github.com/emer/v1vision/v1vision"
 )
@@ -48,6 +50,9 @@ type Vis struct { //types:add
 
 	// geometry of input, output.
 	Geom v1vision.Geom `edit:"-"`
+
+	// kwta parameters, providing more contrast across colors.
+	KWTA kwta.KWTA
 
 	// target image size to use -- images will be rescaled to this size.
 	ImageSize image.Point
@@ -81,6 +86,8 @@ type Vis struct { //types:add
 	StdImage v1std.Image
 
 	tabView *core.Tabs
+
+	outIdx int
 }
 
 func (vi *Vis) Defaults() {
@@ -95,6 +102,10 @@ func (vi *Vis) Defaults() {
 
 	vi.DoG.Gain = 8 // for stronger On tuning: 4.1,On=1.2, Off: 4.4,On=0.833
 	vi.DoG.OnGain = 1
+
+	vi.KWTA.Defaults()
+	vi.KWTA.Layer.On.SetBool(false) // non-spatial, mainly for differentiation within pools
+	vi.KWTA.Pool.Gi = 1.2
 
 	// note: first arg is border -- we are relying on Geom
 	// to set border to .5 * filter size
@@ -113,6 +124,9 @@ func (vi *Vis) Defaults() {
 // Config sets up the V1 processing pipeline.
 func (vi *Vis) Config() {
 	vi.V1.Init()
+	*vi.V1.NewKWTAParams() = vi.KWTA
+	kwtaIdx := 0
+
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 	lmsRG := vi.V1.NewImage(vi.Geom.In.V())
@@ -130,9 +144,11 @@ func (vi *Vis) Config() {
 	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, 1, vi.DoG.OnGain, &vi.Geom)
 	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, 1, vi.DoG.OnGain, &vi.Geom)
 
-	// _ = out
-	// vi.V1.NewLogValues(out, out, 1, 1.0, &vi.Geom)
-	// vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, 1, &vi.Geom)
+	vi.outIdx = out
+	if vi.KWTA.On.IsTrue() {
+		inh := vi.V1.NewInhibs(int(vi.Geom.Out.Y), int(vi.Geom.Out.X))
+		vi.outIdx = vi.V1.NewKWTA(out, 0, 2, kwtaIdx, inh, &vi.Geom)
+	}
 
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
@@ -189,7 +205,7 @@ func (vi *Vis) Filter() error { //types:add
 	// image = 512, 1000 itr: CPU = 7s,  GPU = 1.6s
 	vi.V1.Run(v1vision.ValuesVar, v1vision.ImagesVar)
 
-	vi.getTsr(0, &vi.Out, vi.Geom.Out.Y, vi.Geom.Out.X)
+	vi.getTsr(vi.outIdx, &vi.Out, vi.Geom.Out.Y, vi.Geom.Out.X)
 
 	vi.DoGColor.RunImage(&vi.StdImage, vi.Image)
 

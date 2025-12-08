@@ -169,13 +169,18 @@ func (vp *DoGColorParams) SetImageSize(imageSize image.Point) {
 	vp.Geom.SetImageSize(isz)
 }
 
-func (vp *DoGColorParams) V1Config(vi *V1cMulti, lmsRG, lmsBY int) {
+func (vp *DoGColorParams) V1Config(vi *V1cMulti, lmsRG, lmsBY, kwtaIdx int) {
 	out := vi.V1.NewValues(int(vp.Geom.Out.Y), int(vp.Geom.Out.X), 2)
 	dogFt := vi.V1.NewDoGOnOff(&vp.DoG, &vp.Geom)
 	vp.dogIdx = dogFt
 
 	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, 1, vp.DoG.OnGain, &vp.Geom)
 	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, 1, vp.DoG.OnGain, &vp.Geom)
+
+	if vi.DoGKWTA.On.IsTrue() {
+		inh := vi.V1.NewInhibs(int(vp.Geom.Out.Y), int(vp.Geom.Out.X))
+		out = vi.V1.NewKWTA(out, 0, 2, kwtaIdx, inh, &vp.Geom)
+	}
 
 	// To4D
 	out4 := vi.V1.NewValues4D(int(vp.Geom.Out.Y), int(vp.Geom.Out.X), 2, 2)
@@ -225,6 +230,9 @@ type V1cMulti struct {
 	// V1sKWTA has the kwta inhibition parameters for V1s.
 	V1sKWTA kwta.KWTA
 
+	// DoGKWTA has the kwta inhibition parameters for DoG Color blobs.
+	DoGKWTA kwta.KWTA
+
 	// V1cParams has the configured geometries for different V1c sizes.
 	V1cParams []*V1cParams
 
@@ -248,6 +256,9 @@ func (vi *V1cMulti) Defaults() {
 	vi.Image.Defaults()
 	vi.V1sNeighInhib.Defaults()
 	vi.V1sKWTA.Defaults()
+	vi.DoGKWTA.Defaults()
+	vi.DoGKWTA.Layer.On.SetBool(false) // non-spatial, mainly for differentiation within pools
+	vi.DoGKWTA.Pool.Gi = 1.2
 }
 
 func (vi *V1cMulti) AddV1cParams() *V1cParams {
@@ -316,7 +327,9 @@ func (vi *V1cMulti) Config() {
 
 	vi.V1.Init()
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
-	kwtaIdx := 0
+	v1sKwtaIdx := 0
+	*vi.V1.NewKWTAParams() = vi.DoGKWTA
+	dogKwtaIdx := 1
 	img := vi.V1.NewImage(inSz)
 	wrap := vi.V1.NewImage(inSz)
 	lmsOp := vi.V1.NewImage(inSz)
@@ -332,10 +345,10 @@ func (vi *V1cMulti) Config() {
 	}
 
 	for _, vp := range vi.V1cParams {
-		vp.V1Config(vi, lmsOp, kwtaIdx)
+		vp.V1Config(vi, lmsOp, v1sKwtaIdx)
 	}
 	for _, vp := range vi.DoGParams {
-		vp.V1Config(vi, lmsRG, lmsBY)
+		vp.V1Config(vi, lmsRG, lmsBY, dogKwtaIdx)
 	}
 
 	// critical to go back and fix all the filters.

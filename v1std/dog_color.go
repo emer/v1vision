@@ -10,6 +10,7 @@ import (
 	"cogentcore.org/core/math32"
 	"cogentcore.org/lab/tensor"
 	"github.com/emer/v1vision/dog"
+	"github.com/emer/v1vision/kwta"
 	"github.com/emer/v1vision/v1vision"
 )
 
@@ -33,6 +34,9 @@ type DoGColor struct {
 	// Geom is geometry of input, output.
 	Geom v1vision.Geom `edit:"-"`
 
+	// kwta parameters, providing more contrast across colors.
+	KWTA kwta.KWTA
+
 	// V1 is the V1Vision filter processing system.
 	V1 v1vision.V1Vision `display:"no-inline"`
 
@@ -40,6 +44,8 @@ type DoGColor struct {
 	// [Y, X, Polarity, Feature], where Polarity = On (0) vs Off (1) stronger.
 	// Feature: 0 = Red vs. Green; 1 = Blue vs. Yellow.
 	Output *tensor.Float32 `display:"no-inline"`
+
+	outIdx int
 }
 
 func (vi *DoGColor) Defaults() {
@@ -53,6 +59,9 @@ func (vi *DoGColor) Defaults() {
 	vi.DoG.OnGain = 1
 	vi.DoG.SetSameSigma(0.5) // no spatial component, just pure contrast
 	vi.Geom.Set(math32.Vec2i(0, 0), math32.Vec2i(spc, spc), math32.Vec2i(sz, sz))
+	vi.KWTA.Defaults()
+	vi.KWTA.Layer.On.SetBool(false) // non-spatial, mainly for differentiation within pools
+	vi.KWTA.Pool.Gi = 1.2
 }
 
 // Config configures the filtering pipeline with all the current parameters.
@@ -64,6 +73,8 @@ func (vi *DoGColor) Config(imageSize image.Point) {
 	vi.Geom.SetImageSize(imageSize)
 
 	vi.V1.Init()
+	*vi.V1.NewKWTAParams() = vi.KWTA
+	kwtaIdx := 0
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 	lmsRG := vi.V1.NewImage(vi.Geom.In.V())
@@ -78,6 +89,12 @@ func (vi *DoGColor) Config(imageSize image.Point) {
 	vi.V1.NewConvolveDiff(lmsRG, v1vision.Red, lmsRG, v1vision.Green, dogFt, 0, 1, out, 0, 1, vi.DoG.OnGain, &vi.Geom)
 	vi.V1.NewConvolveDiff(lmsBY, v1vision.Blue, lmsBY, v1vision.Yellow, dogFt, 0, 1, out, 1, 1, vi.DoG.OnGain, &vi.Geom)
 
+	vi.outIdx = out
+	if vi.KWTA.On.IsTrue() {
+		inh := vi.V1.NewInhibs(int(vi.Geom.Out.Y), int(vi.Geom.Out.X))
+		vi.outIdx = vi.V1.NewKWTA(out, 0, 2, kwtaIdx, inh, &vi.Geom)
+	}
+
 	vi.V1.SetAsCurrent()
 	if vi.GPU {
 		vi.V1.GPUInit()
@@ -91,5 +108,5 @@ func (vi *DoGColor) RunImage(im *Image, img image.Image) {
 	vi.V1.SetAsCurrent()
 	im.SetImageRGB(&vi.V1, img, int(vi.Geom.Border.X))
 	vi.V1.Run(v1vision.ValuesVar)
-	vi.Output = vi.V1.Values.SubSpace(0).(*tensor.Float32)
+	vi.Output = vi.V1.Values.SubSpace(vi.outIdx).(*tensor.Float32)
 }
