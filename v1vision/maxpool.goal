@@ -57,13 +57,13 @@ func (vv *V1Vision) NewMaxCopy(in1, in2, out, fn int, geom *Geom) {
 //gosl:start
 
 // MaxPool is kernel.
-func (op *Op) MaxPool(i uint32) {
+func (op *Op) MaxPool(i, ni int32) {
 	szX := op.Geom.Out.X
 	fY := op.Geom.FilterSize.Y	
 	fX := op.Geom.FilterSize.X
 	
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % op.IntArg1 // plus-minus
 	ii := pii / op.IntArg1
 	yo := ii / szX
@@ -75,46 +75,46 @@ func (op *Op) MaxPool(i uint32) {
 	mx := float32(0)
 	for py := range fY {
 		for px := range fX {
-			iv := Values[op.InValue, iy+py, ix+px, pi, fi]
+			iv := Values[op.InValue, ni, iy+py, ix+px, pi, fi]
 			if iv > mx {
 				mx = iv
 			}
 		}
 	}
-	Values[op.OutValue, yo, xo, pi, fi] = mx
+	Values[op.OutValue, ni, yo, xo, pi, fi] = mx
 }
 
 // MaxPolarity is kernel.
-func (op *Op) MaxPolarity(i uint32) {
+func (op *Op) MaxPolarity(i, ni int32) {
 	szX := op.Geom.Out.X
-	fi := int32(i) % op.FilterN // inner
-	ii := int32(i) / op.FilterN
+	fi := i % op.FilterN // inner
+	ii := i / op.FilterN
 	yo := ii / szX
 	xo := ii % szX
 
 	mx := float32(0)
 	for pi := range 2 {
-		iv := Values[op.InValue, yo, xo, pi, fi]
+		iv := Values[op.InValue, ni, yo, xo, pi, fi]
 		if iv > mx {
 			mx = iv
 		}
 	}
-	Values[op.OutValue, yo, xo, 0, fi] = mx
+	Values[op.OutValue, ni, yo, xo, 0, fi] = mx
 }
 
 // MaxCopy is kernel.
-func (op *Op) MaxCopy(i uint32) {
+func (op *Op) MaxCopy(i, ni int32) {
 	szX := op.Geom.Out.X
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / szX
 	xo := ii % szX
 
-	i1 := Values[op.InValue, yo, xo, pi, fi]
-	i2 := Values[op.InValue2, yo, xo, pi, fi]
-	Values[op.OutValue, yo, xo, pi, fi] = max(i1, i2)
+	i1 := Values[op.InValue, ni, yo, xo, pi, fi]
+	i2 := Values[op.InValue2, ni, yo, xo, pi, fi]
+	Values[op.OutValue, ni, yo, xo, pi, fi] = max(i1, i2)
 }
 
 //gosl:end

@@ -44,33 +44,33 @@ func (vv *V1Vision) NewNormDiv(aggOp Operations, in, out, fn int, geom *Geom) {
 //gosl:start
 
 // LogValues is the kernel for LogValues.
-func (op *Op) LogValues(i uint32) {
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+func (op *Op) LogValues(i, ni int32) {
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 
-	lg := op.FloatArg1 * math32.Log(1.0+Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi)))
-	Values.Set(lg, int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
+	lg := op.FloatArg1 * math32.Log(1.0+Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fi)))
+	Values.Set(lg, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(fi))
 }
 
 // NormDiv is the kernel for NormDiv
-func (op *Op) NormDiv(i uint32) {
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+func (op *Op) NormDiv(i, ni int32) {
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 
-	sc := Scalars.Value1D(int(op.InScalar))
-	v := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
+	sc := Scalars.Value(int(op.InScalar), int(ni))
+	v := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fi))
 	if sc != 0 {
 		v /= sc
 	}
-	Values.Set(v, int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(v, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(fi))
 }
 
 //gosl:end

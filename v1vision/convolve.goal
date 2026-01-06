@@ -57,9 +57,9 @@ func (vv *V1Vision) NewConvolveDiff(in1, rgb1, in2, rgb2, ftyp, fidx1, fidx2, ou
 //gosl:start
 
 // ConvolveImage is the kernel for Convolve on Image data.
-func (op *Op) ConvolveImage(i uint32) {
-	fi := int32(i) % op.FilterN // inner
-	ii := int32(i) / op.FilterN
+func (op *Op) ConvolveImage(i, ni int32) {
+	fi := i % op.FilterN // inner
+	ii := i / op.FilterN
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 	
@@ -73,25 +73,25 @@ func (op *Op) ConvolveImage(i uint32) {
 	sum := float32(0)
 	for fy := range fyn {
 		for fx := range fxn {
-			iv := Images[op.InImage, op.InImageRGB, yi+fy, xi+fx]
+			iv := Images[op.InImage, ni, op.InImageRGB, yi+fy, xi+fx]
 			fv := Filters[op.FilterType, fi, fy, fx]
 			sum += fv * iv
 		}
 	}
 	sum *= op.FloatArg1
 	if sum > 0 {
-		Values[op.OutValue, yo, xo, 0, fi] = sum
-		Values[op.OutValue, yo, xo, 1, fi] = 0.0
+		Values[op.OutValue, ni, yo, xo, 0, fi] = sum
+		Values[op.OutValue, ni, yo, xo, 1, fi] = 0.0
 	} else {
-		Values[op.OutValue, yo, xo, 0, fi] = 0.0
-		Values[op.OutValue, yo, xo, 1, fi] = -sum
+		Values[op.OutValue, ni, yo, xo, 0, fi] = 0.0
+		Values[op.OutValue, ni, yo, xo, 1, fi] = -sum
 	}
 }
 
 // ConvolveDiff is the kernel.
-func (op *Op) ConvolveDiff(i uint32) {
-	yo := int32(i) / op.Geom.Out.X
-	xo := int32(i) % op.Geom.Out.X
+func (op *Op) ConvolveDiff(i, ni int32) {
+	yo := i / op.Geom.Out.X
+	xo := i % op.Geom.Out.X
 	fi := op.OutScalar
 	
 	istX := op.Geom.Border.X - op.Geom.FilterLt.X
@@ -105,8 +105,8 @@ func (op *Op) ConvolveDiff(i uint32) {
 	sumOff := float32(0)
 	for fy := range fyn {
 		for fx := range fxn {
-			iv1 := Images[op.InImage, op.InImageRGB, yi+fy, xi+fx]
-			iv2 := Images[op.InValue2, op.OutImage2, yi+fy, xi+fx]
+			iv1 := Images[op.InImage, ni, op.InImageRGB, yi+fy, xi+fx]
+			iv2 := Images[op.InValue2, ni, op.OutImage2, yi+fy, xi+fx]
 			fv1 := Filters[op.FilterType, op.FilterN, fy, fx]
 			fv2 := Filters[op.FilterType, op.IntArg1, fy, fx]
 			sumOn += fv1 * iv1
@@ -115,11 +115,11 @@ func (op *Op) ConvolveDiff(i uint32) {
 	}
 	diff := op.FloatArg1 * (op.FloatArg2*sumOn - sumOff)
 	if diff > 0 {
-		Values[op.OutValue, yo, xo, 0, fi] = diff
-		Values[op.OutValue, yo, xo, 1, fi] = 0.0
+		Values[op.OutValue, ni, yo, xo, 0, fi] = diff
+		Values[op.OutValue, ni, yo, xo, 1, fi] = 0.0
 	} else {
-		Values[op.OutValue, yo, xo, 1, fi] = -diff
-		Values[op.OutValue, yo, xo, 0, fi] = 0.0
+		Values[op.OutValue, ni, yo, xo, 1, fi] = -diff
+		Values[op.OutValue, ni, yo, xo, 0, fi] = 0.0
 	}
 }
 

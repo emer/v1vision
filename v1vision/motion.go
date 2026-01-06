@@ -69,17 +69,17 @@ func (vv *V1Vision) NewMotionFullField(in, fn int, geom *Geom) int {
 //gosl:start
 
 // MotionIntegrate is the kernel.
-func (op *Op) MotionIntegrate(i uint32) {
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+func (op *Op) MotionIntegrate(i, ni int32) {
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 
-	v := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
-	f := Values.Value(int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
-	s := Values.Value(int(op.OutValue+1), int(yo), int(xo), int(pi), int(fi))
+	v := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fi))
+	f := Values.Value(int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(fi))
+	s := Values.Value(int(op.OutValue+1), int(ni), int(yo), int(xo), int(pi), int(fi))
 
 	if v > f {
 		f = v
@@ -92,15 +92,15 @@ func (op *Op) MotionIntegrate(i uint32) {
 		s += op.FloatArg2 * (v - s)
 	}
 
-	Values.Set(f, int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
-	Values.Set(s, int(op.OutValue+1), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(f, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(s, int(op.OutValue+1), int(ni), int(yo), int(xo), int(pi), int(fi))
 }
 
 // MotionStar is the kernel.
-func (op *Op) MotionStar(i uint32) {
+func (op *Op) MotionStar(i, ni int32) {
 	szX := op.Geom.Out.X - 1
-	fi := int32(i) % op.FilterN // FilterN = orig fn * 2
-	pii := int32(i) / op.FilterN
+	fi := i % op.FilterN // FilterN = orig fn * 2
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / szX
@@ -116,34 +116,36 @@ func (op *Op) MotionStar(i uint32) {
 	} else {
 		yoff = 1
 	}
-	cf := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fio))             // fast
-	nf := Values.Value(int(op.InValue), int(yo+yoff), int(xo+xoff), int(pi), int(fio))   // next
-	cs := Values.Value(int(op.InValue+1), int(yo), int(xo), int(pi), int(fio))           // slow
-	ns := Values.Value(int(op.InValue+1), int(yo+yoff), int(xo+xoff), int(pi), int(fio)) // next
+	cf := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fio))             // fast
+	nf := Values.Value(int(op.InValue), int(ni), int(yo+yoff), int(xo+xoff), int(pi), int(fio))   // next
+	cs := Values.Value(int(op.InValue+1), int(ni), int(yo), int(xo), int(pi), int(fio))           // slow
+	ns := Values.Value(int(op.InValue+1), int(ni), int(yo+yoff), int(xo+xoff), int(pi), int(fio)) // next
 
 	minact := min(min(min(cf, cs), nf), ns)
 	cd := cf - cs
 	nd := nf - ns
 	v := op.FloatArg1 * (cd - nd)
 	if v >= 0 { // delta bigger on current than next
-		Values.Set(minact*v, int(op.OutValue), int(yo), int(xo), int(pi), int(doff)) // 0 = left/down
-		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(pi), int(doff+1))
+		Values.Set(minact*v, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(doff)) // 0 = left/down
+		Values.Set(0.0, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(doff+1))
 	} else {
-		Values.Set(-minact*v, int(op.OutValue), int(yo), int(xo), int(pi), int(doff+1)) // 1 = right/up
-		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(pi), int(doff))
+		Values.Set(-minact*v, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(doff+1)) // 1 = right/up
+		Values.Set(0.0, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(doff))
 	}
 }
 
 // MotionFullFieldX is the kernel: i = 2 * Y, first pass, FilterN = orig filtn
 func MotionFullFieldX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
 	szX := op.Geom.Out.X - 1
 	fno := op.FilterN // original features
-	dir := int32(i) % 2
-	yo := int32(i) / 2
+	dir := ri % 2
+	yo := ri / 2
 	doff := dir * 2
 
 	csum := float32(0)
@@ -152,8 +154,8 @@ func MotionFullFieldX(i uint32) { //gosl:kernel
 		for pi := range 2 { // pos / neg
 			for fi := range fno { // original features
 				dfo := fi*4 + doff
-				c := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(dfo))   // left, down
-				n := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(dfo+1)) // right, up
+				c := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(dfo))   // left, down
+				n := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(dfo+1)) // right, up
 				v := c - n
 				if v >= 0 {
 					csum += v
@@ -163,29 +165,31 @@ func MotionFullFieldX(i uint32) { //gosl:kernel
 			}
 		}
 	}
-	Values.Set(csum, int(op.OutValue), int(yo), int(0), int(0), int(doff))
-	Values.Set(nsum, int(op.OutValue), int(yo), int(0), int(0), int(doff+1))
+	Values.Set(csum, int(op.OutValue), int(ni), int(yo), int(0), int(0), int(doff))
+	Values.Set(nsum, int(op.OutValue), int(ni), int(yo), int(0), int(0), int(doff+1))
 }
 
-// MotionFullFieldY is the kernel: i = 2, second pass
+// MotionFullFieldY is the kernel: i = 2*NData, second pass
 func MotionFullFieldY(i uint32) { //gosl:kernel
-	if i >= 2 {
+	op := GetCurOp(0)
+	if i >= 2*op.NData {
 		return
 	}
-	op := GetCurOp(0)
+	ri := int32(i) % 2
+	ni := int32(i) / 2
 	szY := op.Geom.Out.Y - 1
-	dir := int32(i)
+	dir := ri
 	doff := dir * 2
 	csum := float32(0)
 	nsum := float32(0)
 	for y := range szY {
-		c := Values.Value(int(op.OutValue), int(y), int(0), int(0), int(doff))
-		n := Values.Value(int(op.OutValue), int(y), int(0), int(0), int(doff+1))
+		c := Values.Value(int(op.OutValue), int(ni), int(y), int(0), int(0), int(doff))
+		n := Values.Value(int(op.OutValue), int(ni), int(y), int(0), int(0), int(doff+1))
 		csum += c
 		nsum += n
 	}
-	Scalars.Set1D(csum, int(op.OutScalar+doff))
-	Scalars.Set1D(nsum, int(op.OutScalar+doff+1))
+	Scalars.Set(csum, int(op.OutScalar+doff), int(ni))
+	Scalars.Set(nsum, int(op.OutScalar+doff+1), int(ni))
 }
 
 //gosl:end

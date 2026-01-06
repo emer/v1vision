@@ -59,13 +59,13 @@ func (vv *V1Vision) NewMaxCopy(in1, in2, out, fn int, geom *Geom) {
 //gosl:start
 
 // MaxPool is kernel.
-func (op *Op) MaxPool(i uint32) {
+func (op *Op) MaxPool(i, ni int32) {
 	szX := op.Geom.Out.X
 	fY := op.Geom.FilterSize.Y
 	fX := op.Geom.FilterSize.X
 
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % op.IntArg1 // plus-minus
 	ii := pii / op.IntArg1
 	yo := ii / szX
@@ -77,46 +77,46 @@ func (op *Op) MaxPool(i uint32) {
 	mx := float32(0)
 	for py := range fY {
 		for px := range fX {
-			iv := Values.Value(int(op.InValue), int(iy+py), int(ix+px), int(pi), int(fi))
+			iv := Values.Value(int(op.InValue), int(ni), int(iy+py), int(ix+px), int(pi), int(fi))
 			if iv > mx {
 				mx = iv
 			}
 		}
 	}
-	Values.Set(mx, int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(mx, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(fi))
 }
 
 // MaxPolarity is kernel.
-func (op *Op) MaxPolarity(i uint32) {
+func (op *Op) MaxPolarity(i, ni int32) {
 	szX := op.Geom.Out.X
-	fi := int32(i) % op.FilterN // inner
-	ii := int32(i) / op.FilterN
+	fi := i % op.FilterN // inner
+	ii := i / op.FilterN
 	yo := ii / szX
 	xo := ii % szX
 
 	mx := float32(0)
 	for pi := range 2 {
-		iv := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
+		iv := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fi))
 		if iv > mx {
 			mx = iv
 		}
 	}
-	Values.Set(mx, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
+	Values.Set(mx, int(op.OutValue), int(ni), int(yo), int(xo), int(0), int(fi))
 }
 
 // MaxCopy is kernel.
-func (op *Op) MaxCopy(i uint32) {
+func (op *Op) MaxCopy(i, ni int32) {
 	szX := op.Geom.Out.X
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / szX
 	xo := ii % szX
 
-	i1 := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
-	i2 := Values.Value(int(op.InValue2), int(yo), int(xo), int(pi), int(fi))
-	Values.Set(max(i1, i2), int(op.OutValue), int(yo), int(xo), int(pi), int(fi))
+	i1 := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fi))
+	i2 := Values.Value(int(op.InValue2), int(ni), int(yo), int(xo), int(pi), int(fi))
+	Values.Set(max(i1, i2), int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(fi))
 }
 
 //gosl:end

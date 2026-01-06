@@ -42,32 +42,35 @@ var (
 
 	//////// Data
 
-	// Images are float-valued image data: [ImageNo][RGB][Y][X],
+	// Images are float-valued image data:
+	// [ImageNo][NData][RGB][Y][X],
 	// sized to the max of each inner-dimensional value (RGB=3,
 	// if more needed, use additional ImageNo)
 	//gosl:group Data
-	//gosl:dims 4
+	//gosl:dims 5
 	Images *tensor.Float32
 
-	// Values are intermediate input / output data: [ValueNo][Y][X][Polarity][FilterN]
+	// Values are intermediate input / output data:
+	// [ValueNo][NData][Y][X][Polarity][FilterN]
 	// where FilterN corresponds to the different filters applied or other such data,
 	// and Polarity is 0 for positive (on) values and 1 for negative (off) values.
-	//gosl:dims 5
+	//gosl:dims 6
 	Values *tensor.Float32
 
 	// Values4D are 4D aggregated data (e.g., outputs):
-	// [ValueNo][PoolY][PoolX][UnitY][UnitX]
-	//gosl:dims 5
+	// [ValueNo][NData][PoolY][PoolX][UnitY][UnitX]
+	//gosl:dims 6
 	Values4D *tensor.Float32
 
-	// Scalars are scalar values for Sum, Max summary stats.
+	// Scalars are scalar values for Sum, Max summary stats, etc.
 	// More efficient to use these versus using large Values allocations.
-	//gosl:dims 1
+	// [values][NData]
+	//gosl:dims 2
 	Scalars *tensor.Float32
 
 	// Inhibs are [KWTAInhib] inhibitory state values:
-	// [InhibNo][PoolY][PoolX][InhibVarsN]
-	//gosl:dims 4
+	// [InhibNo][NData][PoolY][PoolX][InhibVarsN]
+	//gosl:dims 5
 	Inhibs *tensor.Float32
 )
 

@@ -47,10 +47,10 @@ func TestDoGGrey(t *testing.T) {
 	vi.Defaults()
 	vi.GPU = false
 	img.Defaults()
-	vi.Config(img.Size)
+	vi.Config(1, img.Size)
 	im, _, err := imagex.Open(filepath)
 	assert.NoError(t, err)
-	vi.RunImage(&img, im)
+	vi.RunImages(&img, im)
 	// fmt.Println(vi.Output)
 
 	assertData(t, "DoGGrey", "Output", vi.Output)
@@ -65,10 +65,10 @@ func TestDoGColor(t *testing.T) {
 	vi.Defaults()
 	vi.GPU = false
 	img.Defaults()
-	vi.Config(img.Size)
+	vi.Config(1, img.Size)
 	im, _, err := imagex.Open(filepath)
 	assert.NoError(t, err)
-	vi.RunImage(&img, im)
+	vi.RunImages(&img, im)
 	// fmt.Println(vi.Output)
 
 	assertData(t, "DoGColor", "Output", vi.Output)
@@ -83,10 +83,10 @@ func TestV1cGrey(t *testing.T) {
 	vi.Defaults()
 	vi.GPU = false
 	img.Defaults()
-	vi.Config(img.Size)
+	vi.Config(1, img.Size)
 	im, _, err := imagex.Open(filepath)
 	assert.NoError(t, err)
-	vi.RunImage(&img, im)
+	vi.RunImages(&img, im)
 	// fmt.Println(vi.Output)
 
 	assertData(t, "V1cGrey", "Output", vi.Output)
@@ -101,10 +101,10 @@ func TestV1cColor(t *testing.T) {
 	vi.Defaults()
 	vi.GPU = false
 	img.Defaults()
-	vi.Config(img.Size)
+	vi.Config(1, img.Size)
 	im, _, err := imagex.Open(filepath)
 	assert.NoError(t, err)
-	vi.RunImage(&img, im)
+	vi.RunImages(&img, im)
 	// fmt.Println(vi.Output)
 
 	assertData(t, "V1cColor", "Output", vi.Output)
@@ -115,7 +115,7 @@ func TestMotionDoG(t *testing.T) {
 	imSize := image.Point{64, 64}
 	vi.Defaults()
 	vi.GPU = false
-	vi.Config(imSize)
+	vi.Config(1, imSize)
 
 	imageTsr := vi.V1.Images.SubSpace(0).(*tensor.Float32)
 
@@ -134,7 +134,7 @@ func TestMotionDoG(t *testing.T) {
 			for x := range bar.X {
 				px := int(math32.Round(pos.X))
 				xp, _ := edge.Edge(x+px, imSize.X, true)
-				imageTsr.Set(1, 0, int(pad.Y)+yp, int(pad.X)+xp)
+				imageTsr.Set(1, 0, 0, int(pad.Y)+yp, int(pad.X)+xp)
 			}
 		}
 		pos = pos.Add(velocity)

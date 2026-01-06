@@ -11,6 +11,7 @@ import (
 	"image/color"
 
 	"cogentcore.org/core/colors"
+	"cogentcore.org/core/gpu"
 	"cogentcore.org/lab/tensor"
 	"github.com/emer/v1vision/colorspace"
 )
@@ -138,13 +139,13 @@ func (vv *V1Vision) NewLMSComponents(in, out1, out2 int, gainS float32, geom *Ge
 // wraps given padding width of float32 image around sides
 // i.e., padding for left side of image is the (mirrored) bits
 // from the right side of image, etc.
-func (op *Op) WrapPad(i uint32) {
-	ii := int32(i)
+func (op *Op) WrapPad(i, ni int32) {
+	ii := i
 	ri := op.InImageRGB
 	if ri == 3 {
 		xy := op.Geom.In.X * op.Geom.In.Y
-		ri = int32(i) / xy
-		ii = int32(i) % xy
+		ri = i / xy
+		ii = i % xy
 	}
 	y := ii / op.Geom.In.X
 	x := ii % op.Geom.In.X
@@ -163,22 +164,22 @@ func (op *Op) WrapPad(i uint32) {
 	} else if x >= uX {
 		sx = padWidth + (x - uX)
 	}
-	iv := Images.Value(int(op.InImage), int(ri), int(sy), int(sx))
-	Images.Set(iv, int(op.OutImage), int(ri), int(y), int(x))
+	iv := Images.Value(int(op.InImage), int(ni), int(ri), int(sy), int(sx))
+	Images.Set(iv, int(op.OutImage), int(ni), int(ri), int(y), int(x))
 }
 
 // FadePad is the kernel for FadePad.
 // wraps given padding width of float32 image around sides
 // i.e., padding for left side of image is the (mirrored) bits
 // from the right side of image, etc.
-func (op *Op) FadePad(i uint32) {
-	ii := int32(i)
+func (op *Op) FadePad(i, ni int32) {
+	ii := i
 	ri := op.InImageRGB
 	avg := op.FloatArg1
 	if ri == 3 {
 		xy := op.Geom.In.X * op.Geom.In.Y
-		ri = int32(i) / xy
-		ii = int32(i) % xy
+		ri = i / xy
+		ii = i % xy
 		switch ri {
 		case 0:
 			avg = op.FloatArg1
@@ -212,75 +213,120 @@ func (op *Op) FadePad(i uint32) {
 		sx = padWidth + (x - uX)
 	}
 	pavg := (1.0 - p) * avg
-	iv := Images.Value(int(op.InImage), int(ri), int(sy), int(sx))
-	Images.Set(p*iv+pavg, int(op.OutImage), int(ri), int(y), int(x))
+	iv := Images.Value(int(op.InImage), int(ni), int(ri), int(sy), int(sx))
+	Images.Set(p*iv+pavg, int(op.OutImage), int(ni), int(ri), int(y), int(x))
 }
 
 // LMSOpponents is the kernel for LMSOpponents.
-func (op *Op) LMSOpponents(i uint32) {
-	ii := int32(i)
-	y := ii / op.Geom.In.X
-	x := ii % op.Geom.In.X
+func (op *Op) LMSOpponents(i, ni int32) {
+	y := i / op.Geom.In.X
+	x := i % op.Geom.In.X
 
-	r := Images.Value(int(op.InImage), int(0), int(y), int(x))
-	g := Images.Value(int(op.InImage), int(1), int(y), int(x))
-	b := Images.Value(int(op.InImage), int(2), int(y), int(x))
+	r := Images.Value(int(op.InImage), int(ni), int(0), int(y), int(x))
+	g := Images.Value(int(op.InImage), int(ni), int(1), int(y), int(x))
+	b := Images.Value(int(op.InImage), int(ni), int(2), int(y), int(x))
 
 	var lc, mc, sc, lmc, lvm, svlm, grey float32
 	colorspace.SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey)
 
-	Images.Set(op.FloatArg1*lvm, int(op.OutImage), int(0), int(y), int(x)) // RedGreen
-	Images.Set(grey, int(op.OutImage), int(1), int(y), int(x))
-	Images.Set(op.FloatArg1*svlm, int(op.OutImage), int(2), int(y), int(x)) // BlueYellow
+	Images.Set(op.FloatArg1*lvm, int(op.OutImage), int(ni), int(0), int(y), int(x)) // RedGreen
+	Images.Set(grey, int(op.OutImage), int(ni), int(1), int(y), int(x))
+	Images.Set(op.FloatArg1*svlm, int(op.OutImage), int(ni), int(2), int(y), int(x)) // BlueYellow
 }
 
 // LMSComponents is the kernel for LMSComponents.
-func (op *Op) LMSComponents(i uint32) {
-	ii := int32(i)
-	y := ii / op.Geom.In.X
-	x := ii % op.Geom.In.X
+func (op *Op) LMSComponents(i, ni int32) {
+	y := i / op.Geom.In.X
+	x := i % op.Geom.In.X
 
-	r := Images.Value(int(op.InImage), int(0), int(y), int(x))
-	g := Images.Value(int(op.InImage), int(1), int(y), int(x))
-	b := Images.Value(int(op.InImage), int(2), int(y), int(x))
+	r := Images.Value(int(op.InImage), int(ni), int(0), int(y), int(x))
+	g := Images.Value(int(op.InImage), int(ni), int(1), int(y), int(x))
+	b := Images.Value(int(op.InImage), int(ni), int(2), int(y), int(x))
 
 	var lc, mc, sc, lmc, lvm, svlm, grey float32
 	colorspace.SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey)
 
-	Images.Set(op.FloatArg1*lc, int(op.OutImage), int(0), int(y), int(x)) // Red
-	Images.Set(op.FloatArg1*mc, int(op.OutImage), int(1), int(y), int(x)) // Green
-	Images.Set(grey, int(op.OutImage), int(2), int(y), int(x))
+	Images.Set(op.FloatArg1*lc, int(op.OutImage), int(ni), int(0), int(y), int(x)) // Red
+	Images.Set(op.FloatArg1*mc, int(op.OutImage), int(ni), int(1), int(y), int(x)) // Green
+	Images.Set(grey, int(op.OutImage), int(ni), int(2), int(y), int(x))
 
-	Images.Set(op.FloatArg1*lmc, int(op.OutImage2), int(0), int(y), int(x)) // Yellow
-	Images.Set(grey, int(op.OutImage2), int(1), int(y), int(x))
-	Images.Set(op.FloatArg1*sc, int(op.OutImage2), int(2), int(y), int(x)) // Blue
+	Images.Set(op.FloatArg1*lmc, int(op.OutImage2), int(ni), int(0), int(y), int(x)) // Yellow
+	Images.Set(grey, int(op.OutImage2), int(ni), int(1), int(y), int(x))
+	Images.Set(op.FloatArg1*sc, int(op.OutImage2), int(ni), int(2), int(y), int(x)) // Blue
 }
 
 //gosl:end
 
-// RGBToTensor converts an RGB input image to an RGB tensor
+// RGBToTensor converts RGB input image(s) to an RGB tensor
 // with outer dimension as RGB components.
+// There must be NData images for writing to the V1Vision.Images,
+// and the size of the tensor must already be properly configured to hold
+// the resulting images.
 // padWidth is the amount of padding to add on all sides.
 // topZero retains the Y=0 value at the top of the tensor --
 // otherwise it is flipped with Y=0 at the bottom to be consistent
 // with the emergent / OpenGL standard coordinate system
-func RGBToTensor(img image.Image, tsr *tensor.Float32, padWidth int, topZero bool) {
-	bd := img.Bounds()
+func RGBToTensor(tsr *tensor.Float32, padWidth int, topZero bool, imgs ...image.Image) {
+	bd := imgs[0].Bounds()
 	sz := bd.Size()
-	tsr.SetShapeSizes(3, sz.Y+2*padWidth, sz.X+2*padWidth)
-	for y := 0; y < sz.Y; y++ {
-		for x := 0; x < sz.X; x++ {
-			sy := y
-			if !topZero {
-				sy = (sz.Y - 1) - y
-			}
-			cv := img.At(bd.Min.X+x, bd.Min.Y+sy)
-			r, g, b, _ := colors.ToFloat32(cv)
-			tsr.Set(r, 0, y+padWidth, x+padWidth)
-			tsr.Set(g, 1, y+padWidth, x+padWidth)
-			tsr.Set(b, 2, y+padWidth, x+padWidth)
+	np := sz.X * sz.Y
+
+	// note: can't resize b/c typically a subspace of images.
+	// tsr.SetShapeSizes(4, len(imgs), sz.Y+2*padWidth, sz.X+2*padWidth) // must be already!
+
+	// todo: do this on GPU
+	kernel := func(i uint32) {
+		ri := int(i) % np
+		ni := int(i) / np
+		x := ri % sz.X
+		y := ri / sz.X
+		sy := y
+		if !topZero {
+			sy = (sz.Y - 1) - y
 		}
+		cv := imgs[ni].At(bd.Min.X+x, bd.Min.Y+sy)
+		r, g, b, _ := colors.ToFloat32(cv)
+		tsr.Set(r, int(ni), int(0), int(y+padWidth), int(x+padWidth))
+		tsr.Set(g, int(ni), int(1), int(y+padWidth), int(x+padWidth))
+		tsr.Set(b, int(ni), int(2), int(y+padWidth), int(x+padWidth))
 	}
+	gpu.VectorizeFunc(0, np*len(imgs), kernel)
+}
+
+// RGBToGrey converts an RGB input image to a greyscale tensor
+// in preparation for processing. Writes to first (red) component.
+// There must be NData images for writing to the V1Vision.Images,
+// and the size of the tensor must already be properly configured to hold
+// the resulting images.
+// padWidth is the amount of padding to add on all sides.
+// topZero retains the Y=0 value at the top of the tensor --
+// otherwise it is flipped with Y=0 at the bottom to be consistent
+// with the emergent standard coordinate system.
+// Tensor must already be set to source size + 2*padWidth!
+func RGBToGrey(tsr *tensor.Float32, padWidth int, topZero bool, imgs ...image.Image) {
+	bd := imgs[0].Bounds()
+	sz := bd.Size()
+	np := sz.X * sz.Y
+
+	// note: can't resize b/c typically a subspace of images.
+	// tsr.SetShapeSizes(4, len(imgs), sz.Y+2*padWidth, sz.X+2*padWidth) // must be already!
+
+	// todo: do this on GPU
+	kernel := func(i uint32) {
+		ri := int(i) % np
+		ni := int(i) / np
+		x := ri % sz.X
+		y := ri / sz.X
+		sy := y
+		if !topZero {
+			sy = (sz.Y - 1) - y
+		}
+		cv := imgs[ni].At(bd.Min.X+x, bd.Min.Y+sy)
+		r, g, b, _ := colors.ToFloat32(cv)
+		gv := (r + g + b) / 3
+		tsr.Set(gv, int(ni), int(0), int(y+padWidth), int(x+padWidth))
+	}
+	gpu.VectorizeFunc(0, np*len(imgs), kernel)
 }
 
 // RGBTensorToImage converts an RGB tensor to image -- uses
@@ -318,30 +364,6 @@ func RGBTensorToImage(img *image.RGBA, tsr *tensor.Float32, padWidth int, topZer
 		}
 	}
 	return img
-}
-
-// RGBToGrey converts an RGB input image to a greyscale tensor
-// in preparation for processing. Writes to first (red) component.
-// padWidth is the amount of padding to add on all sides.
-// topZero retains the Y=0 value at the top of the tensor --
-// otherwise it is flipped with Y=0 at the bottom to be consistent
-// with the emergent standard coordinate system.
-// Tensor must already be set to source size + 2*padWidth!
-func RGBToGrey(img image.Image, tsr *tensor.Float32, padWidth int, topZero bool) {
-	bd := img.Bounds()
-	sz := bd.Size()
-	for y := 0; y < sz.Y; y++ {
-		for x := 0; x < sz.X; x++ {
-			sy := y
-			if !topZero {
-				sy = (sz.Y - 1) - y
-			}
-			cv := img.At(bd.Min.X+x, bd.Min.Y+sy)
-			r, g, b, _ := colors.ToFloat32(cv)
-			gv := (r + g + b) / 3
-			tsr.Set(gv, 0, y+padWidth, x+padWidth)
-		}
-	}
 }
 
 // GreyTensorToImage converts a greyscale tensor to image -- uses

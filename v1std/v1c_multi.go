@@ -94,7 +94,7 @@ func (vp *V1cParams) V1Config(vi *V1cMulti, lms, kwtaIdx int) {
 	out4Rows := vi.Out4Rows()
 	out4 := vi.V1.NewValues4D(int(vp.V1cGeom.Out.Y), int(vp.V1cGeom.Out.X), out4Rows, nang)
 	vp.OutIdx = out4
-	vp.Output.SetShapeSizes(int(vp.V1cGeom.Out.Y), int(vp.V1cGeom.Out.X), out4Rows, nang)
+	vp.Output.SetShapeSizes(vi.V1.NData, int(vp.V1cGeom.Out.Y), int(vp.V1cGeom.Out.X), out4Rows, nang)
 
 	vi.V1.NewTo4D(lsout, out4, 1, nang, 0, &vp.V1cGeom)
 	vi.V1.NewTo4D(esout, out4, 2, nang, 1, &vp.V1cGeom)
@@ -185,7 +185,7 @@ func (vp *DoGColorParams) V1Config(vi *V1cMulti, lmsRG, lmsBY, kwtaIdx int) {
 	// To4D
 	out4 := vi.V1.NewValues4D(int(vp.Geom.Out.Y), int(vp.Geom.Out.X), 2, 2)
 	vp.OutIdx = out4
-	vp.Output.SetShapeSizes(int(vp.Geom.Out.Y), int(vp.Geom.Out.X), 2, 2)
+	vp.Output.SetShapeSizes(vi.V1.NData, int(vp.Geom.Out.Y), int(vp.Geom.Out.X), 2, 2)
 	vi.V1.NewTo4D(out, out4, 2, 2, 0, &vp.Geom)
 }
 
@@ -315,7 +315,8 @@ func (vi *V1cMulti) Out4Rows() int {
 }
 
 // Config configures the filtering pipeline with all the current parameters.
-func (vi *V1cMulti) Config() {
+// ndata = number of data-parallel inputs to process in parallel.
+func (vi *V1cMulti) Config(ndata int) {
 	for _, vp := range vi.V1cParams {
 		vp.SetImageSize(vi.Image.Size)
 	}
@@ -325,7 +326,7 @@ func (vi *V1cMulti) Config() {
 	v1sGeom := &vi.V1cParams[0].V1sGeom
 	inSz := v1sGeom.In.V()
 
-	vi.V1.Init()
+	vi.V1.Init(ndata)
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
 	v1sKwtaIdx := 0
 	*vi.V1.NewKWTAParams() = vi.DoGKWTA
@@ -365,15 +366,16 @@ func (vi *V1cMulti) Config() {
 	}
 }
 
-// RunImage runs the configured filtering pipeline.
-// on given Image, using given [Image] handler.
-func (vi *V1cMulti) RunImage(img image.Image) {
+// RunImages runs the configured filtering pipeline.
+// on given Image(s), using given [Image] handler.
+func (vi *V1cMulti) RunImages(imgs ...image.Image) {
 	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
 	v1sGeom := &vi.V1cParams[0].V1sGeom
-	vi.Image.SetImageRGB(&vi.V1, img, int(v1sGeom.Border.X))
-	r, g, b := v1vision.EdgeAvg(vi.Image.Tsr, int(v1sGeom.Border.X))
-	vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
+	vi.Image.SetImagesRGB(&vi.V1, int(v1sGeom.Border.X), imgs...)
+	// todo:
+	// r, g, b := v1vision.EdgeAvg(vi.Image.Tsr, int(v1sGeom.Border.X))
+	// vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 	vi.V1.Run(v1vision.Values4DVar)
 	for _, vp := range vi.V1cParams {
 		vp.SetOutput(vi)

@@ -59,9 +59,9 @@ func (vv *V1Vision) NewConvolveDiff(in1, rgb1, in2, rgb2, ftyp, fidx1, fidx2, ou
 //gosl:start
 
 // ConvolveImage is the kernel for Convolve on Image data.
-func (op *Op) ConvolveImage(i uint32) {
-	fi := int32(i) % op.FilterN // inner
-	ii := int32(i) / op.FilterN
+func (op *Op) ConvolveImage(i, ni int32) {
+	fi := i % op.FilterN // inner
+	ii := i / op.FilterN
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 
@@ -75,25 +75,25 @@ func (op *Op) ConvolveImage(i uint32) {
 	sum := float32(0)
 	for fy := range fyn {
 		for fx := range fxn {
-			iv := Images.Value(int(op.InImage), int(op.InImageRGB), int(yi+fy), int(xi+fx))
+			iv := Images.Value(int(op.InImage), int(ni), int(op.InImageRGB), int(yi+fy), int(xi+fx))
 			fv := Filters.Value(int(op.FilterType), int(fi), int(fy), int(fx))
 			sum += fv * iv
 		}
 	}
 	sum *= op.FloatArg1
 	if sum > 0 {
-		Values.Set(sum, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
-		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
+		Values.Set(sum, int(op.OutValue), int(ni), int(yo), int(xo), int(0), int(fi))
+		Values.Set(0.0, int(op.OutValue), int(ni), int(yo), int(xo), int(1), int(fi))
 	} else {
-		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
-		Values.Set(-sum, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
+		Values.Set(0.0, int(op.OutValue), int(ni), int(yo), int(xo), int(0), int(fi))
+		Values.Set(-sum, int(op.OutValue), int(ni), int(yo), int(xo), int(1), int(fi))
 	}
 }
 
 // ConvolveDiff is the kernel.
-func (op *Op) ConvolveDiff(i uint32) {
-	yo := int32(i) / op.Geom.Out.X
-	xo := int32(i) % op.Geom.Out.X
+func (op *Op) ConvolveDiff(i, ni int32) {
+	yo := i / op.Geom.Out.X
+	xo := i % op.Geom.Out.X
 	fi := op.OutScalar
 
 	istX := op.Geom.Border.X - op.Geom.FilterLt.X
@@ -107,8 +107,8 @@ func (op *Op) ConvolveDiff(i uint32) {
 	sumOff := float32(0)
 	for fy := range fyn {
 		for fx := range fxn {
-			iv1 := Images.Value(int(op.InImage), int(op.InImageRGB), int(yi+fy), int(xi+fx))
-			iv2 := Images.Value(int(op.InValue2), int(op.OutImage2), int(yi+fy), int(xi+fx))
+			iv1 := Images.Value(int(op.InImage), int(ni), int(op.InImageRGB), int(yi+fy), int(xi+fx))
+			iv2 := Images.Value(int(op.InValue2), int(ni), int(op.OutImage2), int(yi+fy), int(xi+fx))
 			fv1 := Filters.Value(int(op.FilterType), int(op.FilterN), int(fy), int(fx))
 			fv2 := Filters.Value(int(op.FilterType), int(op.IntArg1), int(fy), int(fx))
 			sumOn += fv1 * iv1
@@ -117,11 +117,11 @@ func (op *Op) ConvolveDiff(i uint32) {
 	}
 	diff := op.FloatArg1 * (op.FloatArg2*sumOn - sumOff)
 	if diff > 0 {
-		Values.Set(diff, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
-		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
+		Values.Set(diff, int(op.OutValue), int(ni), int(yo), int(xo), int(0), int(fi))
+		Values.Set(0.0, int(op.OutValue), int(ni), int(yo), int(xo), int(1), int(fi))
 	} else {
-		Values.Set(-diff, int(op.OutValue), int(yo), int(xo), int(1), int(fi))
-		Values.Set(0.0, int(op.OutValue), int(yo), int(xo), int(0), int(fi))
+		Values.Set(-diff, int(op.OutValue), int(ni), int(yo), int(xo), int(1), int(fi))
+		Values.Set(0.0, int(op.OutValue), int(ni), int(yo), int(xo), int(0), int(fi))
 	}
 }
 

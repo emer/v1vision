@@ -169,15 +169,15 @@ func (vi *Vis) Defaults() {
 
 // Config sets up the V1 processing pipeline.
 func (vi *Vis) Config() {
-	vi.V1.Init()
+	vi.V1.Init(1)
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
 	kwtaIdx := 0
 	_ = kwtaIdx
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	lms := vi.V1.NewImage(vi.V1sGeom.In.V())
-	vi.ImageTsr = vi.V1.Images.SubSpace(img).(*tensor.Float32)
-	vi.ImageLMSTsr = vi.V1.Images.SubSpace(lms).(*tensor.Float32)
+	vi.ImageTsr = vi.V1.Images.SubSpace(img, 0).(*tensor.Float32)
+	vi.ImageLMSTsr = vi.V1.Images.SubSpace(lms, 0).(*tensor.Float32)
 
 	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.Border.X), .5, .5, .5, &vi.V1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lms, vi.ColorGain, &vi.V1sGeom)
@@ -243,11 +243,11 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
-	vi.V1cColor.Config(vi.StdImage.Size)
+	vi.V1cColor.Config(1, vi.StdImage.Size)
 }
 
 func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x, pol int32) {
-	out := vi.V1.Values.SubSpace(idx).(*tensor.Float32)
+	out := vi.V1.Values.SubSpace(idx, 0).(*tensor.Float32)
 	tsr.SetShapeSizes(int(y), int(x), int(pol), vi.V1sGabor.NAngles)
 	tensor.CopyFromLargerShape(tsr, out)
 }
@@ -272,8 +272,9 @@ func (vi *Vis) Filter() error { //types:add
 	if err != nil {
 		return errors.Log(err)
 	}
-	r, g, b := v1vision.EdgeAvg(vi.ImageTsr, int(vi.V1sGeom.Border.X))
-	vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
+	// todo:
+	// r, g, b := v1vision.EdgeAvg(vi.ImageTsr, int(vi.V1sGeom.Border.X))
+	// vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 
 	tmr := timer.Time{}
 	tmr.Start()
@@ -302,11 +303,11 @@ func (vi *Vis) Filter() error { //types:add
 	vi.getTsrOpt(vi.v1cLenSumIdx, &vi.V1cLenSumTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 1)
 	vi.getTsrOpt(vi.v1cEndStopIdx, &vi.V1cEndStopTsr, vi.V1cGeom.Out.Y, vi.V1cGeom.Out.X, 2)
 
-	vi.V1AllTsr = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
+	vi.V1AllTsr = vi.V1.Values4D.SubSpace(0, 0).(*tensor.Float32)
 
 	// vi.ImageFromV1Simple()
 
-	vi.V1cColor.RunImage(&vi.StdImage, vi.Image)
+	vi.V1cColor.RunImages(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()
@@ -327,7 +328,8 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 	if isz != vi.ImageSize {
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
-	v1vision.RGBToTensor(vi.Image, vi.ImageTsr, int(vi.V1sGeom.FilterRt.X), v1vision.BottomZero)
+	img := vi.V1.Images.SubSpace(0).(*tensor.Float32)
+	v1vision.RGBToTensor(img, int(vi.V1sGeom.FilterRt.X), v1vision.BottomZero, vi.Image)
 	return nil
 }
 

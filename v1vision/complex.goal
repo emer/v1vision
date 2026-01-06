@@ -46,11 +46,11 @@ func (vv *V1Vision) NewEndStop4(in, inLenSum, fn int, geom *Geom) int {
 //gosl:start
 
 // LenSum4 is kernel.
-func (op *Op) LenSum4(i uint32) {
+func (op *Op) LenSum4(i, ni int32) {
 	szX := op.Geom.Out.X	
 	szY := op.Geom.Out.Y
-	ang := int32(i) % op.FilterN // inner
-	ii := int32(i) / op.FilterN
+	ang := i % op.FilterN // inner
+	ii := i / op.FilterN
 	yo := ii / szX
 	xo := ii % szX
 
@@ -58,30 +58,30 @@ func (op *Op) LenSum4(i uint32) {
 	LenSumOffsets(ang, &ox, &oy)
 	
 	norm := float32(1) / 3
-	ctr := Values[op.InValue, yo, xo, 0, ang]
+	ctr := Values[op.InValue, ni, yo, xo, 0, ang]
 	lp := float32(0)
 	ln := float32(0)
 	
 	lpX := xo + ox
 	lpY := yo + oy
 	if lpX >= 0 && lpX < szX && lpY >= 0 && lpY < szY {
-		lp = Values[op.InValue, lpY, lpX, 0, ang]
+		lp = Values[op.InValue, ni, lpY, lpX, 0, ang]
 	}
 	lnX := xo - ox
 	lnY := yo - oy
 	if lnX >= 0 && lnX < szX && lnY >= 0 && lnY < szY {
-		ln = Values[op.InValue, lnY, lnX, 0, ang]
+		ln = Values[op.InValue, ni, lnY, lnX, 0, ang]
 	}
 	ls := norm * (ctr + lp + ln)
-	Values[op.OutValue, yo, xo, 0, ang] = ls
+	Values[op.OutValue, ni, yo, xo, 0, ang] = ls
 }
 
 // EndStop4 is kernel.
-func (op *Op) EndStop4(i uint32) {
+func (op *Op) EndStop4(i, ni int32) {
 	szX := op.Geom.Out.X	
 	szY := op.Geom.Out.Y
-	ang := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+	ang := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / szX
@@ -100,7 +100,7 @@ func (op *Op) EndStop4(i uint32) {
 	lnX := xo - dsign*ox
 	lnY := yo - dsign*oy
 	if lnX >= 0 && lnX < szX && lnY >= 0 && lnY < szY {
-		ls = Values[op.InValue2, lnY, lnX, 0, ang]
+		ls = Values[op.InValue2, ni, lnY, lnX, 0, ang]
 	}
 	
 	offMax := float32(0)
@@ -110,7 +110,7 @@ func (op *Op) EndStop4(i uint32) {
 		ofX := xo + dsign*ox
 		ofY := yo + dsign*oy
 		if ofX >= 0 && ofX < szX && ofY >= 0 && ofY < szY {
-			off := Values[op.InValue, ofY, ofX, 0, ang]
+			off := Values[op.InValue, ni, ofY, ofX, 0, ang]
 			offMax = max(offMax, off)
 		}
 	}
@@ -118,7 +118,7 @@ func (op *Op) EndStop4(i uint32) {
 	if es < 0.2 {     // note: builtin threshold
 		es = 0
 	}
-	Values[op.OutValue, yo, xo, pi, ang] = es
+	Values[op.OutValue, ni, yo, xo, pi, ang] = es
 }
 
 // Line4X = []int{1, 1, 0, 1}

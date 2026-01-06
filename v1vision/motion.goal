@@ -67,17 +67,17 @@ func (vv *V1Vision) NewMotionFullField(in, fn int, geom *Geom) int {
 //gosl:start
 
 // MotionIntegrate is the kernel.
-func (op *Op) MotionIntegrate(i uint32) {
-	fi := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+func (op *Op) MotionIntegrate(i, ni int32) {
+	fi := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / op.Geom.Out.X
 	xo := ii % op.Geom.Out.X
 
-	v := Values[op.InValue, yo, xo, pi, fi]
-	f := Values[op.OutValue, yo, xo, pi, fi]
-	s := Values[op.OutValue+1, yo, xo, pi, fi]
+	v := Values[op.InValue, ni, yo, xo, pi, fi]
+	f := Values[op.OutValue, ni, yo, xo, pi, fi]
+	s := Values[op.OutValue+1, ni, yo, xo, pi, fi]
 
 	if v > f {
 		f = v
@@ -90,15 +90,15 @@ func (op *Op) MotionIntegrate(i uint32) {
 		s += op.FloatArg2 * (v - s)
 	}
 
-	Values[op.OutValue, yo, xo, pi, fi] = f
-	Values[op.OutValue+1, yo, xo, pi, fi] = s
+	Values[op.OutValue, ni, yo, xo, pi, fi] = f
+	Values[op.OutValue+1, ni, yo, xo, pi, fi] = s
 }
 
 // MotionStar is the kernel.
-func (op *Op) MotionStar(i uint32) {
+func (op *Op) MotionStar(i, ni int32) {
 	szX := op.Geom.Out.X - 1
-	fi := int32(i) % op.FilterN // FilterN = orig fn * 2
-	pii := int32(i) / op.FilterN
+	fi := i % op.FilterN // FilterN = orig fn * 2
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / szX
@@ -114,34 +114,36 @@ func (op *Op) MotionStar(i uint32) {
 	} else {
 		yoff = 1
 	}
-	cf := Values[op.InValue, yo, xo, pi, fio] // fast
-	nf := Values[op.InValue, yo+yoff, xo+xoff, pi, fio] // next
-	cs := Values[op.InValue+1, yo, xo, pi, fio] // slow
-	ns := Values[op.InValue+1, yo+yoff, xo+xoff, pi, fio] // next
+	cf := Values[op.InValue, ni, yo, xo, pi, fio] // fast
+	nf := Values[op.InValue, ni, yo+yoff, xo+xoff, pi, fio] // next
+	cs := Values[op.InValue+1, ni, yo, xo, pi, fio] // slow
+	ns := Values[op.InValue+1, ni, yo+yoff, xo+xoff, pi, fio] // next
 
 	minact := min(min(min(cf, cs), nf), ns)
 	cd := cf - cs
 	nd := nf - ns
 	v := op.FloatArg1 * (cd - nd)
 	if v >= 0 { // delta bigger on current than next
-		Values[op.OutValue, yo, xo, pi, doff] = minact * v // 0 = left/down
-		Values[op.OutValue, yo, xo, pi, doff+1] = 0.0
+		Values[op.OutValue, ni, yo, xo, pi, doff] = minact * v // 0 = left/down
+		Values[op.OutValue, ni, yo, xo, pi, doff+1] = 0.0
 	} else {
-		Values[op.OutValue, yo, xo, pi, doff+1] = -minact * v // 1 = right/up
-		Values[op.OutValue, yo, xo, pi, doff] = 0.0
+		Values[op.OutValue, ni, yo, xo, pi, doff+1] = -minact * v // 1 = right/up
+		Values[op.OutValue, ni, yo, xo, pi, doff] = 0.0
 	}
 }
 
 // MotionFullFieldX is the kernel: i = 2 * Y, first pass, FilterN = orig filtn
 func MotionFullFieldX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
 	szX := op.Geom.Out.X - 1
 	fno := op.FilterN // original features
-	dir := int32(i) % 2 
-	yo := int32(i) / 2
+	dir := ri % 2 
+	yo := ri / 2
 	doff := dir * 2
 	
 	csum := float32(0)
@@ -150,8 +152,8 @@ func MotionFullFieldX(i uint32) { //gosl:kernel
 		for pi := range 2 { // pos / neg
 			for fi := range fno { // original features
 				dfo := fi * 4 + doff
-				c := Values[op.InValue, yo, xo, pi, dfo] // left, down
-				n := Values[op.InValue, yo, xo, pi, dfo+1] // right, up
+				c := Values[op.InValue, ni, yo, xo, pi, dfo] // left, down
+				n := Values[op.InValue, ni, yo, xo, pi, dfo+1] // right, up
 				v := c-n
 				if v >= 0 {
 					csum += v
@@ -161,29 +163,31 @@ func MotionFullFieldX(i uint32) { //gosl:kernel
 			}
 		}
 	}
-	Values[op.OutValue, yo, 0, 0, doff] = csum
-	Values[op.OutValue, yo, 0, 0, doff+1] = nsum
+	Values[op.OutValue, ni, yo, 0, 0, doff] = csum
+	Values[op.OutValue, ni, yo, 0, 0, doff+1] = nsum
 }
 
-// MotionFullFieldY is the kernel: i = 2, second pass
+// MotionFullFieldY is the kernel: i = 2*NData, second pass
 func MotionFullFieldY(i uint32) { //gosl:kernel
-	if i >= 2 {
+	op := GetCurOp(0)
+	if i >= 2*op.NData {
 		return
 	}
-	op := GetCurOp(0)
+	ri := int32(i) % 2
+	ni := int32(i) / 2
 	szY := op.Geom.Out.Y-1
-	dir := int32(i)
+	dir := ri
 	doff := dir * 2
 	csum := float32(0)
 	nsum := float32(0)
 	for y := range szY {
-		c := Values[op.OutValue, y, 0, 0, doff]
-		n := Values[op.OutValue, y, 0, 0, doff+1]
+		c := Values[op.OutValue, ni, y, 0, 0, doff]
+		n := Values[op.OutValue, ni, y, 0, 0, doff+1]
 		csum += c
 		nsum += n
 	}
-	Scalars.Set1D(csum, int(op.OutScalar + doff))
-	Scalars.Set1D(nsum, int(op.OutScalar + doff + 1))
+	Scalars[op.OutScalar + doff, ni] = csum
+	Scalars[op.OutScalar + doff + 1, ni] = nsum
 }
 
 //gosl:end

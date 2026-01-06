@@ -9,7 +9,7 @@ var<storage, read> CurOp: array<Op>;
 @group(0) @binding(2)
 var<storage, read> KWTAs: array<KWTA>;
 // // Filters are one general stack of rendered filters, sized to the max of each // of the inner dimensional values: [FilterTypes][FilterN][Y][X] // FilterTypes = different filter types (DoG, Gabor, etc) // FilterN = number of filters within the group (On, Off, angle, etc) // Y, X = sizes. 
-// // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
+// // Images are float-valued image data: // [ImageNo][NData][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
 @group(2) @binding(1)
 var<storage, read_write> Values: array<f32>;
 @group(2) @binding(4)
@@ -23,12 +23,12 @@ fn main(@builtin(workgroup_id) wgid: vec3<u32>, @builtin(num_workgroups) nwg: ve
 	KWTAIterPool(idx);
 }
 
-fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32) -> u32 {
-	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
+fn Index6D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, s5: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32, i5: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4 + s5 * i5;
 }
 
-fn Index4D(s0: u32, s1: u32, s2: u32, s3: u32, i0: u32, i1: u32, i2: u32, i3: u32) -> u32 {
-	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3;
+fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
 }
 
 
@@ -85,7 +85,8 @@ fn FFFB_FBInhib(fb: FFFB, avgAct: f32) -> f32 {
 }
 fn FFFB_FBUpdt(fb: FFFB, fbi: f32, newFbi: f32) -> f32 {
 	var nfb = fbi;
-	nfb += fb.FBDt * (newFbi - nfb);return nfb;
+	nfb += fb.FBDt * (newFbi - nfb);
+return nfb;
 }
 
 //////// import: "geom.go"
@@ -140,31 +141,35 @@ struct KWTA {
 	pad2: f32,
 }
 fn KWTA_GeThrFromG(kp: KWTA, gi: f32) -> f32 {
-	var ge = ((kp.Gbar.I*gi*kp.ErevSubThr.I + kp.Gbar.L*kp.ErevSubThr.L) / kp.ThrSubErev.E);return ge;
+	var ge = ((kp.Gbar.I*gi*kp.ErevSubThr.I + kp.Gbar.L*kp.ErevSubThr.L) / kp.ThrSubErev.E);
+return ge;
 }
 fn KWTA_ActFromG(kp: KWTA, geThr: f32,ge: f32,act: f32, delAct: ptr<function,f32>) -> f32 {
 	var nwAct = Params_NoisyXX1(kp.XX1, ge*kp.Gbar.E - geThr);
 	*delAct = kp.ActDt * (nwAct - act);
-	nwAct = act + *delAct;return nwAct;
+	nwAct = act + *delAct;
+return nwAct;
 }
 
 //////// import: "kwta.go"
 fn KWTAIterPool(i: u32) { //gosl:kernel
 	let op = CurOp[0];
-	if (i >= op.RunN) {
+	if (i >= op.RunN*op.NData) {
 		return;
 	}
+	var ri = i32(i % op.RunN);
+	var ni = i32(i / op.RunN);
 	var szY = op.Geom.Out.y;
 	var szX = op.Geom.Out.x;
-	var yo = i32(i) / szX;
-	var xo = i32(i) % szX;
-	var layGi = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(szY), u32(0), u32(Gi))];
+	var yo = ri / szX;
+	var xo = ri % szX;
+	var layGi = Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(szY), u32(0), u32(Gi))];
 	let kp = KWTAs[u32(op.KWTA)];
 	var pn = 2 * op.FilterN;
-	var geAvg = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GeAvg))];
-	var geMax = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GeMax))];
-	var actAvg = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(ActAvg))];
-	var fbi = Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(FBi))];
+	var geAvg = Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(GeAvg))];
+	var geMax = Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(GeMax))];
+	var actAvg = Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(ActAvg))];
+	var fbi = Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(FBi))];
 	var ffi = FFFB_FFInhib(kp.Pool, geAvg, geMax);
 	var newFBi = FFFB_FBInhib(kp.Pool, actAvg);
 	fbi = FFFB_FBUpdt(kp.Pool, fbi, newFBi);
@@ -172,11 +177,11 @@ fn KWTAIterPool(i: u32) { //gosl:kernel
 		ffi = f32(0.0);
 		fbi = f32(0.0);
 	}
-	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(FFi))] = ffi;
-	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(FBi))] = fbi;
+	Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(FFi))] = ffi;
+	Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(FBi))] = fbi;
 	var gi = kp.Pool.Gi * (ffi + fbi);
-	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(Gi))] = gi;
-	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(GiOrig))] = gi;
+	Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(Gi))] = gi;
+	Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(GiOrig))] = gi;
 	var giPool = max(layGi, gi);
 	actAvg = f32(0.0);
 	var actMax = f32(0.0);
@@ -184,25 +189,25 @@ fn KWTAIterPool(i: u32) { //gosl:kernel
 		for (var px=0; px<op.FilterN; px++) {
 			var pgi = giPool;
 			if (op.InValue2 > 0) {
-				var eIn = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue2), u32(yo), u32(xo), u32(py), u32(px))];
+				var eIn = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue2), u32(ni), u32(yo), u32(xo), u32(py), u32(px))];
 				var eGi = kp.Pool.Gi * FFFB_FFInhib(kp.Pool, eIn, eIn);
 				pgi = max(pgi, eGi);
 			}
 			var geThr = KWTA_GeThrFromG(kp, pgi);
-			var ge = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(py), u32(px))];
-			var act = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(py), u32(px))];
+			var ge = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(py), u32(px))];
+			var act = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(py), u32(px))];
 			geAvg += ge;
 			geMax = max(geMax, ge);
 			var delAct = f32(0);
 			var nwAct = KWTA_ActFromG(kp, geThr, ge, act, &delAct);
-			Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(py), u32(px))] = nwAct;
+			Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(py), u32(px))] = nwAct;
 			actAvg += nwAct;
 			actMax = max(actMax, nwAct);
 		}
 	}
-	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], u32(op.Inhibs), u32(yo), u32(xo), u32(ActAvg))] = actAvg / f32(pn);
-	Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53],
-	u32(op.Inhibs), u32(yo), u32(xo), u32(ActMax))] = actMax;
+	Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53], TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(ActAvg))] = actAvg / f32(pn);
+	Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53],
+	TensorStrides[54], u32(op.Inhibs), u32(ni), u32(yo), u32(xo), u32(ActMax))] = actMax;
 }
 
 //////// import: "logrenorm.go"
@@ -214,7 +219,8 @@ fn FastExp(x: f32) -> f32 {
 	}
 	var i = i32(12102203*x) + i32(127)*(i32(1)<<23);
 	var m = (i >> 7) & 0xFFFF; // copy mantissa
-	i += (((((((((((3537 * m) >> 16) + 13668) * m) >> 18) + 15817) * m) >> 14) - 80470) * m) >> 11);return bitcast<f32>(u32(i));
+	i += (((((((((((3537 * m) >> 16) + 13668) * m) >> 18) + 15817) * m) >> 14) - 80470) * m) >> 11);
+return bitcast<f32>(u32(i));
 }
 
 //////// import: "maxpool.go"
@@ -241,19 +247,24 @@ struct Params {
 	pad1: f32,
 }
 fn Params_XX1(xp: Params, x: f32) -> f32 { return x / (x + 1); }
-fn Params_XX1GainCor(xp: Params, x: f32) -> f32 { var gainCorFact = (xp.GainCorRange - (x / xp.NVar)) / xp.GainCorRange;; if (gainCorFact < 0) {
+fn Params_XX1GainCor(xp: Params, x: f32) -> f32 { var gainCorFact = (xp.GainCorRange - (x / xp.NVar)) / xp.GainCorRange;
+; if (gainCorFact < 0) {
 	return Params_XX1(xp, xp.Gain * x);
-}; var newGain = xp.Gain * (1 - xp.GainCor*gainCorFact);; return Params_XX1(xp, newGain * x); }
-fn Params_NoisyXX1(xp: Params, x: f32) -> f32 { if (x < 0) { // sigmoidal for < 0
-	var ex = -(x * xp.SigGainNVar);
-	if (ex > 50) {
-		return f32(0);
-	}return xp.SigMultEff / (1 + FastExp(ex));
-} else if (x < xp.InterpRange) {
-	var interp = 1 - ((xp.InterpRange - x) / xp.InterpRange);return xp.SigValAt0 + interp*xp.InterpVal;
-} else {
-	return Params_XX1GainCor(xp, x);
-} }
+}; var newGain = xp.Gain * (1 - xp.GainCor*gainCorFact);
+; return Params_XX1(xp, newGain * x); }
+fn Params_NoisyXX1(xp: Params, x: f32) -> f32 {
+	if (x < 0) { // sigmoidal for < 0
+		var ex = -(x * xp.SigGainNVar);
+		if (ex > 50) {
+			return f32(0);
+		}return xp.SigMultEff / (1 + FastExp(ex));
+	} else if (x < xp.InterpRange) {
+		var interp = 1 - ((xp.InterpRange - x) / xp.InterpRange);
+	return xp.SigValAt0 + interp*xp.InterpVal;
+	} else {
+		return Params_XX1GainCor(xp, x);
+	}
+}
 
 //////// import: "op.go"
 alias Operations = i32; //enums:enum
@@ -282,6 +293,7 @@ const  MotionStar: Operations = 21;
 const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
+	NData: u32,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
@@ -301,6 +313,9 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
+	pad2: i32,
 	Geom: Geom,
 }
 

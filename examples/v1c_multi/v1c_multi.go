@@ -21,7 +21,7 @@ import (
 func main() {
 	vi := &Vis{}
 	vi.Defaults()
-	vi.Config()
+	vi.Config(1)
 	vi.Filter()
 	vi.ConfigGUI()
 }
@@ -45,14 +45,14 @@ func (vi *Vis) Defaults() {
 // Filter is overall method to run filters on current image file name
 // loads the image from ImageFile and then runs filters
 func (vi *Vis) Filter() error { //types:add
-	err := vi.Image.OpenImageResize(string(vi.ImageFile))
+	err := vi.Image.OpenImagesResize(string(vi.ImageFile))
 	if err != nil {
 		return err
 	}
 	tmr := timer.Time{}
 	tmr.Start()
 	for range 1 {
-		vi.RunImage(vi.Image.Image)
+		vi.RunImages(vi.Image.Images...)
 	}
 	tmr.Stop()
 	fmt.Println("GPU:", vi.GPU, "Time:", tmr.Total)
@@ -66,17 +66,18 @@ func (vi *Vis) Filter() error { //types:add
 }
 
 func (vi *Vis) ConfigGUI() *core.Body {
-	tensorcore.AddGridStylerTo(vi.Image.Tsr, func(s *tensorcore.GridStyle) {
-		s.Image = true
-		s.Range.SetMin(0)
-	})
 	b := core.NewBody("v1gabor").SetTitle("V1 Gabor Filtering")
 	sp := core.NewSplits(b)
 	core.NewForm(sp).SetStruct(vi)
 	tb := core.NewTabs(sp)
 	vi.tabView = tb
 	tf, _ := tb.NewTab("Image")
-	tensorcore.NewTensorGrid(tf).SetTensor(vi.Image.Tsr)
+	img := vi.Image.Tsr.SubSpace(0)
+	tensorcore.AddGridStylerTo(img, func(s *tensorcore.GridStyle) {
+		s.Image = true
+		s.Range.SetMin(0)
+	})
+	tensorcore.NewTensorGrid(tf).SetTensor(img)
 	for _, vp := range vi.V1cParams {
 		tf, _ = tb.NewTab("V1c " + vp.Name)
 		tensorcore.NewTensorGrid(tf).SetTensor(&vp.Output)

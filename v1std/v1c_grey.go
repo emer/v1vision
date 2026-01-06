@@ -72,10 +72,11 @@ func (vi *V1cGrey) SetSize(sz, spc int) {
 // as an RGB Tensor (per [V1Vision.Images] standard format),
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
 // The resulting Geom.Border field can be passed to [Image] methods.
-func (vi *V1cGrey) Config(imageSize image.Point) {
+// ndata = number of data-parallel inputs to process in parallel.
+func (vi *V1cGrey) Config(ndata int, imageSize image.Point) {
 	vi.V1sGeom.SetImageSize(imageSize)
 
-	vi.V1.Init()
+	vi.V1.Init(ndata)
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
 	kwtaIdx := 0
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
@@ -117,12 +118,12 @@ func (vi *V1cGrey) Config(imageSize image.Point) {
 	}
 }
 
-// RunImage runs the configured filtering pipeline.
-// on given Image, using given [Image] handler.
-func (vi *V1cGrey) RunImage(im *Image, img image.Image) {
+// RunImages runs the configured filtering pipeline.
+// on given Image(s), using given [Image] handler.
+func (vi *V1cGrey) RunImages(im *Image, imgs ...image.Image) {
 	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
-	im.SetImageGrey(&vi.V1, img, int(vi.V1sGeom.Border.X))
+	im.SetImagesGrey(&vi.V1, int(vi.V1sGeom.Border.X), imgs...)
 	vi.V1.Run(v1vision.Values4DVar)
 	vi.Output = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 }

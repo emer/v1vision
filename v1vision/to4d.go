@@ -33,13 +33,13 @@ func (vv *V1Vision) NewTo4D(in, out, pn, fn, toY int, geom *Geom) int {
 //gosl:start
 
 // To4D is kernel.
-func (op *Op) To4D(i uint32) {
+func (op *Op) To4D(i, ni int32) {
 	fY := op.Geom.FilterSize.Y
 	fX := op.Geom.FilterSize.X
 	szX := op.Geom.Out.X
 
-	fi := int32(i) % fX
-	pii := int32(i) / fX
+	fi := i % fX
+	pii := i / fX
 	pi := pii % fY // polarity
 	ii := pii / fY
 	yo := ii / szX
@@ -47,8 +47,8 @@ func (op *Op) To4D(i uint32) {
 
 	toY := op.IntArg1
 
-	iv := Values.Value(int(op.InValue), int(yo), int(xo), int(pi), int(fi))
-	Values4D.Set(iv, int(op.OutValue4D), int(yo), int(xo), int(toY+pi), int(fi))
+	iv := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(pi), int(fi))
+	Values4D.Set(iv, int(op.OutValue4D), int(ni), int(yo), int(xo), int(toY+pi), int(fi))
 }
 
 //gosl:end

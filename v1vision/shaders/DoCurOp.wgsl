@@ -9,7 +9,7 @@ var<storage, read> CurOp: array<Op>;
 // // Filters are one general stack of rendered filters, sized to the max of each // of the inner dimensional values: [FilterTypes][FilterN][Y][X] // FilterTypes = different filter types (DoG, Gabor, etc) // FilterN = number of filters within the group (On, Off, angle, etc) // Y, X = sizes. 
 @group(1) @binding(0)
 var<storage, read> Filters: array<f32>;
-// // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
+// // Images are float-valued image data: // [ImageNo][NData][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
 @group(2) @binding(0)
 var<storage, read_write> Images: array<f32>;
 @group(2) @binding(1)
@@ -35,8 +35,12 @@ fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u3
 	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
 }
 
-fn Index1D(s0: u32, i0: u32) -> u32 {
-	return s0 * i0;
+fn Index6D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, s5: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32, i5: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4 + s5 * i5;
+}
+
+fn Index2D(s0: u32, s1: u32, i0: u32, i1: u32) -> u32 {
+	return s0 * i0 + s1 * i1;
 }
 
 
@@ -72,7 +76,8 @@ fn SRGBToLMS_HPE(r: f32,g: f32,b: f32, l: ptr<function,f32>,m: ptr<function,f32>
 */
 fn ResponseCompression(val: f32) -> f32 {
 	var pval = pow(val, 0.42);
-	var rc = 0.1 + 4.0*pval/(27.13+pval);return rc;
+	var rc = 0.1 + 4.0*pval/(27.13+pval);
+return rc;
 }
 fn LMSToComps(l: f32,m: f32,s: f32, lc: ptr<function,f32>,mc: ptr<function,f32>,sc: ptr<function,f32>,lmc: ptr<function,f32>,lvm: ptr<function,f32>,svlm: ptr<function,f32>,grey: ptr<function,f32>) {
 	var lrc = ResponseCompression(l);
@@ -108,39 +113,39 @@ fn SRGBToLMSAll(r: f32,g: f32,b: f32, lc: ptr<function,f32>,mc: ptr<function,f32
 }
 
 //////// import: "complex.go"
-fn Op_LenSum4(op: Op, i: u32) {
+fn Op_LenSum4(op: Op, i: i32,ni: i32) {
 	var szX = op.Geom.Out.x;
 	var szY = op.Geom.Out.y;
-	var ang = i32(i) % op.FilterN; // inner
-	var ii = i32(i) / op.FilterN;
+	var ang = i % op.FilterN; // inner
+	var ii = i / op.FilterN;
 	var yo = ii / szX;
 	var xo = ii % szX;
 	var ox: i32;
 	var oy: i32;
 	LenSumOffsets(ang, &ox, &oy);
 	var norm = f32(1) / 3;
-	var ctr = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(0), u32(ang))];
+	var ctr = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(0), u32(ang))];
 	var lp = f32(0);
 	var ln = f32(0);
 	var lpX = xo + ox;
 	var lpY = yo + oy;
 	if (lpX >= 0 && lpX < szX && lpY >= 0 && lpY < szY) {
-		lp = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(lpY), u32(lpX), u32(0), u32(ang))];
+		lp = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(lpY), u32(lpX), u32(0), u32(ang))];
 	}
 	var lnX = xo - ox;
 	var lnY = yo - oy;
 	if (lnX >= 0 && lnX < szX && lnY >= 0 && lnY < szY) {
-		ln = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(lnY), u32(lnX), u32(0), u32(ang))];
+		ln = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(lnY), u32(lnX), u32(0), u32(ang))];
 	}
 	var ls = norm * (ctr + lp + ln);
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(ang))] = ls;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(0), u32(ang))] = ls;
 }
-fn Op_EndStop4(op: Op, i: u32) {
+fn Op_EndStop4(op: Op, i: i32,ni: i32) {
 	var szX = op.Geom.Out.x;
 	var szY = op.Geom.Out.y;
-	var ang = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+	var ang = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / szX;
@@ -156,17 +161,18 @@ fn Op_EndStop4(op: Op, i: u32) {
 	var lnX = xo - dsign*ox;
 	var lnY = yo - dsign*oy;
 	if (lnX >= 0 && lnX < szX && lnY >= 0 && lnY < szY) {
-		ls = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue2), u32(lnY), u32(lnX), u32(0), u32(ang))];
+		ls = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue2), u32(ni), u32(lnY), u32(lnX), u32(0), u32(ang))];
 	}
 	var offMax = f32(0);
-	for (var oi = i32(0); oi < 3; oi++) {
+	for (var oi = i32(0);
+	 oi < 3; oi++) {
 		var ox: i32;
 		var oy: i32;
 		EndStopOffsets(ang, oi, &ox, &oy);
 		var ofX = xo + dsign*ox;
 		var ofY = yo + dsign*oy;
 		if (ofX >= 0 && ofX < szX && ofY >= 0 && ofY < szY) {
-			var off = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(ofY), u32(ofX), u32(0), u32(ang))];
+			var off = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(ofY), u32(ofX), u32(0), u32(ang))];
 			offMax = max(offMax, off);
 		}
 	}
@@ -174,8 +180,8 @@ fn Op_EndStop4(op: Op, i: u32) {
 	if (es < 0.2) {       // note: builtin threshold
 		es = f32(0);
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(ang))] = es;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(ang))] = es;
 }
 fn LenSumOffsets(ang: i32, ox: ptr<function,i32>,oy: ptr<function,i32>) {
 	switch (ang) {
@@ -225,9 +231,9 @@ fn EndStopOffsets(ang: i32,oi: i32, ox: ptr<function,i32>,oy: ptr<function,i32>)
 }
 
 //////// import: "convolve.go"
-fn Op_ConvolveImage(op: Op, i: u32) {
-	var fi = i32(i) % op.FilterN; // inner
-	var ii = i32(i) / op.FilterN;
+fn Op_ConvolveImage(op: Op, i: i32,ni: i32) {
+	var fi = i % op.FilterN; // inner
+	var ii = i / op.FilterN;
 	var yo = ii / op.Geom.Out.x;
 	var xo = ii % op.Geom.Out.x;
 	var istX = op.Geom.Border.x - op.Geom.FilterLt.x;
@@ -239,24 +245,24 @@ fn Op_ConvolveImage(op: Op, i: u32) {
 	var sum = f32(0);
 	for (var fy=0; fy<fyn; fy++) {
 		for (var fx=0; fx<fxn; fx++) {
-			var iv = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(op.InImageRGB), u32(yi + fy), u32(xi + fx))];
+			var iv = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(op.InImageRGB), u32(yi + fy), u32(xi + fx))];
 			var fv = Filters[Index4D(TensorStrides[0], TensorStrides[1], TensorStrides[2], TensorStrides[3], u32(op.FilterType), u32(fi), u32(fy), u32(fx))];
 			sum += fv * iv;
 		}
 	}
 	sum *= op.FloatArg1;
 	if (sum > 0) {
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = sum;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(0), u32(fi))] = sum;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
 	} else {
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-		TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+		TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(1), u32(fi))] = -sum;
 	}
 }
-fn Op_ConvolveDiff(op: Op, i: u32) {
-	var yo = i32(i) / op.Geom.Out.x;
-	var xo = i32(i) % op.Geom.Out.x;
+fn Op_ConvolveDiff(op: Op, i: i32,ni: i32) {
+	var yo = i / op.Geom.Out.x;
+	var xo = i % op.Geom.Out.x;
 	var fi = op.OutScalar;
 	var istX = op.Geom.Border.x - op.Geom.FilterLt.x;
 	var istY = op.Geom.Border.y - op.Geom.FilterLt.y;
@@ -268,8 +274,8 @@ fn Op_ConvolveDiff(op: Op, i: u32) {
 	var sumOff = f32(0);
 	for (var fy=0; fy<fyn; fy++) {
 		for (var fx=0; fx<fxn; fx++) {
-			var iv1 = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(op.InImageRGB), u32(yi + fy), u32(xi + fx))];
-			var iv2 = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InValue2), u32(op.OutImage2), u32(yi + fy), u32(xi + fx))];
+			var iv1 = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(op.InImageRGB), u32(yi + fy), u32(xi + fx))];
+			var iv2 = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InValue2), u32(ni), u32(op.OutImage2), u32(yi + fy), u32(xi + fx))];
 			var fv1 = Filters[Index4D(TensorStrides[0], TensorStrides[1], TensorStrides[2], TensorStrides[3], u32(op.FilterType), u32(op.FilterN), u32(fy), u32(fx))];
 			var fv2 = Filters[Index4D(TensorStrides[0], TensorStrides[1], TensorStrides[2], TensorStrides[3], u32(op.FilterType), u32(op.IntArg1), u32(fy), u32(fx))];
 			sumOn += fv1 * iv1;
@@ -278,11 +284,11 @@ fn Op_ConvolveDiff(op: Op, i: u32) {
 	}
 	var diff = op.FloatArg1 * (op.FloatArg2*sumOn - sumOff);
 	if (diff > 0) {
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = diff;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(0), u32(fi))] = diff;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(1), u32(fi))] = 0.0;
 	} else {
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(1), u32(fi))] = -diff;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(1), u32(fi))] = -diff;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(0), u32(fi))] = 0.0;
 	}
 }
 
@@ -315,13 +321,13 @@ struct Geom {
 }
 
 //////// import: "image.go"
-fn Op_WrapPad(op: Op, i: u32) {
-	var ii = i32(i);
+fn Op_WrapPad(op: Op, i: i32,ni: i32) {
+	var ii = i;
 	var ri = op.InImageRGB;
 	if (ri == 3) {
 		var xy = op.Geom.In.x * op.Geom.In.y;
-		ri = i32(i) / xy;
-		ii = i32(i) % xy;
+		ri = i / xy;
+		ii = i % xy;
 	}
 	var y = ii / op.Geom.In.x;
 	var x = ii % op.Geom.In.x;
@@ -340,18 +346,18 @@ fn Op_WrapPad(op: Op, i: u32) {
 	} else if (x >= uX) {
 		sx = padWidth + (x - uX);
 	}
-	var iv = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(ri), u32(sy), u32(sx))];
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12],
-	TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = iv;
+	var iv = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(ri), u32(sy), u32(sx))];
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13],
+	TensorStrides[14], u32(op.OutImage), u32(ni), u32(ri), u32(y), u32(x))] = iv;
 }
-fn Op_FadePad(op: Op, i: u32) {
-	var ii = i32(i);
+fn Op_FadePad(op: Op, i: i32,ni: i32) {
+	var ii = i;
 	var ri = op.InImageRGB;
 	var avg = op.FloatArg1;
 	if (ri == 3) {
 		var xy = op.Geom.In.x * op.Geom.In.y;
-		ri = i32(i) / xy;
-		ii = i32(i) % xy;
+		ri = i / xy;
+		ii = i % xy;
 		switch (ri) {
 		case 0: {
 			avg = op.FloatArg1;
@@ -389,17 +395,16 @@ fn Op_FadePad(op: Op, i: u32) {
 		sx = padWidth + (x - uX);
 	}
 	var pavg = (1.0 - p) * avg;
-	var iv = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(ri), u32(sy), u32(sx))];
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12],
-	TensorStrides[13], u32(op.OutImage), u32(ri), u32(y), u32(x))] = p*iv + pavg;
+	var iv = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(ri), u32(sy), u32(sx))];
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13],
+	TensorStrides[14], u32(op.OutImage), u32(ni), u32(ri), u32(y), u32(x))] = p*iv + pavg;
 }
-fn Op_LMSOpponents(op: Op, i: u32) {
-	var ii = i32(i);
-	var y = ii / op.Geom.In.x;
-	var x = ii % op.Geom.In.x;
-	var r = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(0), u32(y), u32(x))];
-	var g = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(1), u32(y), u32(x))];
-	var b = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(2), u32(y), u32(x))];
+fn Op_LMSOpponents(op: Op, i: i32,ni: i32) {
+	var y = i / op.Geom.In.x;
+	var x = i % op.Geom.In.x;
+	var r = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(0), u32(y), u32(x))];
+	var g = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(1), u32(y), u32(x))];
+	var b = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(2), u32(y), u32(x))];
 	var lc: f32;
 	var mc: f32;
 	var sc: f32;
@@ -408,19 +413,19 @@ fn Op_LMSOpponents(op: Op, i: u32) {
 	var svlm: f32;
 	var grey: f32;
 	SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey);
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // RedGreen
-	u32(op.OutImage), u32(0), u32(y), u32(x))] = op.FloatArg1 * lvm;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(1), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // BlueYellow
-	u32(op.OutImage), u32(2), u32(y), u32(x))] = op.FloatArg1 * svlm;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // RedGreen
+	TensorStrides[14], u32(op.OutImage), u32(ni), u32(0), u32(y), u32(x))] = op.FloatArg1 * lvm;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.OutImage), u32(ni), u32(1), u32(y), u32(x))] = grey;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // BlueYellow
+	TensorStrides[14],
+	u32(op.OutImage), u32(ni), u32(2), u32(y), u32(x))] = op.FloatArg1 * svlm;
 }
-fn Op_LMSComponents(op: Op, i: u32) {
-	var ii = i32(i);
-	var y = ii / op.Geom.In.x;
-	var x = ii % op.Geom.In.x;
-	var r = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(0), u32(y), u32(x))];
-	var g = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(1), u32(y), u32(x))];
-	var b = Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.InImage), u32(2), u32(y), u32(x))];
+fn Op_LMSComponents(op: Op, i: i32,ni: i32) {
+	var y = i / op.Geom.In.x;
+	var x = i % op.Geom.In.x;
+	var r = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(0), u32(y), u32(x))];
+	var g = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(1), u32(y), u32(x))];
+	var b = Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.InImage), u32(ni), u32(2), u32(y), u32(x))];
 	var lc: f32;
 	var mc: f32;
 	var sc: f32;
@@ -429,16 +434,16 @@ fn Op_LMSComponents(op: Op, i: u32) {
 	var svlm: f32;
 	var grey: f32;
 	SRGBToLMSAll(r, g, b, &lc, &mc, &sc, &lmc, &lvm, &svlm, &grey);
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Red
-	u32(op.OutImage), u32(0), u32(y), u32(x))] = op.FloatArg1 * lc;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Green
-	u32(op.OutImage), u32(1), u32(y), u32(x))] = op.FloatArg1 * mc;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage), u32(2), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Yellow
-	u32(op.OutImage2), u32(0), u32(y), u32(x))] = op.FloatArg1 * lmc;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], u32(op.OutImage2), u32(1), u32(y), u32(x))] = grey;
-	Images[Index4D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Blue
-	u32(op.OutImage2), u32(2), u32(y), u32(x))] = op.FloatArg1 * sc;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Red
+	TensorStrides[14], u32(op.OutImage), u32(ni), u32(0), u32(y), u32(x))] = op.FloatArg1 * lc;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Green
+	TensorStrides[14], u32(op.OutImage), u32(ni), u32(1), u32(y), u32(x))] = op.FloatArg1 * mc;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.OutImage), u32(ni), u32(2), u32(y), u32(x))] = grey;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Yellow
+	TensorStrides[14], u32(op.OutImage2), u32(ni), u32(0), u32(y), u32(x))] = op.FloatArg1 * lmc;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], TensorStrides[14], u32(op.OutImage2), u32(ni), u32(1), u32(y), u32(x))] = grey;
+	Images[Index5D(TensorStrides[10], TensorStrides[11], TensorStrides[12], TensorStrides[13], // Blue
+	TensorStrides[14], u32(op.OutImage2), u32(ni), u32(2), u32(y), u32(x))] = op.FloatArg1 * sc;
 }
 
 //////// import: "inhib.go"
@@ -481,9 +486,9 @@ struct KWTA {
 }
 
 //////// import: "kwta.go"
-fn Op_NeighInhib4(op: Op, i: u32) {
-	var ang = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+fn Op_NeighInhib4(op: Op, i: i32,ni: i32) {
+	var ang = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / op.Geom.Out.x;
@@ -495,17 +500,17 @@ fn Op_NeighInhib4(op: Op, i: u32) {
 	var npX = xo + ox;
 	var npY = yo + oy;
 	if (npX >= 0 && npX < op.Geom.Out.x && npY >= 0 && npY < op.Geom.Out.y) {
-		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(npY), u32(npX), u32(pi), u32(ang))];
+		var v = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(npY), u32(npX), u32(pi), u32(ang))];
 		gi = max(gi, v);
 	}
 	npX = xo - ox;
 	npY = yo - oy;
 	if (npX >= 0 && npX < op.Geom.Out.x && npY >= 0 && npY < op.Geom.Out.y) {
-		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(npY), u32(npX), u32(pi), u32(ang))];
+		var v = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(npY), u32(npX), u32(pi), u32(ang))];
 		gi = max(gi, v);
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(ang))] = op.FloatArg1 * gi;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24],
+	TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(ang))] = op.FloatArg1 * gi;
 }
 fn NeighInhibOffsets(ang: i32, ox: ptr<function,i32>,oy: ptr<function,i32>) {
 	switch (ang) {
@@ -533,41 +538,41 @@ fn NeighInhibOffsets(ang: i32, ox: ptr<function,i32>,oy: ptr<function,i32>) {
 }
 
 //////// import: "logrenorm.go"
-fn Op_LogValues(op: Op, i: u32) {
-	var fi = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+fn Op_LogValues(op: Op, i: i32,ni: i32) {
+	var fi = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / op.Geom.Out.x;
 	var xo = ii % op.Geom.Out.x;
-	var lg = op.FloatArg1 * log(1.0+Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))]);
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = lg;
+	var lg = op.FloatArg1 * log(1.0+Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))]);
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))] = lg;
 }
-fn Op_NormDiv(op: Op, i: u32) {
-	var fi = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+fn Op_NormDiv(op: Op, i: i32,ni: i32) {
+	var fi = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / op.Geom.Out.x;
 	var xo = ii % op.Geom.Out.x;
-	var sc = Scalars[Index1D(TensorStrides[40], u32(op.InScalar))];
-	var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
+	var sc = Scalars[Index2D(TensorStrides[40], TensorStrides[41], u32(op.InScalar), u32(ni))];
+	var v = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
 	if (sc != 0) {
 		v /= sc;
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = v;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))] = v;
 }
 
 //////// import: "math32-fastexp.go"
 
 //////// import: "maxpool.go"
-fn Op_MaxPool(op: Op, i: u32) {
+fn Op_MaxPool(op: Op, i: i32,ni: i32) {
 	var szX = op.Geom.Out.x;
 	var fY = op.Geom.FilterSize.y;
 	var fX = op.Geom.FilterSize.x;
-	var fi = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+	var fi = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % op.IntArg1; // plus-minus
 	var ii = pii / op.IntArg1;
 	var yo = ii / szX;
@@ -577,55 +582,55 @@ fn Op_MaxPool(op: Op, i: u32) {
 	var mx = f32(0);
 	for (var py=0; py<fY; py++) {
 		for (var px=0; px<fX; px++) {
-			var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(iy + py), u32(ix + px), u32(pi), u32(fi))];
+			var iv = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(iy + py), u32(ix + px), u32(pi), u32(fi))];
 			if (iv > mx) {
 				mx = iv;
 			}
 		}
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = mx;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))] = mx;
 }
-fn Op_MaxPolarity(op: Op, i: u32) {
+fn Op_MaxPolarity(op: Op, i: i32,ni: i32) {
 	var szX = op.Geom.Out.x;
-	var fi = i32(i) % op.FilterN; // inner
-	var ii = i32(i) / op.FilterN;
+	var fi = i % op.FilterN; // inner
+	var ii = i / op.FilterN;
 	var yo = ii / szX;
 	var xo = ii % szX;
 	var mx = f32(0);
 	for (var pi=0; pi<2; pi++) {
-		var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
+		var iv = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
 		if (iv > mx) {
 			mx = iv;
 		}
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(0), u32(fi))] = mx;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(0), u32(fi))] = mx;
 }
-fn Op_MaxCopy(op: Op, i: u32) {
+fn Op_MaxCopy(op: Op, i: i32,ni: i32) {
 	var szX = op.Geom.Out.x;
-	var fi = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+	var fi = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / szX;
 	var xo = ii % szX;
-	var i1 = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
-	var i2 = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue2), u32(yo), u32(xo), u32(pi), u32(fi))];
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = max(i1, i2);
+	var i1 = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
+	var i2 = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue2), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))] = max(i1, i2);
 }
 
 //////// import: "motion.go"
-fn Op_MotionIntegrate(op: Op, i: u32) {
-	var fi = i32(i) % op.FilterN; // inner
-	var pii = i32(i) / op.FilterN;
+fn Op_MotionIntegrate(op: Op, i: i32,ni: i32) {
+	var fi = i % op.FilterN; // inner
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / op.Geom.Out.x;
 	var xo = ii % op.Geom.Out.x;
-	var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
-	var f = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))];
-	var s = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue + 1), u32(yo), u32(xo), u32(pi), u32(fi))];
+	var v = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
+	var f = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
+	var s = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue + 1), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
 	if (v > f) {
 		f = v;
 	} else {
@@ -636,14 +641,14 @@ fn Op_MotionIntegrate(op: Op, i: u32) {
 	} else {
 		s += op.FloatArg2 * (v - s);
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(fi))] = f;
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue + 1), u32(yo), u32(xo), u32(pi), u32(fi))] = s;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))] = f;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue + 1), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))] = s;
 }
-fn Op_MotionStar(op: Op, i: u32) {
+fn Op_MotionStar(op: Op, i: i32,ni: i32) {
 	var szX = op.Geom.Out.x - 1;
-	var fi = i32(i) % op.FilterN; // FilterN = orig fn * 2
-	var pii = i32(i) / op.FilterN;
+	var fi = i % op.FilterN; // FilterN = orig fn * 2
+	var pii = i / op.FilterN;
 	var pi = pii % 2; // plus-minus
 	var ii = pii / 2;
 	var yo = ii / szX;
@@ -659,27 +664,27 @@ fn Op_MotionStar(op: Op, i: u32) {
 	} else {
 		yoff = i32(1);
 	}
-	var cf = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // fast
-	TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fio))];
-	var nf = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // next
-	TensorStrides[24], u32(op.InValue), u32(yo + yoff), u32(xo + xoff), u32(pi), u32(fio))];
-	var cs = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // slow
-	TensorStrides[24], u32(op.InValue + 1), u32(yo), u32(xo), u32(pi), u32(fio))];
-	var ns = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // next
-	TensorStrides[24], u32(op.InValue + 1), u32(yo + yoff), u32(xo + xoff), u32(pi), u32(fio))];
+	var cf = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], // fast
+	TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fio))];
+	var nf = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], // next
+	TensorStrides[25], u32(op.InValue), u32(ni), u32(yo + yoff), u32(xo + xoff), u32(pi), u32(fio))];
+	var cs = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], // slow
+	TensorStrides[25], u32(op.InValue + 1), u32(ni), u32(yo), u32(xo), u32(pi), u32(fio))];
+	var ns = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], // next
+	TensorStrides[25], u32(op.InValue + 1), u32(ni), u32(yo + yoff), u32(xo + xoff), u32(pi), u32(fio))];
 	var minact = min(min(min(cf, cs), nf), ns);
 	var cd = cf - cs;
 	var nd = nf - ns;
 	var v = op.FloatArg1 * (cd - nd);
 	if (v >= 0) { // delta bigger on current than next
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // 0 = left/down
-		TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(doff))] = minact * v;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(doff + 1))] = 0.0;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // 0 = left/down
+		TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(doff))] = minact * v;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(doff + 1))] = 0.0;
 	} else {
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // 1 = right/up
-		TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(doff + 1))] = -minact * v;
-		Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-		TensorStrides[24], u32(op.OutValue), u32(yo), u32(xo), u32(pi), u32(doff))] = 0.0;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], // 1 = right/up
+		TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(doff + 1))] = -minact * v;
+		Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24],
+		TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(doff))] = 0.0;
 	}
 }
 
@@ -730,6 +735,7 @@ const  MotionStar: Operations = 21;
 const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
+	NData: u32,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
@@ -749,60 +755,63 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
+	pad2: i32,
 	Geom: Geom,
 }
-fn Op_Run(op: Op, i: u32) {
+fn Op_Run(op: Op, ri: i32,ni: i32) {
 	switch (op.Op) {
 	case ConvolveImage: {
-		Op_ConvolveImage(op, i);
+		Op_ConvolveImage(op, ri, ni);
 	}
 	case ConvolveDiff: {
-		Op_ConvolveDiff(op, i);
+		Op_ConvolveDiff(op, ri, ni);
 	}
 	case WrapPad: {
-		Op_WrapPad(op, i);
+		Op_WrapPad(op, ri, ni);
 	}
 	case FadePad: {
-		Op_FadePad(op, i);
+		Op_FadePad(op, ri, ni);
 	}
 	case LMSOpponents: {
-		Op_LMSOpponents(op, i);
+		Op_LMSOpponents(op, ri, ni);
 	}
 	case LMSComponents: {
-		Op_LMSComponents(op, i);
+		Op_LMSComponents(op, ri, ni);
 	}
 	case LogValues: {
-		Op_LogValues(op, i);
+		Op_LogValues(op, ri, ni);
 	}
 	case NormDiv: {
-		Op_NormDiv(op, i);
+		Op_NormDiv(op, ri, ni);
 	}
 	case NeighInhib4: {
-		Op_NeighInhib4(op, i);
+		Op_NeighInhib4(op, ri, ni);
 	}
 	case MaxPool: {
-		Op_MaxPool(op, i);
+		Op_MaxPool(op, ri, ni);
 	}
 	case MaxPolarity: {
-		Op_MaxPolarity(op, i);
+		Op_MaxPolarity(op, ri, ni);
 	}
 	case MaxCopy: {
-		Op_MaxCopy(op, i);
+		Op_MaxCopy(op, ri, ni);
 	}
 	case LenSum4: {
-		Op_LenSum4(op, i);
+		Op_LenSum4(op, ri, ni);
 	}
 	case EndStop4: {
-		Op_EndStop4(op, i);
+		Op_EndStop4(op, ri, ni);
 	}
 	case To4D: {
-		Op_To4D(op, i);
+		Op_To4D(op, ri, ni);
 	}
 	case MotionIntegrate: {
-		Op_MotionIntegrate(op, i);
+		Op_MotionIntegrate(op, ri, ni);
 	}
 	case MotionStar: {
-		Op_MotionStar(op, i);
+		Op_MotionStar(op, ri, ni);
 	}
 	default: {
 	}
@@ -810,26 +819,28 @@ fn Op_Run(op: Op, i: u32) {
 }
 fn DoCurOp(i: u32) { //gosl:kernel
 	let op = CurOp[0];
-	if (i >= op.RunN) {
+	if (i >= op.RunN*op.NData) {
 		return;
 	}
-	Op_Run(op, i);
+	var ri = i32(i % op.RunN);
+	var ni = i32(i / op.RunN);
+	Op_Run(op, ri, ni);
 }
 
 //////// import: "scalar.go"
 
 //////// import: "to4d.go"
-fn Op_To4D(op: Op, i: u32) {
+fn Op_To4D(op: Op, i: i32,ni: i32) {
 	var fY = op.Geom.FilterSize.y;
 	var fX = op.Geom.FilterSize.x;
 	var szX = op.Geom.Out.x;
-	var fi = i32(i) % fX;
-	var pii = i32(i) / fX;
+	var fi = i % fX;
+	var pii = i / fX;
 	var pi = pii % fY; // polarity
 	var ii = pii / fY;
 	var yo = ii / szX;
 	var xo = ii % szX;
 	var toY = op.IntArg1;
-	var iv = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(fi))];
-	Values4D[Index5D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], u32(op.OutValue4D), u32(yo), u32(xo), u32(toY + pi), u32(fi))] = iv;
+	var iv = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(fi))];
+	Values4D[Index6D(TensorStrides[30], TensorStrides[31], TensorStrides[32], TensorStrides[33], TensorStrides[34], TensorStrides[35], u32(op.OutValue4D), u32(ni), u32(yo), u32(xo), u32(toY + pi), u32(fi))] = iv;
 }

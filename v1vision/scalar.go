@@ -48,84 +48,91 @@ func (vv *V1Vision) NewAggScalar(aggOp Operations, in, fn int, geom *Geom) int {
 // operating over X rows.
 func MaxScalarX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
 	mx := float32(0)
 	for x := range op.Geom.Out.X {
 		for pi := range 2 {
 			for fi := range op.FilterN {
-				v := Values.Value(int(op.InValue), int(i), int(x), int(pi), int(fi))
+				v := Values.Value(int(op.InValue), int(ni), int(ri), int(x), int(pi), int(fi))
 				mx = max(mx, v)
 			}
 		}
 	}
-	Values.Set(mx, int(op.OutValue), int(i), int(0), int(0), int(0))
+	Values.Set(mx, int(op.OutValue), int(ni), int(ri), int(0), int(0), int(0))
 }
 
 // MaxScalarY is the second kernel for MaxScalar.
 // operating over Y intermediate sum.
 func MaxScalarY(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i != 0 {
+	if i >= op.NData {
 		return
 	}
+	ni := int32(i)
 	mx := float32(0)
 	for y := range op.Geom.Out.Y {
-		v := Values.Value(int(op.OutValue), int(y), int(0), int(0), int(0))
+		v := Values.Value(int(op.OutValue), int(ni), int(y), int(0), int(0), int(0))
 		mx = max(mx, v)
 	}
-	Scalars.Set1D(mx, int(op.OutScalar))
+	Scalars.Set(mx, int(op.OutScalar), int(ni))
 }
 
 // SumScalarX is the first kernel for SumScalar,
 // operating over X rows.
 func SumScalarX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
 	sum := float32(0)
 	for x := range op.Geom.Out.X {
 		for pi := range 2 {
 			for fi := range op.FilterN {
-				v := Values.Value(int(op.InValue), int(i), int(x), int(pi), int(fi))
+				v := Values.Value(int(op.InValue), int(ni), int(ri), int(x), int(pi), int(fi))
 				sum += v
 			}
 		}
 	}
-	Values.Set(sum, int(op.OutValue), int(i), int(0), int(0), int(0))
+	Values.Set(sum, int(op.OutValue), int(ni), int(ri), int(0), int(0), int(0))
 }
 
 // SumScalarY is the second kernel for SumScalar.
 // operating over Y intermediate sum.
 func SumScalarY(i uint32) { //gosl:kernel
-	if i != 0 {
+	op := GetCurOp(0)
+	if i >= op.NData {
 		return
 	}
-	op := GetCurOp(0)
+	ni := int32(i)
 	sum := float32(0)
 	for y := range op.Geom.Out.Y {
-		v := Values.Value(int(op.OutValue), int(y), int(0), int(0), int(0))
+		v := Values.Value(int(op.OutValue), int(ni), int(y), int(0), int(0), int(0))
 		sum += v
 	}
-	Scalars.Set1D(sum, int(op.OutScalar))
+	Scalars.Set(sum, int(op.OutScalar), int(ni))
 }
 
 // MeanScalarY is the second kernel for MeanScalar.
 // operating over Y intermediate sum.
 func MeanScalarY(i uint32) { //gosl:kernel
-	if i != 0 {
+	op := GetCurOp(0)
+	if i >= op.NData {
 		return
 	}
-	op := GetCurOp(0)
+	ni := int32(i)
 	sum := float32(0)
 	for y := range op.Geom.Out.Y {
-		v := Values.Value(int(op.OutValue), int(y), int(0), int(0), int(0))
+		v := Values.Value(int(op.OutValue), int(ni), int(y), int(0), int(0), int(0))
 		sum += v
 	}
 	sum /= float32(op.Geom.Out.Y * op.Geom.Out.X * op.FilterN * 2)
-	Scalars.Set1D(sum, int(op.OutScalar))
+	Scalars.Set(sum, int(op.OutScalar), int(ni))
 }
 
 //gosl:end

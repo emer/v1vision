@@ -70,13 +70,14 @@ func (vi *MotionDoG) SetSize(sz, spc int) {
 // imageSize is the _content_ size of input image that is passed
 // to RunImage as an RGB Tensor (per [V1Vision.Images] standard format),
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
-func (vi *MotionDoG) Config(imageSize image.Point) {
+// ndata = number of data-parallel inputs to process in parallel.
+func (vi *MotionDoG) Config(ndata int, imageSize image.Point) {
 	vi.Geom.SetImageSize(imageSize)
 	vi.FullField.SetShapeSizes(2, 2)
 
 	fn := 1 // number of filters in DoG
 
-	vi.V1.Init()
+	vi.V1.Init(ndata)
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
 
@@ -102,10 +103,10 @@ func (vi *MotionDoG) Config(imageSize image.Point) {
 	}
 }
 
-// RunImage runs the configured filtering pipeline
-// on given Image, using given [Image] handler.
-func (vi *MotionDoG) RunImage(im *Image, img image.Image) {
-	im.SetImageGrey(&vi.V1, img, int(vi.Geom.Border.X))
+// RunImages runs the configured filtering pipeline
+// on given Image(s), using given [Image] handler.
+func (vi *MotionDoG) RunImages(im *Image, imgs ...image.Image) {
+	im.SetImagesGrey(&vi.V1, int(vi.Geom.Border.X), imgs...)
 	vi.Run()
 }
 

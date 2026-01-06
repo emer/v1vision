@@ -7,7 +7,7 @@ var<storage, read> TensorStrides: array<u32>;
 @group(0) @binding(1)
 var<storage, read> CurOp: array<Op>;
 // // Filters are one general stack of rendered filters, sized to the max of each // of the inner dimensional values: [FilterTypes][FilterN][Y][X] // FilterTypes = different filter types (DoG, Gabor, etc) // FilterN = number of filters within the group (On, Off, angle, etc) // Y, X = sizes. 
-// // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
+// // Images are float-valued image data: // [ImageNo][NData][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
 @group(2) @binding(1)
 var<storage, read_write> Values: array<f32>;
 
@@ -19,8 +19,8 @@ fn main(@builtin(workgroup_id) wgid: vec3<u32>, @builtin(num_workgroups) nwg: ve
 	MotionFullFieldX(idx);
 }
 
-fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32) -> u32 {
-	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
+fn Index6D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, s5: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32, i5: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4 + s5 * i5;
 }
 
 
@@ -129,13 +129,15 @@ struct KWTA {
 //////// import: "motion.go"
 fn MotionFullFieldX(i: u32) { //gosl:kernel
 	let op = CurOp[0];
-	if (i >= op.RunN) {
+	if (i >= op.RunN*op.NData) {
 		return;
 	}
+	var ri = i32(i % op.RunN);
+	var ni = i32(i / op.RunN);
 	var szX = op.Geom.Out.x - 1;
 	var fno = op.FilterN; // original features
-	var dir = i32(i) % 2;
-	var yo = i32(i) / 2;
+	var dir = ri % 2;
+	var yo = ri / 2;
 	var doff = dir * 2;
 	var csum = f32(0);
 	var nsum = f32(0);
@@ -143,10 +145,10 @@ fn MotionFullFieldX(i: u32) { //gosl:kernel
 		for (var pi=0; pi<2; pi++) { // pos / neg
 			for (var fi=0; fi<fno; fi++) { // original features
 				var dfo = fi*4 + doff;
-				var c = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // left, down
-				TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(dfo))];
-				var n = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // right, up
-				TensorStrides[24], u32(op.InValue), u32(yo), u32(xo), u32(pi), u32(dfo + 1))];
+				var c = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // left, down
+				TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(dfo))];
+				var n = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], // right, up
+				TensorStrides[24], TensorStrides[25], u32(op.InValue), u32(ni), u32(yo), u32(xo), u32(pi), u32(dfo + 1))];
 				var v = c - n;
 				if (v >= 0) {
 					csum += v;
@@ -156,9 +158,9 @@ fn MotionFullFieldX(i: u32) { //gosl:kernel
 			}
 		}
 	}
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(yo), u32(0), u32(0), u32(doff))] = csum;
-	Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
-	TensorStrides[24], u32(op.OutValue), u32(yo), u32(0), u32(0), u32(doff + 1))] = nsum;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(0), u32(0), u32(doff))] = csum;
+	Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23],
+	TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(yo), u32(0), u32(0), u32(doff + 1))] = nsum;
 }
 
 //////// import: "nxx1-nxx1.go"
@@ -208,6 +210,7 @@ const  MotionStar: Operations = 21;
 const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
+	NData: u32,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
@@ -227,6 +230,9 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
+	pad2: i32,
 	Geom: Geom,
 }
 

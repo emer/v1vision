@@ -126,9 +126,9 @@ func (vi *Vis) Defaults() {
 func (vi *Vis) Config() {
 	fn := 1 // number of filters in DoG
 	_ = fn
-	vi.V1.Init()
+	vi.V1.Init(1)
 	img := vi.V1.NewImage(vi.Geom.In.V())
-	vi.ImageTsr = vi.V1.Images.SubSpace(0).(*tensor.Float32)
+	vi.ImageTsr = vi.V1.Images.SubSpace(0, 0).(*tensor.Float32)
 	_, out := vi.V1.NewDoG(img, 0, &vi.DoG, &vi.Geom)
 	vi.V1.NewLogValues(out, out, fn, 1.0, &vi.Geom)
 	vi.V1.NewNormDiv(v1vision.MaxScalar, out, out, fn, &vi.Geom)
@@ -142,7 +142,7 @@ func (vi *Vis) Config() {
 	if vi.GPU {
 		vi.V1.GPUInit()
 	}
-	vi.MotionDoG.Config(vi.ImageSize)
+	vi.MotionDoG.Config(1, vi.ImageSize)
 }
 
 // RenderFrames renders the frames
@@ -189,23 +189,23 @@ func (vi *Vis) Filter() error { //types:add
 	// vi.V1.Run(v1vision.ScalarsVar) // minimal fastest case
 	vi.Motion.FullFieldInteg(vi.V1.Scalars, &vi.FullField)
 
-	out := vi.V1.Values.SubSpace(0).(*tensor.Float32)
+	out := vi.V1.Values.SubSpace(0, 0).(*tensor.Float32)
 	vi.DoGOut.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
 	tensor.CopyFromLargerShape(&vi.DoGOut, out)
 
-	fast := vi.V1.Values.SubSpace(vi.fastIdx).(*tensor.Float32)
+	fast := vi.V1.Values.SubSpace(vi.fastIdx, 0).(*tensor.Float32)
 	vi.Fast.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
 	tensor.CopyFromLargerShape(&vi.Fast, fast)
 
-	slow := vi.V1.Values.SubSpace(vi.fastIdx + 1).(*tensor.Float32)
+	slow := vi.V1.Values.SubSpace(vi.fastIdx+1, 0).(*tensor.Float32)
 	vi.Slow.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
 	tensor.CopyFromLargerShape(&vi.Slow, slow)
 
-	star := vi.V1.Values.SubSpace(vi.starIdx).(*tensor.Float32)
+	star := vi.V1.Values.SubSpace(vi.starIdx, 0).(*tensor.Float32)
 	vi.Star.SetShapeSizes(int(vi.Geom.Out.Y-1), int(vi.Geom.Out.X-1), 2, 4)
 	tensor.CopyFromLargerShape(&vi.Star, star)
 
-	vi.MotionDoG.RunTensor(vi.ImageTsr)
+	vi.MotionDoG.RunTensor(vi.V1.Images.SubSpace(0).(*tensor.Float32))
 
 	return nil
 }

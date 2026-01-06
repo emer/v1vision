@@ -7,7 +7,7 @@ var<storage, read> TensorStrides: array<u32>;
 @group(0) @binding(1)
 var<storage, read> CurOp: array<Op>;
 // // Filters are one general stack of rendered filters, sized to the max of each // of the inner dimensional values: [FilterTypes][FilterN][Y][X] // FilterTypes = different filter types (DoG, Gabor, etc) // FilterN = number of filters within the group (On, Off, angle, etc) // Y, X = sizes. 
-// // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
+// // Images are float-valued image data: // [ImageNo][NData][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
 @group(2) @binding(1)
 var<storage, read_write> Values: array<f32>;
 @group(2) @binding(3)
@@ -21,12 +21,12 @@ fn main(@builtin(workgroup_id) wgid: vec3<u32>, @builtin(num_workgroups) nwg: ve
 	MaxScalarY(idx);
 }
 
-fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32) -> u32 {
-	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
+fn Index6D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, s5: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32, i5: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4 + s5 * i5;
 }
 
-fn Index1D(s0: u32, i0: u32) -> u32 {
-	return s0 * i0;
+fn Index2D(s0: u32, s1: u32, i0: u32, i1: u32) -> u32 {
+	return s0 * i0 + s1 * i1;
 }
 
 
@@ -181,6 +181,7 @@ const  MotionStar: Operations = 21;
 const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
+	NData: u32,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
@@ -200,21 +201,26 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
+	pad2: i32,
 	Geom: Geom,
 }
 
 //////// import: "scalar.go"
 fn MaxScalarY(i: u32) { //gosl:kernel
 	let op = CurOp[0];
-	if (i != 0) {
+	if (i >= op.NData) {
 		return;
 	}
+	var ni = i32(i);
 	var mx = f32(0);
 	for (var y=0; y<op.Geom.Out.y; y++) {
-		var v = Values[Index5D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], u32(op.OutValue), u32(y), u32(0), u32(0), u32(0))];
+		var v = Values[Index6D(TensorStrides[20], TensorStrides[21], TensorStrides[22], TensorStrides[23], TensorStrides[24], TensorStrides[25], u32(op.OutValue), u32(ni), u32(y), u32(0), u32(0), u32(0))];
 		mx = max(mx, v);
 	}
-	Scalars[Index1D(TensorStrides[40], u32(op.OutScalar))] = mx;
+	Scalars[Index2D(TensorStrides[40], TensorStrides[41],
+	u32(op.OutScalar), u32(ni))] = mx;
 }
 
 //////// import: "to4d.go"

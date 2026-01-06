@@ -100,10 +100,10 @@ func (vi *Vis) Defaults() {
 
 // Config sets up the V1 processing pipeline.
 func (vi *Vis) Config() {
-	vi.V1.Init()
+	vi.V1.Init(1)
 	img := vi.V1.NewImage(vi.Geom.In.V())
 	wrap := vi.V1.NewImage(vi.Geom.In.V())
-	vi.ImageTsr = vi.V1.Images.SubSpace(img).(*tensor.Float32)
+	vi.ImageTsr = vi.V1.Images.SubSpace(img, 0).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 0, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
 	_, out := vi.V1.NewDoG(wrap, 0, &vi.DoG, &vi.Geom)
 	// _ = out
@@ -114,7 +114,7 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
-	vi.DoGGrey.Config(vi.StdImage.Size)
+	vi.DoGGrey.Config(1, vi.StdImage.Size)
 }
 
 // OpenImage opens given filename as current image Image
@@ -130,7 +130,7 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
 	img := vi.V1.Images.SubSpace(0).(*tensor.Float32)
-	v1vision.RGBToGrey(vi.Image, img, int(vi.Geom.FilterRt.X), v1vision.BottomZero)
+	v1vision.RGBToGrey(img, int(vi.Geom.FilterRt.X), v1vision.BottomZero, vi.Image)
 	return nil
 }
 
@@ -163,7 +163,7 @@ func (vi *Vis) Filter() error { //types:add
 	vi.OutTsr.SetShapeSizes(out.ShapeSizes()...)
 	vi.OutTsr.CopyFrom(out)
 
-	vi.DoGGrey.RunImage(&vi.StdImage, vi.Image)
+	vi.DoGGrey.RunImages(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()

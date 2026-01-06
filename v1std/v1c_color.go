@@ -84,10 +84,11 @@ func (vi *V1cColor) SetSize(sz, spc int) {
 // as an RGB Tensor (per [V1Vision.Images] standard format),
 // (i.e., exclusive of the additional border around the image = [Image.Size]).
 // The resulting Geom.Border field can be passed to [Image] methods.
-func (vi *V1cColor) Config(imageSize image.Point) {
+// ndata = number of data-parallel inputs to process in parallel.
+func (vi *V1cColor) Config(ndata int, imageSize image.Point) {
 	vi.V1sGeom.SetImageSize(imageSize)
 
-	vi.V1.Init()
+	vi.V1.Init(ndata)
 	*vi.V1.NewKWTAParams() = vi.V1sKWTA
 	kwtaIdx := 0
 	img := vi.V1.NewImage(vi.V1sGeom.In.V())
@@ -155,14 +156,16 @@ func (vi *V1cColor) Config(imageSize image.Point) {
 	}
 }
 
-// RunImage runs the configured filtering pipeline.
-// on given Image, using given [Image] handler.
-func (vi *V1cColor) RunImage(im *Image, img image.Image) {
+// RunImages runs the configured filtering pipeline.
+// on given Image(s), using given [Image] handler.
+func (vi *V1cColor) RunImages(im *Image, imgs ...image.Image) {
 	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
-	im.SetImageRGB(&vi.V1, img, int(vi.V1sGeom.Border.X))
-	r, g, b := v1vision.EdgeAvg(im.Tsr, int(vi.V1sGeom.Border.X))
-	vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
+	im.SetImagesRGB(&vi.V1, int(vi.V1sGeom.Border.X), imgs...)
+	// argh: this is not going to work here:
+	// need to do this on-chip.
+	// r, g, b := v1vision.EdgeAvg(im.Tsr, int(vi.V1sGeom.Border.X))
+	// vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 	vi.V1.Run(v1vision.Values4DVar)
 	vi.Output = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 }

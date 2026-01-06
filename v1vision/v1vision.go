@@ -14,7 +14,13 @@ import (
 
 // V1Vision specifies a sequence of operations to perform on image
 // input data, to simulate V1-level visual processing.
+// The pipeline supports NData parallel data replications of everything.
 type V1Vision struct {
+	// NData is the number of data-parallel copies of everything to process
+	// at once. Should be consistent throughout the stack. Copied into Ops
+	// so it is available on the GPU.
+	NData int
+
 	// Ops are the sequence of operations to perform, called in order.
 	Ops []Op
 
@@ -31,45 +37,49 @@ type V1Vision struct {
 	// Y, X = sizes.
 	Filters *tensor.Float32
 
-	// Images are float-valued image data: [ImageNo][RGB][Y][X],
+	// Images are float-valued image data: [ImageNo][NData][RGB][Y][X],
 	// sized to the max of each inner-dimensional value (RGB=3
 	// if more needed, use additional ImageNo)
 	Images *tensor.Float32
 
-	// Values are intermediate input / output data: [ValueNo][Y][X][Polarity][FilterN]
+	// Values are intermediate input / output data:
+	// [ValueNo][NData][Y][X][Polarity][FilterN]
 	// where FilterN corresponds to the different filters applied or other such data,
 	// and Polarity is 0 for positive (on) values and 1 for negative (off) values.
 	Values *tensor.Float32
 
 	// Values4D are 4D aggregated data (e.g., outputs):
-	// [ValueNo][PoolY][PoolX][UnitY][UnitX]
+	// [ValueNo][NData][PoolY][PoolX][UnitY][UnitX]
 	Values4D *tensor.Float32
 
-	// Scalars are scalar values for Sum, Max summary stats.
+	// Scalars are scalar values for Sum, Max summary stats etc.
 	// More efficient to use these versus using large Values allocations.
+	// [values][NData]
 	Scalars *tensor.Float32
 
 	// Inhibs are [KWTAInhib] inhibitory state values:
-	// [InhibNo][PoolY][PoolX][InhibVarsN]
+	// [InhibNo][NData][PoolY][PoolX][InhibVarsN]
 	Inhibs *tensor.Float32
 }
 
 // Init makes initial versions of all variables.
-func (vv *V1Vision) Init() {
+// Takes the number of data-parallel inputs to process in parallel.
+func (vv *V1Vision) Init(ndata int) {
+	vv.NData = max(1, ndata)
 	vv.Ops = []Op{}
 	vv.CurOp = make([]Op, 1)
 	vv.Filters = tensor.NewFloat32(0, 1, 1, 1)
-	vv.Images = tensor.NewFloat32(0, 3, 1, 1)
-	vv.Values = tensor.NewFloat32(0, 1, 1, 2, 1)
-	vv.Values4D = tensor.NewFloat32(0, 1, 1, 1, 1)
-	vv.Scalars = tensor.NewFloat32(0)
-	vv.Inhibs = tensor.NewFloat32(0, 1, 1, int(InhibVarsN))
+	vv.Images = tensor.NewFloat32(0, vv.NData, 3, 1, 1)
+	vv.Values = tensor.NewFloat32(0, vv.NData, 1, 1, 2, 1)
+	vv.Values4D = tensor.NewFloat32(0, vv.NData, 1, 1, 1, 1)
+	vv.Scalars = tensor.NewFloat32(0, vv.NData)
+	vv.Inhibs = tensor.NewFloat32(0, vv.NData, 1, 1, int(InhibVarsN))
 }
 
 // NewOp adds a new [Op]
 func (vv *V1Vision) NewOp() *Op {
 	n := len(vv.Ops)
-	vv.Ops = append(vv.Ops, Op{})
+	vv.Ops = append(vv.Ops, Op{NData: uint32(vv.NData)})
 	return &vv.Ops[n]
 }
 
@@ -86,7 +96,7 @@ func (vv *V1Vision) NewKWTAParams() *kwta.KWTA {
 func (vv *V1Vision) NewImage(size math32.Vector2i) int {
 	sizes := vv.Images.ShapeSizes()
 	n := sizes[0]
-	vv.Images.SetShapeSizes(n+1, 3, max(int(size.Y), sizes[2]), max(int(size.X), sizes[3]))
+	vv.Images.SetShapeSizes(n+1, vv.NData, 3, max(int(size.Y), sizes[3]), max(int(size.X), sizes[4]))
 	return n
 }
 
@@ -94,7 +104,7 @@ func (vv *V1Vision) NewImage(size math32.Vector2i) int {
 func (vv *V1Vision) NewValues(y, x, filtN int) int {
 	sizes := vv.Values.ShapeSizes()
 	n := sizes[0]
-	vv.Values.SetShapeSizes(n+1, max(y, sizes[1]), max(x, sizes[2]), 2, max(filtN, sizes[4]))
+	vv.Values.SetShapeSizes(n+1, vv.NData, max(y, sizes[2]), max(x, sizes[3]), 2, max(filtN, sizes[5]))
 	return n
 }
 
@@ -102,7 +112,7 @@ func (vv *V1Vision) NewValues(y, x, filtN int) int {
 func (vv *V1Vision) NewValues4D(gpY, gpX, y, x int) int {
 	sizes := vv.Values4D.ShapeSizes()
 	n := sizes[0]
-	vv.Values4D.SetShapeSizes(n+1, max(gpY, sizes[1]), max(gpX, sizes[2]), max(y, sizes[3]), max(x, sizes[4]))
+	vv.Values4D.SetShapeSizes(n+1, vv.NData, max(gpY, sizes[2]), max(gpX, sizes[3]), max(y, sizes[4]), max(x, sizes[5]))
 	return n
 }
 
@@ -110,7 +120,7 @@ func (vv *V1Vision) NewValues4D(gpY, gpX, y, x int) int {
 func (vv *V1Vision) NewScalar(addN int) int {
 	sizes := vv.Scalars.ShapeSizes()
 	n := sizes[0]
-	vv.Scalars.SetShapeSizes(n + addN)
+	vv.Scalars.SetShapeSizes(n+addN, vv.NData)
 	return n
 }
 
@@ -129,7 +139,7 @@ func (vv *V1Vision) NewFilter(filtN, y, x int) int {
 func (vv *V1Vision) NewInhibs(py, px int) int {
 	sizes := vv.Inhibs.ShapeSizes()
 	n := sizes[0]
-	vv.Inhibs.SetShapeSizes(n+1, max(py+1, sizes[1]), max(px+1, sizes[2]), int(InhibVarsN))
+	vv.Inhibs.SetShapeSizes(n+1, vv.NData, max(py+1, sizes[2]), max(px+1, sizes[3]), int(InhibVarsN))
 	return n
 }
 

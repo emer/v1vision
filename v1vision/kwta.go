@@ -66,9 +66,9 @@ func (vv *V1Vision) NewKWTA(in, inExtGi, fn, kwtaIdx, inhIdx int, geom *Geom) in
 //gosl:start
 
 // NeighInhib4 is kernel.
-func (op *Op) NeighInhib4(i uint32) {
-	ang := int32(i) % op.FilterN // inner
-	pii := int32(i) / op.FilterN
+func (op *Op) NeighInhib4(i, ni int32) {
+	ang := i % op.FilterN // inner
+	pii := i / op.FilterN
 	pi := pii % 2 // plus-minus
 	ii := pii / 2
 	yo := ii / op.Geom.Out.X
@@ -82,16 +82,16 @@ func (op *Op) NeighInhib4(i uint32) {
 	npX := xo + ox
 	npY := yo + oy
 	if npX >= 0 && npX < op.Geom.Out.X && npY >= 0 && npY < op.Geom.Out.Y {
-		v := Values.Value(int(op.InValue), int(npY), int(npX), int(pi), int(ang))
+		v := Values.Value(int(op.InValue), int(ni), int(npY), int(npX), int(pi), int(ang))
 		gi = max(gi, v)
 	}
 	npX = xo - ox
 	npY = yo - oy
 	if npX >= 0 && npX < op.Geom.Out.X && npY >= 0 && npY < op.Geom.Out.Y {
-		v := Values.Value(int(op.InValue), int(npY), int(npX), int(pi), int(ang))
+		v := Values.Value(int(op.InValue), int(ni), int(npY), int(npX), int(pi), int(ang))
 		gi = max(gi, v)
 	}
-	Values.Set(op.FloatArg1*gi, int(op.OutValue), int(yo), int(xo), int(pi), int(ang))
+	Values.Set(op.FloatArg1*gi, int(op.OutValue), int(ni), int(yo), int(xo), int(pi), int(ang))
 }
 
 // KWTAInitPool is the kernel to initialize KWTA process, on Values data.
@@ -100,11 +100,14 @@ func (op *Op) NeighInhib4(i uint32) {
 // OutValue = acts (output result)
 func KWTAInitPool(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
-	yo := int32(i) / op.Geom.Out.X
-	xo := int32(i) % op.Geom.Out.X
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
+
+	yo := ri / op.Geom.Out.X
+	xo := ri % op.Geom.Out.X
 
 	pn := 2 * op.FilterN
 
@@ -112,29 +115,30 @@ func KWTAInitPool(i uint32) { //gosl:kernel
 	geMax := float32(0)
 	for py := range 2 { // for 4D, FilterSize.Y
 		for px := range op.FilterN {
-			ge := Values.Value(int(op.InValue), int(yo), int(xo), int(py), int(px))
+			ge := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(py), int(px))
 			geAvg += ge
 			geMax = max(geMax, ge)
 		}
 	}
 
 	for i := range InhibVarsN {
-		Inhibs.Set(0.0, int(op.Inhibs), int(yo), int(xo), int(int(i)))
+		Inhibs.Set(0.0, int(op.Inhibs), int(ni), int(yo), int(xo), int(int(i)))
 	}
-	Inhibs.Set(geAvg/float32(pn), int(op.Inhibs), int(yo), int(xo), int(GeAvg))
-	Inhibs.Set(geMax, int(op.Inhibs), int(yo), int(xo), int(GeMax))
+	Inhibs.Set(geAvg/float32(pn), int(op.Inhibs), int(ni), int(yo), int(xo), int(GeAvg))
+	Inhibs.Set(geMax, int(op.Inhibs), int(ni), int(yo), int(xo), int(GeMax))
 }
 
 // KWTAInitLayer is the kernel to initialize KWTA process for layer
-// on Values data. Run = 1 only. Operates on Inhibs.
+// on Values data. Run = 1*NData only. Operates on Inhibs.
 func KWTAInitLayer(i uint32) { //gosl:kernel
-	if i != 0 {
+	op := GetCurOp(0)
+	if i > op.NData {
 		return
 	}
-	op := GetCurOp(0)
+	ni := int32(i)
 	lyi := op.Geom.Out.Y
-	for i := range InhibVarsN {
-		Inhibs.Set(0.0, int(op.Inhibs), int(lyi), int(0), int(int(i)))
+	for j := range InhibVarsN {
+		Inhibs.Set(0.0, int(op.Inhibs), int(ni), int(lyi), int(0), int(j))
 	}
 }
 
@@ -147,10 +151,11 @@ func KWTAIterLayerX(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
 	szY := op.Geom.Out.Y
 	szX := op.Geom.Out.X
-	yo := int32(i)
-	if yo >= szY {
+	if i >= uint32(szY)*op.NData {
 		return
 	}
+	yo := int32(i) % szY
+	ni := int32(i) / szY
 	ln := float32(szY)
 
 	geAvg := float32(0)
@@ -158,10 +163,10 @@ func KWTAIterLayerX(i uint32) { //gosl:kernel
 	actAvg := float32(0)
 	actMax := float32(0)
 	for xo := range szX {
-		gavg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeAvg))
-		gmx := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeMax))
-		aavg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActAvg))
-		amx := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActMax))
+		gavg := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(GeAvg))
+		gmx := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(GeMax))
+		aavg := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(ActAvg))
+		amx := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(ActMax))
 		geAvg += gavg
 		geMax = max(geMax, gmx)
 		actAvg += aavg
@@ -169,21 +174,22 @@ func KWTAIterLayerX(i uint32) { //gosl:kernel
 	}
 	geAvg /= ln
 	actAvg /= ln
-	Inhibs.Set(geAvg, int(op.Inhibs), int(yo), int(szX), int(GeAvg))
-	Inhibs.Set(geMax, int(op.Inhibs), int(yo), int(szX), int(GeMax))
-	Inhibs.Set(actAvg, int(op.Inhibs), int(yo), int(szX), int(ActAvg))
-	Inhibs.Set(actMax, int(op.Inhibs), int(yo), int(szX), int(ActMax))
+	Inhibs.Set(geAvg, int(op.Inhibs), int(ni), int(yo), int(szX), int(GeAvg))
+	Inhibs.Set(geMax, int(op.Inhibs), int(ni), int(yo), int(szX), int(GeMax))
+	Inhibs.Set(actAvg, int(op.Inhibs), int(ni), int(yo), int(szX), int(ActAvg))
+	Inhibs.Set(actMax, int(op.Inhibs), int(ni), int(yo), int(szX), int(ActMax))
 }
 
 // KWTAIterLayerY is the kernel to iterate KWTA process at layer.
-// i = op.Geom.Out.Y * X. FilterSize is inner 2 dims.
+// i = NData.
 // Operates on Inhibs updated from pool-level.
 // Call this first then IterPool
 func KWTAIterLayerY(i uint32) { //gosl:kernel
-	if i != 0 {
+	op := GetCurOp(0)
+	if i >= op.NData {
 		return
 	}
-	op := GetCurOp(0)
+	ni := int32(i)
 	szY := op.Geom.Out.Y
 	szX := op.Geom.Out.X
 	ln := float32(szY)
@@ -193,10 +199,10 @@ func KWTAIterLayerY(i uint32) { //gosl:kernel
 	actAvg := float32(0)
 	actMax := float32(0)
 	for yo := range szY {
-		gavg := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(GeAvg))
-		gmx := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(GeMax))
-		aavg := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(ActAvg))
-		amx := Inhibs.Value(int(op.Inhibs), int(yo), int(szX), int(ActMax))
+		gavg := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(szX), int(GeAvg))
+		gmx := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(szX), int(GeMax))
+		aavg := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(szX), int(ActAvg))
+		amx := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(szX), int(ActMax))
 		geAvg += gavg
 		geMax = max(geMax, gmx)
 		actAvg += aavg
@@ -204,13 +210,13 @@ func KWTAIterLayerY(i uint32) { //gosl:kernel
 	}
 	geAvg /= ln
 	actAvg /= ln
-	Inhibs.Set(geAvg, int(op.Inhibs), int(szY), int(0), int(GeAvg))
-	Inhibs.Set(geMax, int(op.Inhibs), int(szY), int(0), int(GeMax))
-	Inhibs.Set(actAvg, int(op.Inhibs), int(szY), int(0), int(ActAvg))
-	Inhibs.Set(actMax, int(op.Inhibs), int(szY), int(0), int(ActMax))
+	Inhibs.Set(geAvg, int(op.Inhibs), int(ni), int(szY), int(0), int(GeAvg))
+	Inhibs.Set(geMax, int(op.Inhibs), int(ni), int(szY), int(0), int(GeMax))
+	Inhibs.Set(actAvg, int(op.Inhibs), int(ni), int(szY), int(0), int(ActAvg))
+	Inhibs.Set(actMax, int(op.Inhibs), int(ni), int(szY), int(0), int(ActMax))
 
 	kp := GetKWTAs(uint32(op.KWTA))
-	fbi := Inhibs.Value(int(op.Inhibs), int(szY), int(0), int(FBi))
+	fbi := Inhibs.Value(int(op.Inhibs), int(ni), int(szY), int(0), int(FBi))
 	ffi := kp.Layer.FFInhib(geAvg, geMax)
 	newFBi := kp.Layer.FBInhib(actAvg)
 	fbi = kp.Layer.FBUpdt(fbi, newFBi)
@@ -219,12 +225,12 @@ func KWTAIterLayerY(i uint32) { //gosl:kernel
 		fbi = 0.0
 	}
 
-	Inhibs.Set(ffi, int(op.Inhibs), int(szY), int(0), int(FFi))
-	Inhibs.Set(fbi, int(op.Inhibs), int(szY), int(0), int(FBi))
+	Inhibs.Set(ffi, int(op.Inhibs), int(ni), int(szY), int(0), int(FFi))
+	Inhibs.Set(fbi, int(op.Inhibs), int(ni), int(szY), int(0), int(FBi))
 
 	gi := kp.Layer.Gi * (ffi + fbi)
-	Inhibs.Set(gi, int(op.Inhibs), int(szY), int(0), int(Gi))
-	Inhibs.Set(gi, int(op.Inhibs), int(szY), int(0), int(GiOrig))
+	Inhibs.Set(gi, int(op.Inhibs), int(ni), int(szY), int(0), int(Gi))
+	Inhibs.Set(gi, int(op.Inhibs), int(ni), int(szY), int(0), int(GiOrig))
 }
 
 // KWTAIterPool is the kernel to iterate KWTA process for Pools.
@@ -234,24 +240,26 @@ func KWTAIterLayerY(i uint32) { //gosl:kernel
 // OutValue = acts (output result)
 func KWTAIterPool(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
 	szY := op.Geom.Out.Y
 	szX := op.Geom.Out.X
-	yo := int32(i) / szX
-	xo := int32(i) % szX
+	yo := ri / szX
+	xo := ri % szX
 
-	layGi := Inhibs.Value(int(op.Inhibs), int(szY), int(0), int(Gi))
+	layGi := Inhibs.Value(int(op.Inhibs), int(ni), int(szY), int(0), int(Gi))
 	kp := GetKWTAs(uint32(op.KWTA))
 
 	pn := 2 * op.FilterN
 	// pn := op.Geom.FilterSize.Y * op.Geom.FilterSize.X
 
-	geAvg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeAvg))
-	geMax := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(GeMax))
-	actAvg := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(ActAvg))
-	fbi := Inhibs.Value(int(op.Inhibs), int(yo), int(xo), int(FBi))
+	geAvg := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(GeAvg))
+	geMax := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(GeMax))
+	actAvg := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(ActAvg))
+	fbi := Inhibs.Value(int(op.Inhibs), int(ni), int(yo), int(xo), int(FBi))
 	ffi := kp.Pool.FFInhib(geAvg, geMax)
 	newFBi := kp.Pool.FBInhib(actAvg)
 	fbi = kp.Pool.FBUpdt(fbi, newFBi)
@@ -260,12 +268,12 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 		fbi = 0.0
 	}
 
-	Inhibs.Set(ffi, int(op.Inhibs), int(yo), int(xo), int(FFi))
-	Inhibs.Set(fbi, int(op.Inhibs), int(yo), int(xo), int(FBi))
+	Inhibs.Set(ffi, int(op.Inhibs), int(ni), int(yo), int(xo), int(FFi))
+	Inhibs.Set(fbi, int(op.Inhibs), int(ni), int(yo), int(xo), int(FBi))
 
 	gi := kp.Pool.Gi * (ffi + fbi)
-	Inhibs.Set(gi, int(op.Inhibs), int(yo), int(xo), int(Gi))
-	Inhibs.Set(gi, int(op.Inhibs), int(yo), int(xo), int(GiOrig))
+	Inhibs.Set(gi, int(op.Inhibs), int(ni), int(yo), int(xo), int(Gi))
+	Inhibs.Set(gi, int(op.Inhibs), int(ni), int(yo), int(xo), int(GiOrig))
 
 	giPool := max(layGi, gi)
 
@@ -275,25 +283,25 @@ func KWTAIterPool(i uint32) { //gosl:kernel
 		for px := range op.FilterN {
 			pgi := giPool
 			if op.InValue2 > 0 {
-				eIn := Values.Value(int(op.InValue2), int(yo), int(xo), int(py), int(px))
+				eIn := Values.Value(int(op.InValue2), int(ni), int(yo), int(xo), int(py), int(px))
 				eGi := kp.Pool.Gi * kp.Pool.FFInhib(eIn, eIn)
 				pgi = max(pgi, eGi)
 			}
 			geThr := kp.GeThrFromG(pgi)
-			ge := Values.Value(int(op.InValue), int(yo), int(xo), int(py), int(px))
-			act := Values.Value(int(op.OutValue), int(yo), int(xo), int(py), int(px))
+			ge := Values.Value(int(op.InValue), int(ni), int(yo), int(xo), int(py), int(px))
+			act := Values.Value(int(op.OutValue), int(ni), int(yo), int(xo), int(py), int(px))
 			geAvg += ge
 			geMax = max(geMax, ge)
 			delAct := float32(0)
 			nwAct := kp.ActFromG(geThr, ge, act, &delAct)
 			// maxDelAct = max(maxDelAct, math32.Abs(delAct)) // todo
-			Values.Set(nwAct, int(op.OutValue), int(yo), int(xo), int(py), int(px))
+			Values.Set(nwAct, int(op.OutValue), int(ni), int(yo), int(xo), int(py), int(px))
 			actAvg += nwAct
 			actMax = max(actMax, nwAct)
 		}
 	}
-	Inhibs.Set(actAvg/float32(pn), int(op.Inhibs), int(yo), int(xo), int(ActAvg))
-	Inhibs.Set(actMax, int(op.Inhibs), int(yo), int(xo), int(ActMax))
+	Inhibs.Set(actAvg/float32(pn), int(op.Inhibs), int(ni), int(yo), int(xo), int(ActAvg))
+	Inhibs.Set(actMax, int(op.Inhibs), int(ni), int(yo), int(xo), int(ActMax))
 }
 
 // Neigh4X = []int{0, -1, 1, -1}

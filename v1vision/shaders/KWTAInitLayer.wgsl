@@ -7,7 +7,7 @@ var<storage, read> TensorStrides: array<u32>;
 @group(0) @binding(1)
 var<storage, read> CurOp: array<Op>;
 // // Filters are one general stack of rendered filters, sized to the max of each // of the inner dimensional values: [FilterTypes][FilterN][Y][X] // FilterTypes = different filter types (DoG, Gabor, etc) // FilterN = number of filters within the group (On, Off, angle, etc) // Y, X = sizes. 
-// // Images are float-valued image data: [ImageNo][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
+// // Images are float-valued image data: // [ImageNo][NData][RGB][Y][X], // sized to the max of each inner-dimensional value (RGB=3, // if more needed, use additional ImageNo) 
 @group(2) @binding(4)
 var<storage, read_write> Inhibs: array<f32>;
 
@@ -19,8 +19,8 @@ fn main(@builtin(workgroup_id) wgid: vec3<u32>, @builtin(num_workgroups) nwg: ve
 	KWTAInitLayer(idx);
 }
 
-fn Index4D(s0: u32, s1: u32, s2: u32, s3: u32, i0: u32, i1: u32, i2: u32, i3: u32) -> u32 {
-	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3;
+fn Index5D(s0: u32, s1: u32, s2: u32, s3: u32, s4: u32, i0: u32, i1: u32, i2: u32, i3: u32, i4: u32) -> u32 {
+	return s0 * i0 + s1 * i1 + s2 * i2 + s3 * i3 + s4 * i4;
 }
 
 
@@ -120,14 +120,15 @@ struct KWTA {
 
 //////// import: "kwta.go"
 fn KWTAInitLayer(i: u32) { //gosl:kernel
-	if (i != 0) {
+	let op = CurOp[0];
+	if (i > op.NData) {
 		return;
 	}
-	let op = CurOp[0];
+	var ni = i32(i);
 	var lyi = op.Geom.Out.y;
-	for (var i=0; i<InhibVarsN; i++) {
-		Inhibs[Index4D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53],
-		u32(op.Inhibs), u32(lyi), u32(0), u32(i32(i)))] = 0.0;
+	for (var j=0; j<InhibVarsN; j++) {
+		Inhibs[Index5D(TensorStrides[50], TensorStrides[51], TensorStrides[52], TensorStrides[53],
+		TensorStrides[54], u32(op.Inhibs), u32(ni), u32(lyi), u32(0), u32(j))] = 0.0;
 	}
 }
 
@@ -186,6 +187,7 @@ const  MotionStar: Operations = 21;
 const  MotionFullField: Operations = 22;
 struct Op {
 	Op: Operations,
+	NData: u32,
 	RunN: u32,
 	InImage: i32,
 	InImageRGB: i32,
@@ -205,6 +207,9 @@ struct Op {
 	OutScalar: i32,
 	Inhibs: i32,
 	KWTA: i32,
+	pad: i32,
+	pad1: i32,
+	pad2: i32,
 	Geom: Geom,
 }
 

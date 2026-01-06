@@ -133,8 +133,13 @@ type Op struct {
 	// Op is the operation to perform on this step
 	Op Operations
 
+	// NData is the number of data-parallel copies of everything to process
+	// at once. Copied from V1Vision at op creation time.
+	NData uint32
+
 	// RunN is the total number of processors to deploy for this run
-	// (i.e., the loop N for data parallel for loop, logically)
+	// (i.e., the loop N for data parallel for loop, logically).
+	// Actual run value will be * NData as well.
 	RunN uint32
 
 	// InImage is the index of an image to process as an input.
@@ -194,57 +199,62 @@ type Op struct {
 	// KWTA is the index of the KWTA parameters to use.
 	KWTA int32
 
+	pad, pad1, pad2 int32
+
 	// Geom is the geometry to use for this operation.
 	Geom Geom
 }
 
-// Run runs the operation on given input index (already range checked).
-func (op *Op) Run(i uint32) {
+// Run runs the operation on given run input index and NData index.
+// (already range checked).
+func (op *Op) Run(ri, ni int32) {
 	switch op.Op {
 	case ConvolveImage:
-		op.ConvolveImage(i)
+		op.ConvolveImage(ri, ni)
 	case ConvolveDiff:
-		op.ConvolveDiff(i)
+		op.ConvolveDiff(ri, ni)
 	case WrapPad:
-		op.WrapPad(i)
+		op.WrapPad(ri, ni)
 	case FadePad:
-		op.FadePad(i)
+		op.FadePad(ri, ni)
 	case LMSOpponents:
-		op.LMSOpponents(i)
+		op.LMSOpponents(ri, ni)
 	case LMSComponents:
-		op.LMSComponents(i)
+		op.LMSComponents(ri, ni)
 	case LogValues:
-		op.LogValues(i)
+		op.LogValues(ri, ni)
 	case NormDiv:
-		op.NormDiv(i)
+		op.NormDiv(ri, ni)
 	case NeighInhib4:
-		op.NeighInhib4(i)
+		op.NeighInhib4(ri, ni)
 	case MaxPool:
-		op.MaxPool(i)
+		op.MaxPool(ri, ni)
 	case MaxPolarity:
-		op.MaxPolarity(i)
+		op.MaxPolarity(ri, ni)
 	case MaxCopy:
-		op.MaxCopy(i)
+		op.MaxCopy(ri, ni)
 	case LenSum4:
-		op.LenSum4(i)
+		op.LenSum4(ri, ni)
 	case EndStop4:
-		op.EndStop4(i)
+		op.EndStop4(ri, ni)
 	case To4D:
-		op.To4D(i)
+		op.To4D(ri, ni)
 	case MotionIntegrate:
-		op.MotionIntegrate(i)
+		op.MotionIntegrate(ri, ni)
 	case MotionStar:
-		op.MotionStar(i)
+		op.MotionStar(ri, ni)
 	default:
 	}
 }
 
 func DoCurOp(i uint32) { //gosl:kernel
 	op := GetCurOp(0)
-	if i >= op.RunN {
+	if i >= op.RunN*op.NData {
 		return
 	}
-	op.Run(i)
+	ri := int32(i % op.RunN)
+	ni := int32(i / op.RunN)
+	op.Run(ri, ni)
 }
 
 //gosl:end
@@ -258,28 +268,28 @@ func (vv *V1Vision) RunOps() {
 		op := &vv.Ops[i]
 		switch op.Op {
 		case MaxScalar:
-			RunMaxScalarX(int(op.RunN))
-			RunMaxScalarY(1)
+			RunMaxScalarX(int(op.RunN) * vv.NData)
+			RunMaxScalarY(vv.NData)
 		case SumScalar:
-			RunSumScalarX(int(op.RunN))
-			RunSumScalarY(1)
+			RunSumScalarX(int(op.RunN) * vv.NData)
+			RunSumScalarY(vv.NData)
 		case MeanScalar:
-			RunSumScalarX(int(op.RunN))
-			RunMeanScalarY(1)
+			RunSumScalarX(int(op.RunN) * vv.NData)
+			RunMeanScalarY(vv.NData)
 		case KWTAInhib:
 			kp := &vv.KWTAs[op.KWTA]
-			RunKWTAInitLayer(1)
-			RunKWTAInitPool(int(op.RunN))
+			RunKWTAInitLayer(vv.NData)
+			RunKWTAInitPool(int(op.RunN) * vv.NData)
 			for range kp.Iters {
-				RunKWTAIterLayerX(int(op.Geom.Out.Y))
-				RunKWTAIterLayerY(1)
-				RunKWTAIterPool(int(op.RunN))
+				RunKWTAIterLayerX(int(op.Geom.Out.Y) * vv.NData)
+				RunKWTAIterLayerY(vv.NData)
+				RunKWTAIterPool(int(op.RunN) * vv.NData)
 			}
 		case MotionFullField:
-			RunMotionFullFieldX(int(op.RunN))
-			RunMotionFullFieldY(2)
+			RunMotionFullFieldX(int(op.RunN) * vv.NData)
+			RunMotionFullFieldY(2 * vv.NData)
 		default:
-			RunDoCurOp(int(op.RunN))
+			RunDoCurOp(int(op.RunN) * vv.NData)
 		}
 		if i < nops-1 {
 			RunDone() // must wait to send next op

@@ -123,7 +123,7 @@ func (vi *Vis) Defaults() {
 
 // Config sets up the V1 processing pipeline.
 func (vi *Vis) Config() {
-	vi.V1.Init()
+	vi.V1.Init(1)
 	*vi.V1.NewKWTAParams() = vi.KWTA
 	kwtaIdx := 0
 
@@ -132,10 +132,10 @@ func (vi *Vis) Config() {
 	lmsRG := vi.V1.NewImage(vi.Geom.In.V())
 	lmsBY := vi.V1.NewImage(vi.Geom.In.V())
 
-	vi.ImageTsr = vi.V1.Images.SubSpace(img).(*tensor.Float32)
+	vi.ImageTsr = vi.V1.Images.SubSpace(img, 0).(*tensor.Float32)
 	vi.V1.NewWrapImage(img, 3, wrap, int(vi.Geom.FilterRt.X), &vi.Geom)
-	vi.ImageRGTsr = vi.V1.Images.SubSpace(lmsRG).(*tensor.Float32)
-	vi.ImageBYTsr = vi.V1.Images.SubSpace(lmsBY).(*tensor.Float32)
+	vi.ImageRGTsr = vi.V1.Images.SubSpace(lmsRG, 0).(*tensor.Float32)
+	vi.ImageBYTsr = vi.V1.Images.SubSpace(lmsBY, 0).(*tensor.Float32)
 	vi.V1.NewLMSComponents(wrap, lmsRG, lmsBY, vi.DoG.Gain, &vi.Geom)
 
 	out := vi.V1.NewValues(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2)
@@ -155,7 +155,7 @@ func (vi *Vis) Config() {
 		vi.V1.GPUInit()
 	}
 
-	vi.DoGColor.Config(vi.StdImage.Size)
+	vi.DoGColor.Config(1, vi.StdImage.Size)
 }
 
 // OpenImage opens given filename as current image Image
@@ -171,12 +171,12 @@ func (vi *Vis) OpenImage(filepath string) error { //types:add
 		vi.Image = transform.Resize(vi.Image, vi.ImageSize.X, vi.ImageSize.Y, transform.Linear)
 	}
 	img := vi.V1.Images.SubSpace(0).(*tensor.Float32)
-	v1vision.RGBToTensor(vi.Image, img, int(vi.Geom.FilterRt.X), v1vision.BottomZero)
+	v1vision.RGBToTensor(img, int(vi.Geom.FilterRt.X), v1vision.BottomZero, vi.Image)
 	return nil
 }
 
 func (vi *Vis) getTsr(idx int, tsr *tensor.Float32, y, x int32) {
-	out := vi.V1.Values.SubSpace(idx).(*tensor.Float32)
+	out := vi.V1.Values.SubSpace(idx, 0).(*tensor.Float32)
 	tsr.SetShapeSizes(int(y), int(x), 2, 2)
 	tensor.CopyFromLargerShape(tsr, out)
 }
@@ -207,7 +207,7 @@ func (vi *Vis) Filter() error { //types:add
 
 	vi.getTsr(vi.outIdx, &vi.Out, vi.Geom.Out.Y, vi.Geom.Out.X)
 
-	vi.DoGColor.RunImage(&vi.StdImage, vi.Image)
+	vi.DoGColor.RunImages(&vi.StdImage, vi.Image)
 
 	if vi.tabView != nil {
 		vi.tabView.Update()
