@@ -112,6 +112,11 @@ func GPUInit() {
 		pl.AddVarUsed(2, "Scalars")
 		pl.AddVarUsed(2, "Values")
 		pl.AddVarUsed(2, "Values4D")
+		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/EdgeAverage.wgsl", sy)
+		pl.AddVarUsed(0, "TensorStrides")
+		pl.AddVarUsed(0, "CurOp")
+		pl.AddVarUsed(2, "Images")
+		pl.AddVarUsed(2, "Scalars")
 		pl = gpu.NewComputePipelineShaderFS(shaders, "shaders/KWTAInitLayer.wgsl", sy)
 		pl.AddVarUsed(0, "TensorStrides")
 		pl.AddVarUsed(0, "CurOp")
@@ -227,6 +232,48 @@ func RunOneDoCurOp(n int, syncVars ...GPUVars) {
 		RunDone(syncVars...)
 	} else {
 		RunDoCurOpCPU(n)
+	}
+}
+// RunEdgeAverage runs the EdgeAverage kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// Can call multiple Run* kernels in a row, which are then all launched
+// in the same command submission on the GPU, which is by far the most efficient.
+// MUST call RunDone (with optional vars to sync) after all Run calls.
+// Alternatively, a single-shot RunOneEdgeAverage call does Run and Done for a
+// single run-and-sync case.
+func RunEdgeAverage(n int) {
+	if UseGPU {
+		RunEdgeAverageGPU(n)
+	} else {
+		RunEdgeAverageCPU(n)
+	}
+}
+
+// RunEdgeAverageGPU runs the EdgeAverage kernel on the GPU. See [RunEdgeAverage] for more info.
+func RunEdgeAverageGPU(n int) {
+	sy := GPUSystem
+	pl := sy.ComputePipelines["EdgeAverage"]
+	ce, _ := sy.BeginComputePass()
+	pl.Dispatch1D(ce, n, 64)
+}
+
+// RunEdgeAverageCPU runs the EdgeAverage kernel on the CPU.
+func RunEdgeAverageCPU(n int) {
+	gpu.VectorizeFunc(0, n, EdgeAverage)
+}
+
+// RunOneEdgeAverage runs the EdgeAverage kernel with given number of elements,
+// on either the CPU or GPU depending on the UseGPU variable.
+// This version then calls RunDone with the given variables to sync
+// after the Run, for a single-shot Run-and-Done call. If multiple kernels
+// can be run in sequence, it is much more efficient to do multiple Run*
+// calls followed by a RunDone call.
+func RunOneEdgeAverage(n int, syncVars ...GPUVars) {
+	if UseGPU {
+		RunEdgeAverageGPU(n)
+		RunDone(syncVars...)
+	} else {
+		RunEdgeAverageCPU(n)
 	}
 }
 // RunKWTAInitLayer runs the KWTAInitLayer kernel with given number of elements,

@@ -139,13 +139,11 @@ type Vis struct { //types:add
 
 	v1sIdxs [3]int
 
-	fadeOpIdx int
-
 	v1sMaxIdx, v1cPoolIdx, v1cMaxPolIdx, v1cPolPoolIdx, v1cLenSumIdx, v1cEndStopIdx int
 }
 
 func (vi *Vis) Defaults() {
-	vi.GPU = true
+	vi.GPU = false // true
 	vi.ColorGain = 8
 	vi.SplitColor = true
 	vi.ImageFile = core.Filename("car_004_00001.png")
@@ -179,7 +177,8 @@ func (vi *Vis) Config() {
 	vi.ImageTsr = vi.V1.Images.SubSpace(img, 0).(*tensor.Float32)
 	vi.ImageLMSTsr = vi.V1.Images.SubSpace(lms, 0).(*tensor.Float32)
 
-	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.Border.X), .5, .5, .5, &vi.V1sGeom)
+	avgIdx := vi.V1.NewEdgeAvg(img, 3, int(vi.V1sGeom.Border.X), &vi.V1sGeom)
+	vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.Border.X), avgIdx, &vi.V1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lms, vi.ColorGain, &vi.V1sGeom)
 
 	nang := vi.V1sGabor.NAngles
@@ -272,13 +271,9 @@ func (vi *Vis) Filter() error { //types:add
 	if err != nil {
 		return errors.Log(err)
 	}
-	// todo:
-	// r, g, b := v1vision.EdgeAvg(vi.ImageTsr, int(vi.V1sGeom.Border.X))
-	// vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
-
 	tmr := timer.Time{}
 	tmr.Start()
-	for range 1000 {
+	for range 1 {
 		vi.V1.Run()
 		// vi.V1.Run(v1vision.Values4DVar) // this is sig slower due to sync issues.
 		// for timing test, run without sync and assume it gets sig better.

@@ -58,8 +58,6 @@ type V1cColor struct {
 	// (0, 45, 90, 135) and the 5 are: 1 length-sum, 2 directions of end-stop,
 	// and 2 polarities of V1simple.
 	Output *tensor.Float32 `display:"no-inline"`
-
-	fadeOpIdx int
 }
 
 func (vi *V1cColor) Defaults() {
@@ -95,7 +93,8 @@ func (vi *V1cColor) Config(ndata int, imageSize image.Point) {
 	wrap := vi.V1.NewImage(vi.V1sGeom.In.V())
 	lms := vi.V1.NewImage(vi.V1sGeom.In.V())
 
-	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.Border.X), .5, .5, .5, &vi.V1sGeom)
+	avgIdx := vi.V1.NewEdgeAvg(img, 3, int(vi.V1sGeom.Border.X), &vi.V1sGeom)
+	vi.V1.NewFadeImage(img, 3, wrap, int(vi.V1sGeom.Border.X), avgIdx, &vi.V1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lms, vi.ColorGain, &vi.V1sGeom)
 
 	nang := vi.V1sGabor.NAngles
@@ -162,10 +161,6 @@ func (vi *V1cColor) RunImages(im *Image, imgs ...image.Image) {
 	vi.V1.SetAsCurrent()
 	v1vision.UseGPU = vi.GPU
 	im.SetImagesRGB(&vi.V1, int(vi.V1sGeom.Border.X), imgs...)
-	// argh: this is not going to work here:
-	// need to do this on-chip.
-	// r, g, b := v1vision.EdgeAvg(im.Tsr, int(vi.V1sGeom.Border.X))
-	// vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 	vi.V1.Run(v1vision.Values4DVar)
 	vi.Output = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 }

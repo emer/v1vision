@@ -245,8 +245,6 @@ type V1cMulti struct {
 
 	// Image manages images.
 	Image Image
-
-	fadeOpIdx int
 }
 
 func (vi *V1cMulti) Defaults() {
@@ -338,7 +336,8 @@ func (vi *V1cMulti) Config(ndata int) {
 	lmsBY := vi.V1.NewImage(inSz)
 	_, _ = lmsRG, lmsBY
 
-	vi.fadeOpIdx = vi.V1.NewFadeImage(img, 3, wrap, int(v1sGeom.Border.X), .5, .5, .5, v1sGeom)
+	avgIdx := vi.V1.NewEdgeAvg(img, 3, int(v1sGeom.Border.X), v1sGeom)
+	vi.V1.NewFadeImage(img, 3, wrap, int(v1sGeom.Border.X), avgIdx, v1sGeom)
 	vi.V1.NewLMSOpponents(wrap, lmsOp, vi.ColorGain, v1sGeom)
 	if len(vi.DoGParams) > 0 {
 		dogGeom := &vi.DoGParams[0].Geom
@@ -373,9 +372,6 @@ func (vi *V1cMulti) RunImages(imgs ...image.Image) {
 	v1vision.UseGPU = vi.GPU
 	v1sGeom := &vi.V1cParams[0].V1sGeom
 	vi.Image.SetImagesRGB(&vi.V1, int(v1sGeom.Border.X), imgs...)
-	// todo:
-	// r, g, b := v1vision.EdgeAvg(vi.Image.Tsr, int(v1sGeom.Border.X))
-	// vi.V1.SetFadeRGB(vi.fadeOpIdx, r, g, b)
 	vi.V1.Run(v1vision.Values4DVar)
 	for _, vp := range vi.V1cParams {
 		vp.SetOutput(vi)

@@ -18,6 +18,10 @@ const (
 	// InImage -> OutImage, over InImageRGB (if 3, does all).
 	WrapPad
 
+	// EdgeAvg computes the average r,g,b values around the edges of an image,
+	// storing into Scalars. These are then used for FadePad.
+	EdgeAvg
+
 	// FadePad wraps given padding width of float32 image around sides
 	// i.e., padding for left side of image is the (mirrored) bits
 	// from the right side of image, etc, and fades result toward average
@@ -267,6 +271,8 @@ func (vv *V1Vision) RunOps() {
 		ToGPU(CurOpVar)
 		op := &vv.Ops[i]
 		switch op.Op {
+		case EdgeAvg:
+			RunEdgeAverage(int(op.NData))
 		case MaxScalar:
 			RunMaxScalarX(int(op.RunN) * vv.NData)
 			RunMaxScalarY(vv.NData)

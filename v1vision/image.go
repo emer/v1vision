@@ -7,11 +7,14 @@
 package v1vision
 
 import (
+	// "fmt"
 	"image"
 	"image/color"
 
 	"cogentcore.org/core/colors"
 	"cogentcore.org/core/gpu"
+	"cogentcore.org/core/math32"
+	"cogentcore.org/lab/gosl/slmath"
 	"cogentcore.org/lab/tensor"
 	"github.com/emer/v1vision/colorspace"
 )
@@ -44,12 +47,30 @@ func (vv *V1Vision) NewWrapImage(in, irgb, out, padWidth int, geom *Geom) {
 	op.Geom = *geom
 }
 
-// NewFadeImage configures a new FadePad operation for given input image
+// NewEdgeAvg configures a new EdgeAvg operation for given input image
 // and RGB index (3 = all). Output goes to another image.
 // padWidth is the border padding around edges. r,g,b are edge average
 // values that are faded into (can set FloatArg1-3 values later too).
+// Returns the starting index of the r,g,b values for the scalar outputs.
+func (vv *V1Vision) NewEdgeAvg(in, irgb, padWidth int, geom *Geom) int {
+	op := vv.NewOp()
+	op.Op = EdgeAvg
+	op.RunN = 1
+	op.InImage = int32(in)
+	op.InImageRGB = int32(irgb)
+	op.IntArg1 = int32(padWidth)
+	op.Geom = *geom
+	out := vv.NewScalar(3)
+	op.OutScalar = int32(out)
+	return out
+}
+
+// NewFadeImage configures a new FadePad operation for given input image
+// and RGB index (3 = all). Output goes to another image.
+// padWidth is the border padding around edges. r,g,b values to fade to
+// are starting at scalarIn: use EdgeAvg to get from image.
 // Returns the index of Op
-func (vv *V1Vision) NewFadeImage(in, irgb, out, padWidth int, r, g, b float32, geom *Geom) int {
+func (vv *V1Vision) NewFadeImage(in, irgb, out, padWidth, scalarIn int, geom *Geom) {
 	op := vv.NewOp()
 	op.Op = FadePad
 	nin := geom.In.Y * geom.In.X
@@ -61,18 +82,8 @@ func (vv *V1Vision) NewFadeImage(in, irgb, out, padWidth int, r, g, b float32, g
 	op.InImageRGB = int32(irgb)
 	op.OutImage = int32(out)
 	op.IntArg1 = int32(padWidth)
+	op.InScalar = int32(scalarIn)
 	op.Geom = *geom
-	fidx := len(vv.Ops) - 1
-	vv.SetFadeRGB(fidx, r, g, b)
-	return fidx
-}
-
-// SetFadeRGB sets the fade color for FadePad
-func (vv *V1Vision) SetFadeRGB(fadeIdx int, r, g, b float32) {
-	op := &vv.Ops[fadeIdx]
-	op.FloatArg1 = r
-	op.FloatArg2 = g
-	op.FloatArg3 = b
 }
 
 const (
@@ -133,6 +144,7 @@ func (vv *V1Vision) NewLMSComponents(in, out1, out2 int, gainS float32, geom *Ge
 }
 
 //gosl:start
+//gosl:import "cogentcore.org/lab/gosl/slmath"
 //gosl:import "github.com/emer/v1vision/colorspace"
 
 // WrapPad is the kernel for WrapPad.
@@ -175,20 +187,12 @@ func (op *Op) WrapPad(i, ni int32) {
 func (op *Op) FadePad(i, ni int32) {
 	ii := i
 	ri := op.InImageRGB
-	avg := op.FloatArg1
+	avg := Scalars.Value(int(op.InScalar), int(ni))
 	if ri == 3 {
 		xy := op.Geom.In.X * op.Geom.In.Y
 		ri = i / xy
 		ii = i % xy
-		switch ri {
-		case 0:
-			avg = op.FloatArg1
-		case 1:
-			avg = op.FloatArg2
-		case 2:
-			avg = op.FloatArg3
-		default:
-		}
+		avg = Scalars.Value(int(int32(op.InScalar)+ri), int(ni))
 	}
 	y := ii / op.Geom.In.X
 	x := ii % op.Geom.In.X
@@ -215,6 +219,38 @@ func (op *Op) FadePad(i, ni int32) {
 	pavg := (1.0 - p) * avg
 	iv := Images.Value(int(op.InImage), int(ni), int(ri), int(sy), int(sx))
 	Images.Set(p*iv+pavg, int(op.OutImage), int(ni), int(ri), int(y), int(x))
+}
+
+// EdgeAverage returns the average value around the effective edge of RGB image
+// at padWidth in from each side. i = NData
+func EdgeAverage(i uint32) { //gosl:kernel
+	op := GetCurOp(0)
+	if i >= op.NData {
+		return
+	}
+	ni := int32(i)
+	padWidth := op.IntArg1
+	sY := op.Geom.In.Y - 2*padWidth
+	sX := op.Geom.In.X - 2*padWidth
+	var avg math32.Vector3
+	for y := range sY {
+		oy := y + padWidth
+		for rgb := range int32(3) {
+			v := slmath.Dim3(avg, rgb) + Images.Value(int(op.InImage), int(ni), int(rgb), int(oy), int(padWidth)) + Images.Value(int(op.InImage), int(ni), int(rgb), int(oy), int(padWidth+sX-1))
+			avg = slmath.SetDim3(avg, rgb, v)
+		}
+	}
+	for x := range sX {
+		ox := x + padWidth
+		for rgb := range int32(3) {
+			v := slmath.Dim3(avg, rgb) + Images.Value(int(op.InImage), int(ni), int(rgb), int(padWidth), int(ox)) + Images.Value(int(op.InImage), int(ni), int(rgb), int(padWidth+sY-1), int(ox))
+			avg = slmath.SetDim3(avg, rgb, v)
+		}
+	}
+	n := 2 * (sX + sY)
+	for rgb := range int32(3) {
+		Scalars.Set(slmath.Dim3(avg, rgb)/float32(n), int(int32(op.OutScalar)+rgb), int(ni))
+	}
 }
 
 // LMSOpponents is the kernel for LMSOpponents.
@@ -396,35 +432,4 @@ func GreyTensorToImage(img *image.Gray, tsr *tensor.Float32, padWidth int, topZe
 		}
 	}
 	return img
-}
-
-// EdgeAvg returns the average value around the effective edge of RGB image
-// at padWidth in from each side
-func EdgeAvg(tsr *tensor.Float32, padWidth int) (r, g, b float32) {
-	sz := image.Point{tsr.DimSize(2), tsr.DimSize(1)}
-	esz := sz
-	esz.X -= 2 * padWidth
-	esz.Y -= 2 * padWidth
-	var avg [3]float32
-	n := 0
-	for y := 0; y < esz.Y; y++ {
-		oy := y + padWidth
-		for rgb := range 3 {
-			avg[rgb] += tsr.Value(rgb, oy, padWidth)
-			avg[rgb] += tsr.Value(rgb, oy, padWidth+esz.X-1)
-		}
-	}
-	n += 2 * esz.X
-	for x := 0; x < esz.X; x++ {
-		ox := x + padWidth
-		for rgb := range 3 {
-			avg[rgb] += tsr.Value(rgb, padWidth, ox)
-			avg[rgb] += tsr.Value(rgb, padWidth+esz.Y-1, ox)
-		}
-	}
-	n += 2 * esz.X
-	r = avg[0] / float32(n)
-	g = avg[1] / float32(n)
-	b = avg[2] / float32(n)
-	return
 }

@@ -58,7 +58,7 @@ func LMSToXYZ_CAT02(l, m, s f32) (x, y, z f32) {
 //////// import: "enumgen.go"
 const GPUVarsN: GPUVars = 8;
 const InhibVarsN: InhibVars = 9;
-const OperationsN: Operations = 23;
+const OperationsN: Operations = 24;
 
 //////// import: "fffb-fffb.go"
 struct FFFB {
@@ -158,27 +158,28 @@ struct Params {
 alias Operations = i32; //enums:enum
 const  NoOp: Operations = 0;
 const  WrapPad: Operations = 1;
-const  FadePad: Operations = 2;
-const  LMSOpponents: Operations = 3;
-const  LMSComponents: Operations = 4;
-const  ConvolveImage: Operations = 5;
-const  ConvolveDiff: Operations = 6;
-const  LogValues: Operations = 7;
-const  MaxScalar: Operations = 8;
-const  SumScalar: Operations = 9;
-const  MeanScalar: Operations = 10;
-const  NormDiv: Operations = 11;
-const  NeighInhib4: Operations = 12;
-const  KWTAInhib: Operations = 13;
-const  MaxPool: Operations = 14;
-const  MaxPolarity: Operations = 15;
-const  MaxCopy: Operations = 16;
-const  LenSum4: Operations = 17;
-const  EndStop4: Operations = 18;
-const  To4D: Operations = 19;
-const  MotionIntegrate: Operations = 20;
-const  MotionStar: Operations = 21;
-const  MotionFullField: Operations = 22;
+const  EdgeAvg: Operations = 2;
+const  FadePad: Operations = 3;
+const  LMSOpponents: Operations = 4;
+const  LMSComponents: Operations = 5;
+const  ConvolveImage: Operations = 6;
+const  ConvolveDiff: Operations = 7;
+const  LogValues: Operations = 8;
+const  MaxScalar: Operations = 9;
+const  SumScalar: Operations = 10;
+const  MeanScalar: Operations = 11;
+const  NormDiv: Operations = 12;
+const  NeighInhib4: Operations = 13;
+const  KWTAInhib: Operations = 14;
+const  MaxPool: Operations = 15;
+const  MaxPolarity: Operations = 16;
+const  MaxCopy: Operations = 17;
+const  LenSum4: Operations = 18;
+const  EndStop4: Operations = 19;
+const  To4D: Operations = 20;
+const  MotionIntegrate: Operations = 21;
+const  MotionStar: Operations = 22;
+const  MotionFullField: Operations = 23;
 struct Op {
 	Op: Operations,
 	NData: u32,
@@ -222,5 +223,16 @@ fn MeanScalarY(i: u32) { //gosl:kernel
 	sum /= f32(op.Geom.Out.y * op.Geom.Out.x * op.FilterN * 2);
 	Scalars[Index2D(TensorStrides[40], TensorStrides[41], u32(op.OutScalar), u32(ni))] = sum;
 }
+
+//////// import: "slmath-math.go"
+const Pi = 3.141592653589793;
+
+//////// import: "slmath-matrix3.go"
+
+//////// import: "slmath-quaternion.go"
+
+//////// import: "slmath-vector2.go"
+
+//////// import: "slmath-vector3.go"
 
 //////// import: "to4d.go"
