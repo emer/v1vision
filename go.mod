@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	cogentcore.org/core v0.3.13
-	cogentcore.org/lab v0.1.3-0.20260106062837-c33cd572dd3a
+	cogentcore.org/lab v0.1.3-0.20260106153658-0557c97a5cea
 	github.com/anthonynsimon/bild v0.13.0
 	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20250804171546-85b6ef7a8688
 	github.com/stretchr/testify v1.10.0
