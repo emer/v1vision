@@ -5,9 +5,8 @@
 package vxform
 
 import (
-	"math/rand"
-
 	"cogentcore.org/core/math32/minmax"
+	"cogentcore.org/lab/base/randx"
 )
 
 // Rand specifies random transforms
@@ -27,10 +26,10 @@ type Rand struct {
 }
 
 // Gen Generates new random transform values
-func (rx *Rand) Gen(xf *XForm) {
-	trX := rx.TransX.ProjValue(rand.Float32())
-	trY := rx.TransY.ProjValue(rand.Float32())
-	sc := rx.Scale.ProjValue(rand.Float32())
-	rt := rx.Rot.ProjValue(rand.Float32())
+func (rx *Rand) Gen(xf *XForm, rnd *randx.SysRand) {
+	trX := rx.TransX.ProjValue(rnd.Float32())
+	trY := rx.TransY.ProjValue(rnd.Float32())
+	sc := rx.Scale.ProjValue(rnd.Float32())
+	rt := rx.Rot.ProjValue(rnd.Float32())
 	xf.Set(trX, trY, sc, rt)
 }
