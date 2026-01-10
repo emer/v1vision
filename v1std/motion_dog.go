@@ -34,7 +34,7 @@ type MotionDoG struct {
 	// Geom is geometry of input, output.
 	Geom v1vision.Geom `edit:"-"`
 
-	// FullField has the integrated FullField output (1D).
+	// FullField has the integrated FullField output: [NData, 2, 2].
 	// Use [motion.Directions] for 1D indexes (is 2x2 for [L,R][D,U]).
 	FullField tensor.Float32 `display:"no-inline"`
 
@@ -46,7 +46,7 @@ type MotionDoG struct {
 
 	// Star has the star values, if GetStar is true,
 	// pointing to Values in V1.
-	// [Y, X, Polarity, 4], where Polarity is DoG polarity, and 4 is for
+	// [NData, Y, X, Polarity, 4], where Polarity is DoG polarity, and 4 is for
 	// Left, Right, Down, Up.
 	Star *tensor.Float32 `display:"no-inline"`
 }
@@ -73,7 +73,7 @@ func (vi *MotionDoG) SetSize(sz, spc int) {
 // ndata = number of data-parallel inputs to process in parallel.
 func (vi *MotionDoG) Config(ndata int, imageSize image.Point) {
 	vi.Geom.SetImageSize(imageSize)
-	vi.FullField.SetShapeSizes(2, 2)
+	vi.FullField.SetShapeSizes(ndata, 2, 2)
 
 	fn := 1 // number of filters in DoG
 
@@ -93,7 +93,7 @@ func (vi *MotionDoG) Config(ndata int, imageSize image.Point) {
 
 	if vi.GetStar {
 		out4 := vi.V1.NewValues4D(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 4)
-		vi.Star.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 4)
+		vi.Star.SetShapeSizes(ndata, int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 4)
 		vi.V1.NewTo4D(starIdx, out4, 2, 4, 0, &vi.Geom)
 	}
 
@@ -129,8 +129,8 @@ func (vi *MotionDoG) Run() {
 		vals = append(vals, v1vision.Values4DVar)
 	}
 	vi.V1.Run(vals...)
-	vi.Motion.FullFieldInteg(vi.V1.Scalars, &vi.FullField)
-	if vi.GetStar {
+	vi.Motion.FullFieldInteg(vi.V1.NData, vi.V1.Scalars, &vi.FullField)
+	if vi.GetStar { // assumes star at 0
 		vi.Star = vi.V1.Values4D.SubSpace(0).(*tensor.Float32)
 	}
 }
