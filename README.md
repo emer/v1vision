@@ -28,3 +28,4 @@ To more fully leverage the GPU parallel processing, there is an `NData` data-par
 
 The [GoSL](https://www.cogentcore.org/lab/gosl) (Go as a shader language) system is maximally efficient if everything can be configured statically in memory at the outset, and then each iteration just pushes up the new image and retrieves the final filtered results. This is accomplished by effectively compiling a programmed sequence of operations into the `Ops` list, and configuring everything to hold all the intermediate data results from each Op. At run-time, each Op is uploaded to the GPU in turn, and provides the control params for running that operation.
 
+
