@@ -20,7 +20,7 @@ jobs:
 
     - name: Go toolchain for tests
       run: go env -w GOTOOLCHAIN=go1.25.0+auto
-	
+
     - name: Set up Core
       run: go install cogentcore.org/core@main && core setup
 
