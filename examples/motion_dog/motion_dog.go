@@ -187,7 +187,7 @@ func (vi *Vis) Filter() error { //types:add
 	// up to GPU on SetAsCurrent, so need ValuesVar to synchronize.
 	vi.V1.Run(v1vision.ScalarsVar, v1vision.ValuesVar, v1vision.ImagesVar)
 	// vi.V1.Run(v1vision.ScalarsVar) // minimal fastest case
-	vi.Motion.FullFieldInteg(vi.V1.Scalars, &vi.FullField)
+	vi.Motion.FullFieldInteg(1, vi.V1.Scalars, &vi.FullField)
 
 	out := vi.V1.Values.SubSpace(0, 0).(*tensor.Float32)
 	vi.DoGOut.SetShapeSizes(int(vi.Geom.Out.Y), int(vi.Geom.Out.X), 2, 1)
