@@ -141,5 +141,6 @@ func (vi *MotionDoG) Init() {
 	tensor.SetAllFloat64(vi.V1.Values, 0)
 	tensor.SetAllFloat64(vi.V1.Scalars, 0)
 	tensor.SetAllFloat64(&vi.FullField, 0)
+	vi.Motion.NormInteg = 0
 	vi.V1.ToGPUInfra()
 }
