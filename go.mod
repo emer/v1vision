@@ -6,7 +6,7 @@ require (
 	cogentcore.org/core v0.3.14-0.20260117204258-0df48929cf7e
 	cogentcore.org/lab v0.1.3-0.20260118025330-40dd4638d88a
 	github.com/anthonynsimon/bild v0.14.0
-	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20260107180834-a1df5d7febdb
+	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20260118031018-e00190b70cd2
 	github.com/stretchr/testify v1.11.1
 )
 
