@@ -3,10 +3,10 @@ module github.com/emer/v1vision
 go 1.25.6
 
 require (
-	cogentcore.org/core v0.3.14-0.20260117204258-0df48929cf7e
-	cogentcore.org/lab v0.1.3-0.20260118025330-40dd4638d88a
+	cogentcore.org/core v0.3.14
+	cogentcore.org/lab v0.1.3
 	github.com/anthonynsimon/bild v0.14.0
-	github.com/emer/emergent/v2 v2.0.0-dev0.1.7.0.20260118035849-68022169e155
+	github.com/emer/emergent/v2 v2.0.0-dev0.1.8
 	github.com/stretchr/testify v1.11.1
 )
 
