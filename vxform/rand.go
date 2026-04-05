@@ -26,7 +26,7 @@ type Rand struct {
 }
 
 // Gen Generates new random transform values
-func (rx *Rand) Gen(xf *XForm, rnd *randx.SysRand) {
+func (rx *Rand) Gen(xf *XForm, rnd randx.Rand) {
 	trX := rx.TransX.ProjValue(rnd.Float32())
 	trY := rx.TransY.ProjValue(rnd.Float32())
 	sc := rx.Scale.ProjValue(rnd.Float32())
