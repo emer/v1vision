@@ -3,10 +3,10 @@ module github.com/emer/v1vision
 go 1.25.6
 
 require (
-	cogentcore.org/core v0.3.30
-	cogentcore.org/lab v0.1.11
+	cogentcore.org/core v0.3.35
+	cogentcore.org/lab v0.1.13
 	github.com/anthonynsimon/bild v0.14.0
-	github.com/emer/emergent/v2 v2.0.0-dev0.1.11
+	github.com/emer/emergent/v2 v2.0.0-dev0.1.12
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -30,7 +30,7 @@ require (
 	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/oliverbestmann/webgpu v1.33.4 // indirect
+	github.com/oliverbestmann/webgpu v1.33.5-0.20260523154840-fa113c1fb662 // indirect
 	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15 // indirect
 	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260509160802-b09403b07cd3 // indirect
 	github.com/oliverbestmann/webgpu/libs-ios v0.0.0-20260509160803-765e39d2a48b // indirect
